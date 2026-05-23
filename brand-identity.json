@@ -1,0 +1,92 @@
+{
+  "$schema": "https://json-schema.org/draft-07/schema#",
+  "_comment": "Single source of truth for Luxury Authenticator brand identity. Both main app and marketing landing repos must reference these values.",
+  "version": 1,
+  "lastUpdated": "2026-05-21",
+  "brand": {
+    "displayName": "Luxury Authenticator",
+    "subtitle": "AI Luxury Watch Identifier & Authenticator",
+    "tagline": "Verify authenticity and estimate resale values in seconds",
+    "operator": "Kritsada Yuwathanont (individual)"
+  },
+  "domain": {
+    "primary": "luxuryauthenticator.app",
+    "url": "https://luxuryauthenticator.app",
+    "purchasedAt": "2026-05-21",
+    "registrar": "Cloudflare",
+    "annualCost": 500
+  },
+  "email": {
+    "support": "support@luxuryauthenticator.app",
+    "privacy": "privacy@luxuryauthenticator.app",
+    "legal": "legal@luxuryauthenticator.app",
+    "dpo": "dpo@luxuryauthenticator.app",
+    "breach": "breach@luxuryauthenticator.app",
+    "admin": "admin@luxuryauthenticator.app"
+  },
+  "social": {
+    "line": {
+      "handle": "@luxuryauth",
+      "tier": "premium",
+      "annualCost": 475,
+      "renewsAt": "2027-05-01",
+      "addFriendUrl": "https://line.me/R/ti/p/@luxuryauth"
+    },
+    "facebook": {
+      "handle": "@luxuryauthapp",
+      "pageId": "1209384729013840",
+      "url": "https://facebook.com/luxuryauthapp"
+    },
+    "tiktok": {
+      "handle": "@luxuryauthenticator",
+      "status": "pending"
+    },
+    "instagram": {
+      "handle": "@luxuryauthenticator",
+      "status": "pending"
+    }
+  },
+  "launch": {
+    "android": {
+      "date": "2026-06-01",
+      "store": "Google Play",
+      "developerName": "Luxury Authenticator",
+      "developerId": "6154220577398985495",
+      "status": "pending"
+    },
+    "ios": {
+      "date": "2026-07-01",
+      "store": "App Store",
+      "status": "pending"
+    }
+  },
+  "publicUrls": {
+    "privacyPolicy": "https://luxuryauthenticator.app/privacy",
+    "termsOfService": "https://luxuryauthenticator.app/terms",
+    "brandIdentityJson": "https://luxuryauthenticator.app/brand-identity.json"
+  },
+  "constants": {
+    "scanDurationSecondsClaim": 15,
+    "auctionSitesCountClaim": 18,
+    "authGuideArticlesCountClaim": 24,
+    "aiModelsClaim": {
+      "free": 2,
+      "standard": 4,
+      "pro": 7,
+      "premium": 12
+    }
+  },
+  "offLimitsCopyRules": {
+    "rule1_noHumanWatchmakerCompare": {
+      "description": "Never antagonize professional watchmaker communities or brand Authorized Dealers (ADs)",
+      "forbiddenPhrases": ["better than an AD", "replaces watchmakers", "more accurate than a human expert", "AD killer"],
+      "appliesTo": ["marketing copy", "landing page", "app strings", "social captions"]
+    },
+    "rule2_noDbCount": {
+      "description": "Never claim specific database size to mitigate IP and scraping liability",
+      "forbiddenPhrases": ["database size", "60000+", "reference set size", "50000+ watches"],
+      "appliesTo": ["marketing copy", "landing page", "app strings"],
+      "exceptions": ["privacy.html", "terms.html", "legal docs"]
+    }
+  }
+}

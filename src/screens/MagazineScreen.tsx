@@ -1,0 +1,1208 @@
+import React, { useState } from 'react';
+import {
+  View,
+  Text,
+  StyleSheet,
+  ScrollView,
+  Pressable,
+  Dimensions,
+  Modal,
+  SafeAreaView,
+  Image,
+} from 'react-native';
+import { Feather, Ionicons } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
+import { colors, spacing, radius } from '../lib/theme';
+import { useLanguage } from '../lib/localization';
+
+const { width: SCREEN_WIDTH } = Dimensions.get('window');
+
+interface Article {
+  id: string;
+  category: string; // Brand (e.g. Rolex, Patek Philippe)
+  editorialCategory: 'Watch Guide' | 'Watch Technology';
+  title: string;
+  subtitle: string;
+  readingTime: string;
+  author: string;
+  imageUrl: string;
+  icon: string;
+  illustrationColors: string[];
+  thaiContent: {
+    origin: string; // Intro & History
+    innovations: string; // Dynamic Tech & Collecting Secrets
+    legends: string; // Iconic References
+  };
+}
+
+const MAGAZINE_ARTICLES: Article[] = [
+  {
+    id: '1',
+    category: 'Rolex',
+    editorialCategory: 'Watch Guide',
+    title: 'คู่มือการสะสม Rolex Submariner: แนะนำจุดสังเกตและรหัสอ้างอิงยอดนิยม',
+    subtitle: 'การเลือกซื้อมหาสมุทรเหล็กกล้าผ่านเจเนอเรชันต่างๆ เพื่อการสะสมที่มั่นคงที่สุด',
+    readingTime: '6 นาที',
+    author: 'Chrono24 Senior Watch Editor',
+    imageUrl: 'https://images.unsplash.com/photo-1547996160-81dfa63595aa?auto=format&fit=crop&w=600&q=80',
+    icon: 'compass',
+    illustrationColors: ['#0A2A1B', '#114D32', '#ECC87A'],
+    thaiContent: {
+      origin: 'Rolex Submariner เปิดตัวครั้งแรกในปี 1953 (รหัส Ref. 6204) ในฐานะนาฬิกาดำน้ำยุคบุกเบิกที่สามารถกันน้ำได้ลึกถึง 100 เมตร และกลายเป็นต้นแบบมาตรฐานของนาฬิกาดำน้ำสมัยใหม่ทั้งหมด ด้วยขอบเบเซลหมุนได้สำหรับการคำนวณเวลาใต้น้ำและหน้าปัดสีดำที่ตัดกับเข็มพรายน้ำอย่างชัดเจน ตลอดระยะเวลาเจ็ดทศวรรษ Submariner ได้รับการพัฒนาอย่างสม่ำเสมอ แต่ยังคงรักษาดีเอ็นเอของความทนทานและความหรูหราไว้อย่างสมบูรณ์แบบ',
+      innovations: 'สำหรับนักสะสมมือใหม่และมือโปร ปัจจัยสำคัญในการเลือกซื้อคือการทำความเข้าใจความต่างระหว่างรุ่นมีวันที่ (Date) และไม่มีวันที่ (No Date) รวมถึงความก้าวหน้าทางวิศวกรรมจากเครื่องกลไกยุคเก่าในรหัส Caliber 3135 ไปสู่ Caliber 3235 ในเจเนอเรชันล่าสุดที่เพิ่มพลังสำรองลานเป็น 70 ชั่วโมง ขอบเบเซลวัสดุอลูมิเนียมในรุ่นวินเทจถูกทดแทนด้วยเซรามิกสิทธิบัตร "Cerachrom" ที่ทนทานต่อรอยขีดข่วนและการซีดจางจากแสงแดดอย่างสมบูรณ์',
+      legends: 'รหัสอ้างอิงยอดนิยมในตลาดระดับตำนาน ได้แก่ Ref. 16610 (รุ่นคลาสสิกขอบอลูมิเนียม), Ref. 116610LN (รุ่นขอบเซรามิคตัวเรือนหนา "Super Case"), และรหัสล่าสุด Ref. 126610LN ขนาด 41 มม. นอกจากนี้ยังมีรุ่นสีพิเศษที่เป็นที่ต้องการสูงสุดอย่างสีเขียว "Kermit" (16610LV), สีเขียวล้วน "Hulk" (116610LV) และรุ่นหน้าเขียวขอบเขียวล่าสุด "Starbucks" (126610LV) ซึ่งมีราคาซื้อขายในตลาดรองสูงเป็นอันดับต้นๆ',
+    },
+  },
+  {
+    id: '2',
+    category: 'Patek Philippe',
+    editorialCategory: 'Watch Technology',
+    title: 'ถอดรหัส Spiromax & Gyromax: ความลับเบื้องหลังความเที่ยงตรงขีดสุดของ Patek Philippe',
+    subtitle: 'นวัตกรรมวัสดุศาสตร์และวิศวกรรมจักรกลที่ปฏิวัติวงการนาฬิกาชั้นสูงของสวิส',
+    readingTime: '5 นาที',
+    author: 'Master Horologist Specialist',
+    imageUrl: 'https://images.unsplash.com/photo-1614162692292-7ac56d7f7f1e?auto=format&fit=crop&w=600&q=80',
+    icon: 'cpu',
+    illustrationColors: ['#1C2A39', '#2E4C6D', '#7FA9D1'],
+    thaiContent: {
+      origin: 'หัวใจสำคัญของการทำงานในนาฬิกาจักรกลทุกเรือนคือชุดปล่อยจักร (Escapement) และจักรกรอก (Balance Wheel) ซึ่งทำหน้าที่ควบคุมจังหวะการเดินรถไฟล้อเฟืองให้เที่ยงตรง Patek Philippe ได้อุทิศการวิจัยนับสิบปีเพื่อพัฒนาและจดสิทธิบัตรนวัตกรรมชิ้นส่วนสำคัญที่จะเข้ามารับมือกับแรงโน้มถ่วง ความร้อน และสนามแม่เหล็ก ซึ่งเป็นอุปสรรคสำคัญต่อความเที่ยงตรงของนาฬิกาโบราณ',
+      innovations: 'สองเทคโนโลยีที่เป็นหัวใจหลัก of Patek Philippe ได้แก่: 1. "Gyromax Balance" ซึ่งเปิดตัวในปี 1951 เป็นระบบควบคุมจักรกรอกโดยใช้การหมุนลูกตุ้มน้ำหนักขนาดเล็ก (Eccentric weights) บนขอบจักรแทนการใช้สกรูปรับความตึงแบบเดิม ช่วยลดแรงต้านอากาศและเพิ่มประสิทธิภาพการแกว่ง 2. "Spiromax Hairspring" เปิดตัวในปี 2006 เป็นใยสปริงที่ทำจากวัสดุ "Silinvar" (ซิลิกอนเคลือบออกไซด์) ปราศจากผลกระทบจากสนามแม่เหล็กและการเปลี่ยนแปลงของอุณหภูมิ มีน้ำหนักเบาเป็นพิเศษ และไม่ต้องการน้ำมันหล่อลื่น',
+      legends: 'นวัตกรรมระบบนี้ถูกติดตั้งอยู่ในกลไกไขลานอัตโนมัติระดับไอคอนิกเกือบทั้งหมดของแบรนด์ อาทิ Caliber 324 S C, Caliber 26-330 S C (ที่ขับเคลื่อน Nautilus Ref. 5711 รุ่นหลัง และรุ่นทายาท 5811) รวมถึงกลไกระดับ Grand Complications เครื่อง Caliber 240 ทำให้นาฬิกาทุกเรือนที่ผ่านตราประทับ "Patek Philippe Seal" มีความคลาดเคลื่อนเพียง -3 ถึง +2 วินาทีต่อวันเท่านั้น',
+    },
+  },
+  {
+    id: '3',
+    category: 'Audemars Piguet',
+    editorialCategory: 'Watch Guide',
+    title: 'ทางเลือกคู่ขนาน Royal Oak: 3 สุดยอดนาฬิกาสปอร์ตหรูดีเอ็นเอการออกแบบของ Gerald Genta',
+    subtitle: 'ค้นหาความคุ้มค่าและศิลปะเรือนเวลาสปอร์ตหรูหราที่มีกลิ่นอายประวัติศาสตร์ระดับสากล',
+    readingTime: '5 นาที',
+    author: 'Luxury Timepiece Appraiser',
+    imageUrl: 'https://images.unsplash.com/photo-1522312346375-d1a52e2b99b3?auto=format&fit=crop&w=600&q=80',
+    icon: 'grid',
+    illustrationColors: ['#2C2721', '#5A4E40', '#D4AF37'],
+    thaiContent: {
+      origin: 'Audemars Piguet Royal Oak ที่เปิดตัวในปี 1972 ถือเป็นจุดเปลี่ยนครั้งใหญ่ที่ทำให้ตลาดนาฬิกาสปอร์ตเหล็กกล้าก้าวขึ้นมาเทียบชั้นโลหะมีค่า อย่างไรก็ตาม ด้วยระดับราคาตลาดรองที่พุ่งสูงและความพร้อมในการจับจองที่จำกัด ทำให้นักสะสมจำนวนมากหันมามองหานาฬิกาสปอร์ตหรูหราที่มีประวัติศาสตร์และดีเอ็นเอการออกแบบที่ใกล้เคียงกัน',
+      innovations: 'หัวใจในการพิจารณาเลือกนาฬิกาประเภท "Luxury Steel Sports Watch with Integrated Bracelet" (นาฬิกาสปอร์ตสายเชื่อมต่อตัวเรือนไร้รอยต่อ) คือความซับซ้อนของการขัดแต่งหน้าปัด ลวดลายบนขอบหน้าปัดเฉพาะตัว และกลไกภายในที่ทนทานลุยหนักได้จริง การมองหาชิ้นงานที่ออกแบบโดย Gerald Genta หรือได้รับแรงบันดาลใจโดยตรงจะช่วยคงรสนิยมและความพึงพอใจในการสวมใส่ได้อย่างดีเยี่ยม',
+      legends: '3 ทางเลือกที่ยอดเยี่ยมที่สุดได้แก่: 1. Girard-Perregaux Laureato (คู่แข่งที่เปิดตัวปี 1975 โดดเด่นด้วยขอบแปดเหลี่ยมซ้อนบนวงกลมและหน้าปัดลาย Clous de Paris) 2. IWC Ingenieur Automatic 40 (รหัส Ref. IW3289 ที่ได้รับการฟื้นฟูโดยปรับดีไซน์แบบ SL ของ Genta จากทศวรรษ 1970 อย่างประณีต) และ 3. Vacheron Constantin Overseas (Ref. 4500V มีจุดเด่นด้วยขอบหน้าปัดมอลตาครอสและสายขัดลายเงาสลับด้านสุดหรู)',
+    },
+  },
+  {
+    id: '4',
+    category: 'Omega',
+    editorialCategory: 'Watch Technology',
+    title: 'ทางรอดของแรงเสียดทาน: เจาะลึกกลไก Co-Axial Escapement ของ Omega',
+    subtitle: 'จากนวัตกรรมที่ถูกปฏิเสธโดยเกือบทุกแบรนด์สู่กลไกที่ล้มล้างระบบปล่อยจักรดั้งเดิมในรอบ 250 ปี',
+    readingTime: '5 นาที',
+    author: 'Aviation & Space Horology Specialist',
+    imageUrl: 'https://images.unsplash.com/photo-1509048191080-d2984bad6ae5?auto=format&fit=crop&w=600&q=80',
+    icon: 'zap',
+    illustrationColors: ['#2F1D1C', '#803429', '#E74C3C'],
+    thaiContent: {
+      origin: 'นับตั้งแต่ทศวรรษที่ 1750 นาฬิกาจักรกลเกือบทั้งหมดในโลกใช้ระบบปล่อยจักรแบบสวิสเลเวอร์ (Swiss Lever Escapement) ซึ่งเป็นตัวส่งพลังงานจากลานหลักไปยังจักรกรอก แม้จะทำงานได้ดีแต่ก็มีข้อเสียร้ายแรงคือแรงเสียดทานจากการเลื่อนไถลของชิ้นส่วน ทำให้ต้องการน้ำมันหล่อลื่นเป็นประจำและน้ำมันจะเสื่อมสภาพตามเวลา ส่งผลให้นาฬิกาเดินเพี้ยนไปเรื่อยๆ',
+      innovations: 'ในปี 1970 George Daniels ช่างทำนาฬิกาอิสระอัจฉริยะชาวอังกฤษได้ประดิษฐ์ "Co-Axial Escapement" (ระบบปล่อยจักรแบบร่วมแกน) โดยใช้วงล้อจับเวลาซ้อนกันสองชั้นและพาเลทหินเจียรสามเม็ด ทำงานโดยการส่งพลังงานผ่านแรงผลักในแนวรัศมีแทนการเลื่อนไถล ทำให้แรงเสียดทานลดลงอย่างมหาศาล แทบไม่ต้องใช้น้ำมันหล่อลื่น รักษาความเที่ยงตรงได้ยาวนานขึ้นและยืดอายุการเข้ารับบริการล้างเครื่องได้นานกว่าเดิมเกือบเท่าตัว ทว่าในยุคแรกเขานำไอเดียนี้ไปเสนอกลุ่มทุนชั้นนำหลายรายแต่ถูกปฏิเสธ จนกระทั่ง Omega มองเห็นอนาคตและเข้าซื้อสิทธิบัตรเพื่อพัฒนาร่วมกัน',
+      legends: 'Omega เปิดตัวนาฬิกากลไก Co-Axial รุ่นแรกในปี 1999 ภายใต้เครื่อง Caliber 2500 และปัจจุบันได้สถาปนากลไกตระกูล Caliber 8900 และ Caliber 3861 ในรุ่น Moonwatch ซึ่งนอกจากจะใช้ระบบ Co-Axial แล้ว ยังได้รับการรับรองมาตรฐาน "Master Chronometer" จากสถาบัน METAS ที่รับประกันประสิทธิภาพการกันสนามแม่เหล็กสูงถึง 15,000 Gauss สร้างความโดดเด่นระดับผู้นำอุตสาหกรรมในยุคปัจจุบัน',
+    },
+  },
+  {
+    id: '5',
+    category: 'Cartier',
+    editorialCategory: 'Watch Guide',
+    title: 'Cartier Santos: ย้อนประวัติศาสตร์นาฬิกาข้อมือชายรุ่นแรกของโลกและมนต์เสน่ห์ความคลาสสิก',
+    subtitle: 'ถอดรหัสเรือนเวลาเหลี่ยมมุมสไตล์อาร์ตเดโคที่สร้างสรรค์ขึ้นมาเพื่อการขึ้นบินเหนือน่านฟ้า',
+    readingTime: '4 นาที',
+    author: 'Fine Art & Jewelry Specialist',
+    imageUrl: 'https://images.unsplash.com/photo-1524592094714-0f0654e20314?auto=format&fit=crop&w=600&q=80',
+    icon: 'award',
+    illustrationColors: ['#1C1613', '#6E5D4F', '#A39081'],
+    thaiContent: {
+      origin: 'ในปี 1904 Alberto Santos-Dumont นักบินชาวบราซิลผู้มีชื่อเสียงโด่งดังได้ปรับทุกข์กับ Louis Cartier เพื่อนสนิทของเขาว่า การใช้กระเป๋านาฬิกาพก (Pocket Watch) ระหว่างขึ้นบินเครื่องบินยุคบุกเบิกนั้นยากลำบากและอันตรายมากเพราะต้องละมือจากคันบังคับเพื่อเปิดดูเวลา Louis Cartier จึงรังสรรค์นาฬิกาสำหรับสวมใส่บนข้อมือโดยเฉพาะขึ้นมา และนั่นคือจุดเริ่มต้นของนาฬิกาข้อมือสำหรับสุภาพบุรุษรุ่นแรกและนาฬิกานักบินเรือนแรกของโลก',
+      innovations: 'สิ่งที่ทำให้ Cartier Santos แตกต่างอย่างโดดเด่นในยุคทองคำขาวคือรูปทรงตัวเรือนทรงสี่เหลี่ยมจัตุรัสที่มีมุมโค้งมน (Square design with rounded corners) สวนทางกับกระแสความนิยมนาฬิกาทรงกลมทั่วไปในยุคนั้น พร้อมการโชว์หมุดสกรู 8 ตัวรอบขอบเบเซลซึ่งได้แรงบันดาลใจจากสถาปัตยกรรมเหล็กกล้าและขาหอไอเฟลในปารีส (ศิลปะ Art Deco) การสวมใส่สายเหล็กถักที่มีเอกลักษณ์เฉพาะตัวและระบบถอดเปลี่ยนสายได้ง่ายในตัว (QuickSwitch & SmartLink) ในรุ่นปัจจุบัน',
+      legends: 'จากรุ่นดั้งเดิมส่งต่อสู่ Cartier Santos Galbée ในปี 1987 และนำมาปัดฝุ่นใหม่ในคอลเลกชันปัจจุบันอย่าง Santos de Cartier ขนาด Medium และ Large รวมถึง Santos-Dumont รุ่นดั้งเดิมในรหัสตัวเรือนทองคำพรีเมียม ถือเป็นผลงานศิลปะชิ้นสำคัญที่นักสะสมทุกระดับต้องมีไว้ในครอบครองเพื่อแสดงออกถึงรสนิยมและความคลาสสิกอันไร้ขีดจำกัด',
+    },
+  },
+  {
+    id: '6',
+    category: 'Rolex',
+    editorialCategory: 'Watch Technology',
+    title: 'นวัตกรรมวัสดุศาสตร์ของ Rolex: ทำความรู้จัก Cerachrom, Oystersteel และสปริงใยแก้ว Syloxi',
+    subtitle: 'เจาะลึกองค์ประกอบแห่งความทนทานและการวิจัยระดับห้องปฏิบัติการลับเฉพาะตัว',
+    readingTime: '5 นาที',
+    author: 'Metallurgical Horology Expert',
+    imageUrl: 'https://images.unsplash.com/photo-1619134778706-7015533a6150?auto=format&fit=crop&w=600&q=80',
+    icon: 'shield',
+    illustrationColors: ['#0A2A1B', '#9A7326', '#ECC87A'],
+    thaiContent: {
+      origin: 'ชื่อเสียงด้านความคงกระพันทนทานต่อแรงกระแทก แรงกดใต้น้ำ และการกัดกร่อนจากน้ำทะเลของ Rolex ไม่ได้เกิดขึ้นมาโดยบังเอิญ แต่เกิดจากการที่แบรนด์สร้างโรงหล่อโลหะและห้องวิจัยวัสดุศาสตร์เป็นของตนเองในสวิตเซอร์แลนด์ เพื่อควบคุมคุณภาพโครงสร้างโมเลกุลของทุกตารางมิลลิเมตรบนตัวเรือนให้ได้มาตรฐานสูงสุดระดับเวิลด์คลาส',
+      innovations: 'Rolex พัฒนาและจดสิทธิบัตรวัสดุเฉพาะตัว 3 ประเภทเด่น ได้แก่: 1. "Oystersteel" (สเตนเลสสตีลเกรด 904L) ซึ่งแตกต่างจากเหล็ก 316L ที่แบรนด์อื่นใช้ โดยสตีลเกรดนี้จะใช้ในอุตสาหกรรมเทคโนโลยีขั้นสูง เคมี และอวกาศ ทนทานต่อการกัดกร่อนสูงเป็นพิเศษและขัดเงาได้งดงามเป็นประกาย 2. "Cerachrom Bezel" ขอบเซรามิกสูตรเฉพาะที่ทนต่อรอยขีดข่วน แสงยูวี และการกัดกร่อน ตัวเลขบนขอบจะถูกเคลือบด้วยทองคำหรือแพลทินัมบางเฉียบผ่านกระบวนการ PVD 3. "Syloxi Hairspring" ใยสปริงซิลิกอนประสิทธิภาพสูงที่เปิดตัวในปี 2014 ออกแบบมาเฉพาะสำหรับกลไกขนาดเล็กของสุภาพสตรี เพื่อป้องกันแรงกระแทกและสนามแม่เหล็กได้อย่างสมบูรณ์แบบ',
+      legends: 'วัสดุเหล่านี้ถูกติดตั้งในกลุ่มนาฬิกาสปอร์ตมืออาชีพยอดนิยมทั้งหมด เช่น Rolex Submariner Ref. 126610LN, GMT-Master II "Pepsi" (ขอบสองสี Cerachrom สีน้ำเงิน/แดง รหัส Ref. 126710BLRO) และ Rolex Daytona ตัวเรือน Oystersteel หน้าปัดแพนด้า รหัส Ref. 126500LN ซึ่งผสานเทคโนโลยีและงานศิลปะวิศวกรรมชั้นสูงเข้าด้วยกันอย่างลงตัวที่สุด',
+    },
+  },
+  {
+    id: '7',
+    category: 'Seiko',
+    editorialCategory: 'Watch Guide',
+    title: 'เริ่มต้นสะสมอย่างไรดี? แนะนำ 3 นาฬิกาหรูรุ่นเริ่มต้นงบไม่เกิน 70,000 บาทสำหรับนักสะสมมือใหม่',
+    subtitle: 'คู่มือเลือกนาฬิกาเรือนแรกที่มีมูลค่าคงตัว คลาสสิก และน่าเกรงขามในกลุ่มสังคมสากล',
+    readingTime: '4 นาที',
+    author: 'Horology Collection Advisor',
+    imageUrl: 'https://images.unsplash.com/photo-1539874754764-5a96559165b0?auto=format&fit=crop&w=600&q=80',
+    icon: 'star',
+    illustrationColors: ['#1A2530', '#2E4C6D', '#ECC87A'],
+    thaiContent: {
+      origin: 'การก้าวเข้าสู่โลกแห่งการสะสมนาฬิกาหรูเป็นเรื่องที่น่าตื่นเต้น แต่ก็อาจสร้างความสับสนให้กับมือใหม่ได้ง่าย เนื่องจากประเภทกลไก ราคา และความคุ้มค่าที่หลากหลาย นักสะสมมือใหม่มักจะมองหา "นาฬิกาอเนกประสงค์" (Everyday Watch) ที่สามารถสวมใส่ได้ทั้งในชีวิตประจำวัน ออกงานสังคม และรักษามูลค่าได้ดีในตลาดรอง',
+      innovations: 'กลยุทธ์สำคัญในการเริ่มต้นสะสมคือการมองหาแบรนด์ที่มีประวัติศาสตร์มั่นคง มีฐานผู้ใช้ทั่วโลก และเลือกใช้กลไกอัตโนมัติ (Automatic) ที่มีมาตรฐานความเที่ยงตรงน่าเชื่อถือสูง ขอบตัวเรือนและการขัดขัดเงาที่ประณีตสอดรับกับขนาดข้อมือตั้งแต่ 38 มม. ถึง 41 มม. ซึ่งจัดเป็นพิมพ์นิยมตลอดกาล',
+      legends: '3 รุ่นที่ได้รับความนิยมสูงสุดในงบไม่เกิน 70,000 บาท (ประมาณ $2,000) ได้แก่: 1. Seiko Prospex Alpinist SPB121J1 (หน้าปัดเขียวเข็มทองคำอันเป็นตำนาน โดดเด่นด้วยขอบเข็มทิศทิศทางหมุนรอบทิศด้านในและกลไกคาลิเบอร์ 6R35 สำรองพลังงาน 70 ชั่วโมง) 2. Tissot PRX Powermatic 80 (นาฬิกาสปอร์ตสายเชื่อมต่อตัวเรือนสไตล์ 70s ที่ฮิตถล่มทลายทั่วโลกด้วยกลไกสำรองลาน 80 ชั่วโมง) และ 3. Hamilton Khaki Field Auto (นาฬิกาสไตล์ทหารวินเทจ สุดทนทานและมีความคลาสสิกเหนือกาลเวลา)',
+    },
+  },
+  {
+    id: '8',
+    category: 'Patek Philippe',
+    editorialCategory: 'Watch Technology',
+    title: 'เปรียบเทียบกลไกปฏิทินถาวร (Perpetual Calendar) และปฏิทินรายปี (Annual Calendar) ทำงานต่างกันอย่างไร?',
+    subtitle: 'ศึกประชันความชาญฉลาดทางคณิตศาสตร์จักรกลและการก้าวข้ามขีดจำกัดเดือนกุมภาพันธ์',
+    readingTime: '5 นาที',
+    author: 'Grand Complications Specialist',
+    imageUrl: 'https://images.unsplash.com/photo-1639006570490-79c0c53f1080?auto=format&fit=crop&w=600&q=80',
+    icon: 'calendar',
+    illustrationColors: ['#231F1C', '#4A3E3D', '#D4AF37'],
+    thaiContent: {
+      origin: 'หนึ่งในความซับซ้อนระดับสูง (Grand Complications) ของวงการนาฬิกาจักรกลคือการแสดงข้อมูลวันที่ เดือน และข้างขึ้นข้างแรมอย่างถูกต้อง เนื่องจากเดือนทั่วไปมีทั้ง 30 และ 31 วัน รวมถึงเดือนกุมภาพันธ์ที่มี 28 วัน หรือ 29 วันในทุกๆ 4 ปี (ปีอธิกสุรทิน หรือ Leap Year) การที่นาฬิกาจักรกลที่ขับเคลื่อนด้วยลานฟันเฟืองล้วนๆ จะสามารถจดจำตัวเลขเหล่านี้ได้โดยไม่ต้องปรับแต่งตัวเอง ถือเป็นศิลปะวิศวกรรมที่ยอดเยี่ยมที่สุด',
+      innovations: 'ความแตกต่างทางวิศวกรรมที่ชัดเจนมีดังนี้: 1. "Annual Calendar" (ปฏิทินรายปี) คิดค้นโดย Patek Philippe ในปี 1996 สามารถคำนวณเดือนที่มี 30 และ 31 วันได้ถูกต้องโดยอัตโนมัติ ทว่ายังไม่สามารถคำนวณเดือนกุมภาพันธ์ได้ ทำให้นักสะสมต้องปรับตั้งนาฬิกาด้วยมือเพียงปีละ 1 ครั้งในวันที่ 1 มีนาคม 2. "Perpetual Calendar" (ปฏิทินถาวร) เป็นกลไกที่ก้าวไปอีกขั้น โดยมีล้อเฟืองคำนวณรอบ 4 ปีติดตั้งอยู่ภายใน สามารถคำนวณเดือนกุมภาพันธ์และปีอธิกสุรทินได้ถูกต้องอย่างสมบูรณ์แบบโดยไม่ต้องปรับแต่งใดๆ เลยตราบจนถึงปี 2100',
+      legends: 'นาฬิกาปฏิทินถาวรที่ได้รับการยอมรับสูงสุด ได้แก่ Patek Philippe Ref. 5327G หรือกลไกปฏิทินรายปีรุ่นดั้งเดิมในรหัส Ref. 5396G ด้าน Audemars Piguet ก็นำเสนอความสุดยอดผ่าน Royal Oak Perpetual Calendar Ref. 26574ST ชิ้นงานเหล่านี้ถือเป็นยอดมงกุฎแห่งความฝันของนักสะสมทั่วโลก',
+    },
+  },
+  {
+    id: '9',
+    category: 'Grand Seiko',
+    editorialCategory: 'Watch Guide',
+    title: 'Grand Seiko Spring Drive: สุดยอดนวัตกรรมลูกผสมระหว่างกลไกจักรกลและความเที่ยงตรงของควอตซ์',
+    subtitle: 'การเคลื่อนที่ของเข็มวินาทีแบบลื่นไหลไร้รอยสะดุดประดุจสายน้ำไหลและกาลเวลาที่แท้จริง',
+    readingTime: '5 นาที',
+    author: 'Eastern Horology Specialist',
+    imageUrl: 'https://images.unsplash.com/photo-1612817288484-6f916006741a?auto=format&fit=crop&w=600&q=80',
+    icon: 'settings',
+    illustrationColors: ['#1C222E', '#3D4A5E', '#A5B1C2'],
+    thaiContent: {
+      origin: 'ในปี 1977 Yoshikazu Akahane วิศวกรหนุ่มชาวญี่ปุ่นของ Seiko มีความฝันที่จะรังสรรค์นาฬิกาที่แสดงสุนทรียศาสตร์ของกาลเวลาอย่างสมบูรณ์แบบด้วยเข็มวินาทีที่กวาดไปอย่างต่อเนื่องและเรียบเนียนที่สุด โดยยังคงใช้ลานจักรกลหลักเป็นแหล่งพลังงานเพื่อไม่ต้องพึ่งพาแบตเตอรี่ เขาใช้เวลาทดลองวิจัยนานกว่า 28 ปีล้มเหลวไปกว่า 600 ครั้ง จนในที่สุดนวัตกรรม "Spring Drive" ก็ได้ถือกำเนิดขึ้นอย่างเป็นทางการในปี 1999',
+      innovations: 'กลไก Spring Drive ทำงานโดยใช้ลานสปริงแบบกลไกปกติในการกักเก็บพลังงาน แต่จุดที่สร้างความสั่นสะเทือนคือการเปลี่ยนจักรกรอก (Balance Wheel) และชุดปล่อยจักร (Escapement) แบบโบราณ ออกไป แล้วแทนที่ด้วยกลไก "Tri-synchro Regulator" ซึ่งใช้พลังงานจากการคลายตัวของลานหลักมาปั่นเป็นกระแสไฟฟ้าขนาดเล็กเหนี่ยวนำแม่เหล็กไฟฟ้าเพื่อควบคุมความเร็วการหมุนของวงล้อ Glide Wheel ทำงานร่วมกับผลึกควอตซ์จับเวลา ทำให้เข็มวินาทีกวาดเรียบเนียนประดุจสายน้ำและมีความแม่นยำสูงเหลือเชื่อ คลาดเคลื่อนไม่เกิน +-1 วินาทีต่อวัน',
+      legends: 'นาฬิกาที่สร้างชื่อเสียงกระฉ่อนโลกของนวัตกรรมนี้คือ Grand Seiko SBGA211 "Snowflake" หน้าปัดลายหิมะสีขาวพิสุทธิ์ทำจากไทเทเนียมน้ำหนักเบาเป็นพิเศษ และ Grand Seiko SBGA413 "Shunbun" หน้าปัดสีชมพูอ่อนลายกลีบดอกซากุระร่วงหล่น ซึ่งเป็นตัวแทนความงามระดับสูงจากแดนอาทิตย์อุทัย',
+    },
+  },
+  {
+    id: '10',
+    category: 'Audemars Piguet',
+    editorialCategory: 'Watch Technology',
+    title: 'ตูร์บิยง (Tourbillon): กลไกท้าทายแรงโน้มถ่วงของโลก ยังจำเป็นอยู่ไหมในนาฬิกายุคปัจจุบัน?',
+    subtitle: 'จากนวัตกรรมช่วยชีวิตนาฬิกาพกของเบรเกต์สู่สัญลักษณ์แห่งสถานะและความหรูหราขีดสุด',
+    readingTime: '5 นาที',
+    author: 'Grand Complication Historian',
+    imageUrl: 'https://images.unsplash.com/photo-1600857544200-b2f666a9a2ec?auto=format&fit=crop&w=600&q=80',
+    icon: 'wind',
+    illustrationColors: ['#201C1A', '#4A3525', '#ECC87A'],
+    thaiContent: {
+      origin: 'ในช่วงปลายศตวรรษที่ 18 นาฬิกาส่วนใหญ่เป็นนาฬิกาพกที่มักถูกแขวนไว้ในแนวตั้งภายในกระเป๋าเสื้อ ทำให้แรงโน้มถ่วงของโลกดึงรั้งใยสปริงและจักรกรอกให้บิดเบี้ยวและแกว่งไม่สม่ำเสมอ ส่งผลให้นาฬิกาเดินคลาดเคลื่อนได้ง่าย ในปี 1801 Abraham-Louis Breguet ช่างทำนาฬิกาผู้ยิ่งใหญ่ที่สุดในประวัติศาสตร์ ได้คิดค้นและจดสิทธิบัตร "Tourbillon" (ภาษาฝรั่งเศสแปลว่า พายุหมุน) เพื่อแก้ปัญหานี้',
+      innovations: 'หลักการทำงานของตูร์บิยงคือการนำเอาชุดปล่อยจักร (Escapement) และจักรกรอก (Balance Wheel) ทั้งหมดบรรจุลงในกรงหมุนเหล็กกล้าขนาดจิ๋ว (Cage) ที่สามารถหมุนรอบตัวเองครบรอบทุกๆ 1 นาที การหมุนรอบทิศทางนี้จะช่วยเฉลี่ยและชดเชยแรงดึงรั้งจากสนามโน้มถ่วงของโลกให้เท่ากันทุกทิศทาง ส่งผลให้นาฬิกาคงความแม่นยำสูงสุดไว้ได้ ปัจจุบันในยุคนาฬิกาข้อมือที่มีการขยับสลับตำแหน่งตลอดเวลา ตูร์บิยงไม่ได้มีความจำเป็นในการรักษาความแม่นยำมากเหมือนในอดีต แต่กลับกลายมาเป็นดัชนีชี้วัดทักษะฝีมือขั้นสูงสุดของแบรนด์นาฬิกา',
+      legends: 'นาฬิกาตูร์บิยงในปัจจุบันเป็นเครื่องหมายแห่งความหรูหราอลังการ เช่น Audemars Piguet Royal Oak Double Balance Wheel Openworked หรือรุ่นตูร์บิยงลอยฟ้าบางเฉียบเป็นพิเศษ (Extra-Thin Flying Tourbillon Ref. 26530ST) และรุ่นประวัติศาสตร์จากผู้คิดค้นดั้งเดิมอย่าง Breguet Classique Tourbillon ซึ่งมีมูลค่าสะสมและการซื้อขายในระดับหลายล้านบาทต่อเรือน',
+    },
+  },
+  {
+    id: '11',
+    category: 'Tudor',
+    editorialCategory: 'Watch Guide',
+    title: 'ทำไม Tudor Black Bay ถึงเป็นนาฬิกาดำน้ำย้อนยุคที่คุ้มค่าที่สุดในงบแสนต้น',
+    subtitle: 'ถอดประวัติศาสตร์แบรนด์น้องของ Rolex และการยกระดับสู่สัญญาลักษณ์ความสมบุกสมบันที่เป็นเอกลักษณ์',
+    readingTime: '5 นาที',
+    author: 'Tudor Collection Specialist',
+    imageUrl: 'https://images.unsplash.com/photo-1622434641406-a158123450f9?auto=format&fit=crop&w=600&q=80',
+    icon: 'anchor',
+    illustrationColors: ['#1C1C1C', '#8A1515', '#ECC87A'],
+    thaiContent: {
+      origin: 'Tudor ก่อตั้งขึ้นในปี 1926 โดย Hans Wilsdorf ผู้ก่อตั้ง Rolex เพื่อนำเสนอทางเลือกนาฬิกาคุณภาพสูงที่มีความทนทานของตัวเรือนและสายระดับเดียวกับ Rolex แต่ใช้เครื่องกลไกภายนอกที่ราคาเข้าถึงได้ง่ายกว่า ในยุคปัจจุบัน Tudor ได้สร้างตัวตนที่แข็งแกร่งอย่างเป็นเอกราช นำเสนอนวัตกรรมการดีไซน์วินเทจย้อนยุคที่ดึงดูดใจผู้สะสมรุ่นใหม่',
+      innovations: 'ซีรีส์ Black Bay ที่เปิดตัวในปี 2012 นำองค์ประกอบระดับตำนานจากประวัติศาสตร์ของแบรนด์มารวมกัน อาทิ เม็ดมะยมขนาดใหญ่แบบไม่มีการ์ด (Big Crown) จากปี 1958 และเข็มชั่วโมงรูปทรง "Snowflake" ที่มีเอกลักษณ์เฉพาะตัวจากนาฬิกาดำน้ำของกองทัพเรือฝรั่งเศสในช่วงปี 1970 พร้อมกับการพัฒนาชุดกลไก In-House คาลิเบอร์ MT (Manufacture Tudor) ที่ได้รับการรับรองความแม่นยำระดับ COSC และสำรองพลังงานนานถึง 70 ชั่วโมง',
+      legends: 'รุ่นยอดนิยมสูงสุดประกอบด้วย Black Bay Fifty-Eight (รหัส Ref. M79030N ขนาด 39 มม. ที่สวมใส่สบายเป็นพิเศษ), Black Bay Pro (สไตล์นักเดินทางแนวผจญภัย) และ Black Bay 54 (ขนาด 37 มม. ที่ถอดแบบสัดส่วนจาก Ref. 7922 รุ่นประวัติศาสตร์ปี 1954 ได้อย่างลงตัวที่สุด)',
+    },
+  },
+  {
+    id: '12',
+    category: 'Rolex',
+    editorialCategory: 'Watch Technology',
+    title: 'นาฬิกาข้ามเขตเวลา: เจาะลึกกลไก GMT Dual Time และประวัติศาสตร์สายการบินของ GMT-Master II',
+    subtitle: 'จากอุปกรณ์คู่กายนายทหารและนักบิน Pan Am สู่นาฬิกาหรูขอบสองสีสิทธิบัตร Cerachrom ที่เป็นตำนาน',
+    readingTime: '5 นาที',
+    author: 'Rolex Engineering Analyst',
+    imageUrl: 'https://images.unsplash.com/photo-1629581678313-36cf745a9af9?auto=format&fit=crop&w=600&q=80',
+    icon: 'globe',
+    illustrationColors: ['#0A1C2A', '#1F3A60', '#ECC87A'],
+    thaiContent: {
+      origin: 'ในช่วงทศวรรษที่ 1950 สายการบินยุคใหม่เริ่มขึ้นบินข้ามทวีปยาวไกลข้ามโซนเวลา ทำให้เกิดภาวะความอ่อนล้าจากการเปลี่ยนเขตเวลา (Jet Lag) ของลูกเรือ สายการบินชั้นนำอย่าง Pan Am จึงร่วมมือกับ Rolex เพื่อสร้างสรรค์นาฬิกาที่สามารถบอกเวลาสองเขตเวลาพร้อมกันได้ และนำไปสู่การเปิดตัว GMT-Master รุ่นแรก (Ref. 6542) ในปี 1954',
+      innovations: 'กลไก GMT ทำงานโดยใช้เข็มชั่วโมงปกติร่วมกับเข็มบอกเวลา 24 ชั่วโมงสีพิเศษที่เดินหมุนครบรอบวันละ 1 รอบ ชี้ไปที่สเกลตัวเลขบนขอบเบเซลที่หมุนได้ ในรุ่น GMT-Master II รุ่นปัจจุบันขับเคลื่อนด้วยกลไก Caliber 3285 ซึ่งมีระบบกวาดเวลาแบบอิสระ (Jumping Hour Hand) สามารถหมุนปรับเฉพาะเข็มชั่วโมงท้องถิ่นได้โดยไม่ต้องหยุดการทำงานของระบบจักรกรอก ทำให้รักษาเวลาปัจจุบันไว้ได้อย่างต่อเนื่อง',
+      legends: 'ขอบเบเซิลสองสีที่ใช้แบ่งเวลากลางวันและกลางคืนถือเป็นดีไซน์ไอคอนิกของโลก ได้แก่ ขอบสีน้ำเงิน-แดง "Pepsi" (Ref. 126710BLRO), สีน้ำเงิน-ดำ "Batman" (Ref. 126710BLNR), และรุ่นขอบดำ-เขียว เม็ดมะยมด้านซ้าย "Sprite" (Ref. 126720VTNR) ซึ่งเป็นชิ้นงานสะสมที่มีมูลค่าการเก็งกำไรในตลาดมือสองสูงเป็นอันดับต้นๆ',
+    },
+  },
+  {
+    id: '13',
+    category: 'IWC',
+    editorialCategory: 'Watch Technology',
+    title: 'IWC Schaffhausen: นวัตกรรมระบบขึ้นลานอัตโนมัติ Pellaton หนึ่งเดียวของวงการสวิส',
+    subtitle: 'เบื้องหลังความคงทนขีดสุดและการใช้ตัวก้ามปูเซรามิกเพื่อรับมือกับการสึกหรอที่ยาวนาน',
+    readingTime: '5 นาที',
+    author: 'Germanic Engineering Specialist',
+    imageUrl: 'https://images.unsplash.com/photo-1614162692292-7ac56d7f7f1e?auto=format&fit=crop&w=600&q=80',
+    icon: 'tool',
+    illustrationColors: ['#1C2A38', '#445069', '#ECC87A'],
+    thaiContent: {
+      origin: 'IWC Schaffhausen ก่อตั้งขึ้นในพื้นที่ทางเหนือของสวิตเซอร์แลนด์ฝั่งที่พูดภาษาเยอรมัน ทำให้วิศวกรรมของแบรนด์เน้นการออกแบบชิ้นส่วนตามหลักฟังก์ชันใช้งาน ความทนทาน และระบบที่เข้าใจง่ายแต่ทนทานสุดขีด ในปี 1950 Albert Pellaton ผู้อำนวยการด้านเทคนิคของ IWC ได้คิดค้นระบบขึ้นลานอัตโนมัติที่เป็นนวัตกรรมใหม่ซึ่งได้ปฏิวัติการส่งกำลังลาน',
+      innovations: 'ระบบ "Pellaton Winding System" แตกต่างจากระบบขึ้นลานทั่วไปที่ใช้เฟืองส่งกำลัง โดยระบบนี้จะใช้ลูกเบี้ยวทรงรี (Eccentric Cam) ติดตั้งอยู่ใต้โรเตอร์ เพื่อกดแกว่งแขนโยกรูปตัว Y ที่มีก้ามปูเหล็ก (Pawls) สองขา คอยเกี่ยวและดันล้อฟันเฟืองลานหลักโดยตรง ข้อดีคือไม่ว่าโรเตอร์จะหมุนไปทิศทางใด ก้ามปูก็จะดันลานให้เดินหน้าเสมอ และรุ่นปัจจุบันทำจากวัสดุเซรามิกเซอร์โคเนียมออกไซด์สีดำ/ขาว ที่ทนต่อแรงเสียดทานโดยไม่ต้องใช้น้ำมันหล่อลื่นและไม่มีการเสื่อมสภาพ',
+      legends: 'ระบบ Pellaton อันชาญฉลาดนี้ติดตั้งอยู่ในกลไกขนาดใหญ่ตระกูล Caliber 52000 ของรุ่น IWC Portugieser Automatic 7 Days ซึ่งสามารถสะสมพลังงานได้ยาวนานถึง 168 ชั่วโมง (7 วันเต็ม) ด้วยตลับลานคู่ขนาดใหญ่ รวมถึงรุ่นนักบินสุดอึดอย่าง Big Pilot Watch',
+    },
+  },
+  {
+    id: '14',
+    category: 'Patek Philippe',
+    editorialCategory: 'Watch Guide',
+    title: 'ศิลปะแห่งความคลีน: คู่มือการสะสม Patek Philippe Calatrava นาฬิกาเดรสที่สง่างามที่สุด',
+    subtitle: 'ถอดรหัสขอบลวดลายตัดเล็บสไตล์ฝรั่งเศสและปรัชญาการออกแบบที่คงกระพันมากว่า 90 ปี',
+    readingTime: '4 นาที',
+    author: 'Fine Dress Horology Advisor',
+    imageUrl: 'https://images.unsplash.com/photo-1524592094714-0f0654e20314?auto=format&fit=crop&w=600&q=80',
+    icon: 'heart',
+    illustrationColors: ['#1C1612', '#4E3629', '#D4AF37'],
+    thaiContent: {
+      origin: 'ในช่วงปี 1932 วงการนาฬิกาและสถาปัตยกรรมทั่วโลกได้รับอิทธิพลจากโรงเรียน Bauhaus ประเทศเยอรมนี ภายใต้หลักการที่ว่า "ประโยชน์ใช้สอยกำหนดรูปทรง" (Form Follows Function) Patek Philippe จึงได้สร้างสรรค์เรือนเวลาทรงกลมคลาสสิกขอบบางพิเศษที่ลดทอนรายละเอียดที่ไม่จำเป็นออกไป และใช้ชื่อคอลเลกชันตามกากบาทสัญลักษณ์ของแบรนด์นั่นคือ Calatrava',
+      innovations: 'หัวใจอันน่าหลงใหลของ Calatrava คือการผสมผสานสัดส่วนรูปทรงกลมที่สมมาตร ขาตัวเรือนที่ลาดโค้งโอบรับข้อมืออย่างประณีต หน้าปัดแบบสะอาดเรียบหรู และขอบตัวเรือนที่ขัดแต่งด้วยเทคนิคแบบดั้งเดิมอย่างลาย "Clous de Paris" (ลวดลายพีระมิดปุ่มนูนขนาดเล็กเหมือนหัวหมุดโบราณในปารีส) ซึ่งต้องผ่านการประทับลายและตกแต่งด้วยมือช่างฝีมือชั้นสูงเพื่อมุมสะท้อนแสงที่สม่ำเสมอที่สุด',
+      legends: 'นาฬิกาเดรสระดับอ้างอิงในตำนาน ได้แก่ Ref. 96 รุ่นดั้งเดิมปี 1932, Ref. 5196 (รุ่นยอดนิยมตลอดกาลขนาด 37 มม. ที่เพิ่งเลิกผลิตไป) และรุ่นปัจจุบันสุดหรูหรา Ref. 6119G ตัวเรือนทองคำขาวขนาด 39 มม. ขอบขัดลาย Clous de Paris ที่ขับเคลื่อนด้วยเครื่องไขลาน In-House Caliber 30-255 PS ตลับลานคู่สะสมพลังงานได้นานถึง 65 ชั่วโมง',
+    },
+  },
+  {
+    id: '15',
+    category: 'Richard Mille',
+    editorialCategory: 'Watch Technology',
+    title: 'นวัตกรรมอวกาศบนข้อมือ: เบื้องหลังการใช้วัสดุ Carbon TPT และ Quartz TPT ของ Richard Mille',
+    subtitle: 'ทำไมนาฬิกามูลค่าสิบล้านถึงมีน้ำหนักเบาเท่าขนนกและทนทานต่อแรงกระแทกของวงสวิงเทนนิสได้อย่างไม่น่าเชื่อ',
+    readingTime: '5 นาที',
+    author: 'High-Tech Composites Analyst',
+    imageUrl: 'https://images.unsplash.com/photo-1508685096489-7aacd43bd3b1?auto=format&fit=crop&w=600&q=80',
+    icon: 'activity',
+    illustrationColors: ['#1C2A39', '#5A3D5C', '#ECC87A'],
+    thaiContent: {
+      origin: 'นับตั้งแต่ปี 2001 Richard Mille ได้สั่นสะเทือนวงการนาฬิกาหรูโดยสิ้นเชิงด้วยการปฏิเสธธรรมเนียมนาฬิกาหรูต้องมีน้ำหนักหนักและทำจากทองคำขาวหรือแพลทินัมแบบดั้งเดิม โดยเปลี่ยนมาใช้วัสดุศาสตร์ขั้นสูงและโครงสร้างทางวิศวกรรมที่ใช้ในการผลิตรถแข่งฟอร์มูล่าวัน เครื่องบินขับไล่ และยานอวกาศระดับลึก',
+      innovations: 'แบรนด์ได้จดสิทธิบัตรร่วมกับสถาบันวิจัยเทคโนโลยีวัสดุชั้นสูงในการใช้ "Carbon TPT" และ "Quartz TPT" ซึ่งผลิตขึ้นจากการอัดชั้นแผ่นคาร์บอนไฟเบอร์หรือแร่ควอตซ์บางเฉียบขนาดไม่เกิน 30 ไมครอน ซ้อนทับกันหลายร้อยชั้นในแนวทางเฉียงแบบสลับทิศทาง จากนั้นนำไปอบภายใต้แรงกดดันมหาศาล ทำให้วัสดุมีน้ำหนักเบาเป็นพิเศษ แข็งแกร่งทนทานต่อรอยขีดข่วนเป็นอันดับต้นๆ และสร้างลวดลายคลื่นริ้วธรรมชาติเฉพาะตัวที่ไม่ซ้ำกันแม้แต่เรือนเดียวในโลก',
+      legends: 'นาฬิกาที่เป็นตำนานความทนทานคือตระกูล RM 27 ของราชาเทนนิส Rafael Nadal โดยเฉพาะรุ่น RM 27-04 Tourbillon ที่ตัวเรือนมีน้ำหนักเบาที่สุดเพียง 30 กรัม (รวมสาย) แต่สามารถทนต่อแรงสั่นสะเทือนสะสมและแรงกระแทกในสนามแข่งได้สูงถึง 12,000 Gs ด้วยระบบกลไกยึดลวดเหล็กสลิงไขว้เหมือนเอ็นไม้เทนนิส',
+    },
+  },
+  {
+    id: '16',
+    category: 'Lange & Söhne',
+    editorialCategory: 'Watch Technology',
+    title: 'A. Lange & Söhne: ศิลปะการแกะสลักลวดลายบนสะพานจักรกรอกด้วยมือและวิถีแห่งความสมบูรณ์แบบเยอรมัน',
+    subtitle: 'เจาะลึกปรัชญา Double Assembly หรือการประกอบชิ้นส่วนกลไกสองรอบเพื่อความสมบูรณ์แบบสูงสุด',
+    readingTime: '5 นาที',
+    author: 'German High Horology Specialist',
+    imageUrl: 'https://images.unsplash.com/photo-1614162692292-7ac56d7f7f1e?auto=format&fit=crop&w=600&q=80',
+    icon: 'edit-2',
+    illustrationColors: ['#1E1610', '#5E4935', '#D4AF37'],
+    thaiContent: {
+      origin: 'เมื่อกลไกของแบรนด์นาฬิกาสวิสเกือบทั้งหมดทำจากวัสดุทองเหลืองชุบโรเดียม A. Lange & Söhne แบรนด์หรูหราอันดับหนึ่งของประเทศเยอรมนีที่ก่อตั้งในปี 1845 ณ เมือง Glashütte แซกโซนี ได้เลือกใช้ "German Silver" (โลหะผสมทองแดง-นิกเกิล-สังกะสี) มาทำเป็นแผ่นจานหลักและสะพานจักร ซึ่งวัสดุนี้จะแปรสภาพเปลี่ยนสีตัวเองให้อบอุ่นอมเหลืองทองงดงามเมื่อเวลาผ่านไป',
+      innovations: 'จุดเด่นของแบรนด์เยอรมันคือ: 1. "Hand-Engraved Balance Cock" (สะพานจักรกรอกแกะสลักด้วยมือ) ช่างศิลป์ของแบรนด์ทุกคนจะใช้สิ่วแกะลายดอกไม้ลงบนแผ่นสะพานจักรด้วยมือเปล่า โดยลายเส้นของแต่ละคนจะเป็นลายนิ้วมือเฉพาะตัวที่สามารถระบุตัวช่างผู้ทำได้ 2. "Double Assembly Process" นาฬิกาทุกเรือนจะถูกประกอบ ติดตั้งเฟืองทดสอบความเที่ยงตรง แล้วจึงถูกถอดชิ้นส่วนออกมาจนหมด เพื่อทำความสะอาดและขัดแต่งทุกเหลี่ยมมุมอีกครั้ง ก่อนประกอบรอบที่สองเพื่อความสมบูรณ์แบบสูงสุด',
+      legends: 'นาฬิกาชิ้นงานศิลปะที่เป็นความภาคภูมิใจสูงสุดของเยอรมัน ได้แก่ Lange 1 (ที่มีดีไซน์การจัดวางหน้าปัดแบบอสมมาตรอันเป็นเอกลักษณ์และช่องแสดงวันที่ขนาดใหญ่พิเศษ) และรุ่น Lange 1 Time Zone รวมถึงสุดยอดนาฬิกาโครโนกราฟจักลตระกูล Datograph ซึ่งได้รับการยกย่องจากทั่วโลกว่าเป็นสถาปัตยกรรมล้อเฟืองที่งดงามที่สุด',
+    },
+  },
+  {
+    id: '17',
+    category: 'Omega',
+    editorialCategory: 'Watch Guide',
+    title: 'คู่มือนักบินอวกาศ: เจาะลึกความลับการทดสอบและพิชิตดวงจันทร์ของ Omega Speedmaster Moonwatch',
+    subtitle: 'ทำไมนาฬิกาจักรกลไขลานถึงเป็นเพียงตัวเลือกเดียวที่ก้าวข้ามสภาพสุญญากาศในชั้นบรรยากาศอวกาศได้',
+    readingTime: '5 นาที',
+    author: 'Aeronautics & NASA Mission Historian',
+    imageUrl: 'https://images.unsplash.com/photo-1522312346375-d1a52e2b99b3?auto=format&fit=crop&w=600&q=80',
+    icon: 'send',
+    illustrationColors: ['#1C1D21', '#444B54', '#E74C3C'],
+    thaiContent: {
+      origin: 'ในปี 1964 องค์การ NASA กำลังเตรียมโครงการ Gemini และ Apollo เพื่อส่งมนุษย์ไปนอกโลก และมีความจำเป็นต้องสรรหาอุปกรณ์จับเวลาร่วมกับชุดนักบินอวกาศ เจ้าหน้าที่ NASA จึงได้เดินทางไปจัดซื้อนาฬิกาโครโนกราฟยอดนิยมจากร้านค้าปลีกต่าง ๆ ในเมืองฮิวสตันเพื่อนำมาเข้ารับการทดสอบที่โหดร้ายที่สุดเท่าที่มนุษย์จะจินตนาการได้',
+      innovations: 'การทดสอบประกอบด้วยการอบความร้อนสูงถึง 93 องศาเซลเซียส สลับกับการแช่แข็งติดลบ 18 องศาเซลเซียส การทนแรงเหวี่ยง 40G และแรงสั่นสะเทือนรุนแรงระดับปล่อยจรวด มีเพียง Omega Speedmaster เท่านั้นที่สามารถทำงานได้อย่างเที่ยงตรงโดยหน้ากระจกเซลลูลอยด์ (Hesalite) ไม่แตกระเบิดจากความต่างของความดันสุญญากาศ ทำให้นาฬิการุ่นนี้ได้รับเครื่องหมายรับรอง "Flight Qualified for all Manned Space Missions" ของ NASA และเดินอยู่บนข้อมือของ Buzz Aldrin ระหว่างเหยียบลงบนพื้นผิวดวงจันทร์ในปี 1969',
+      legends: 'รุ่นเรือธงในตระกูลได้แก่ Speedmaster Professional Moonwatch ขนาด 42 มม. ขับเคลื่อนด้วยกลไกไขลาน Caliber 3861 รุ่นล่าสุดที่เพิ่มระบบ Co-Axial และการป้องกันสนามแม่เหล็ก 15,000 Gauss เป็นตัวเลือกยอดนิยมของทั้งสุภาพบุรุษนักบินอวกาศและนักสะสมทั่วโลก',
+    },
+  },
+  {
+    id: '18',
+    category: 'Cartier',
+    editorialCategory: 'Watch Guide',
+    title: 'Cartier Tank: ดีไซน์เหลี่ยมเหนือกาลเวลากว่า 100 ปี ที่ได้แรงบันดาลใจจากรถถังหุ้มเกราะทหาร',
+    subtitle: 'การก้าวผ่านข้อจำกัดทางประเพณีนาฬิกาทรงกลมสู่ไอคอนความหรูหราบนข้อมือบุคคลสำคัญของโลก',
+    readingTime: '4 นาที',
+    author: 'Fine Jewelry & Watch Curator',
+    imageUrl: 'https://images.unsplash.com/photo-1524592094714-0f0654e20314?auto=format&fit=crop&w=600&q=80',
+    icon: 'file-text',
+    illustrationColors: ['#1C1613', '#7F675A', '#A39081'],
+    thaiContent: {
+      origin: 'Louis Cartier นักออกแบบผู้มีวิสัยทัศน์กว้างไกล ได้รับแรงบันดาลใจจากสัดส่วนและรูปทรงที่เรียบง่ายของรถถังหุ้มเกราะยี่ห้อ Renault ของฝรั่งเศสที่ใช้ในสงครามโลกครั้งที่ 1 (เมื่อมองมุมมองจากด้านบน จะเห็นแทร็กสายพานสองฝั่งขนานกับตัวป้อมปืน) นำไปสู่การออกแบบตัวเรือนสี่เหลี่ยมผืนผ้าที่มีขาตัวเรือนสไตล์แทร็กสองฝั่งยาวต่อมาจากตัวเรือนในปี 1917',
+      innovations: 'ความสำเร็จอันน่าหลงใหลของ Cartier Tank คือสัดส่วนทองคำคลาสสิกที่สมมาตร หน้าปัดสีเงินหรือขาวขุ่นพิมพ์ตัวเลขโรมันขนาดใหญ่ เข็มรูปทรงดาบเหล็กสีน้ำเงินคลาสสิก (Blued Steel) และการประดับยอดเม็ดมะยมด้วยอัญมณีเจียระไนทรงมนสีน้ำเงินเข้ม (Cabochon Synthetic Spinel) นาฬิกานี้ไม่ใช่เพียงเครื่องบอกเวลา แต่คือเครื่องประดับศิลปะที่เรียบง่ายแต่งดงามไร้กาลเวลา',
+      legends: 'นาฬิกาที่เป็นรักของคนดังมากมาย เช่น เจ้าหญิงไดอาน่า, แอนดี้ วอร์ฮอล ศิลปินป๊อปอาร์ตชื่อดัง และแจ็กเกอลีน เคนเนดี คอลเลกชันยอดนิยมในปัจจุบันประกอบด้วย Tank Louis Cartier (รุ่นท็อปหรูหรา), Tank Must (รุ่นเริ่มต้นคุ้มค่า) และ Tank Française (สายสตีลสไตล์สปอร์ตเรียบเท่)',
+    },
+  },
+  {
+    id: '19',
+    category: 'Tag Heuer',
+    editorialCategory: 'Watch Guide',
+    title: 'สปิริตแห่งความเร็ว: Tag Heuer Monaco และเสน่ห์การจับเวลาในสนามแข่งของ Steve McQueen',
+    subtitle: 'ต้นตำรับนาฬิกาโครโนกราฟสี่เหลี่ยมกันน้ำรุ่นแรกของโลกและกลไกคาลิเบอร์ 11 ที่ปฏิวัติวงการ',
+    readingTime: '4 นาที',
+    author: 'Motorsport Chrono Specialist',
+    imageUrl: 'https://images.unsplash.com/photo-1508685096489-7aacd43bd3b1?auto=format&fit=crop&w=600&q=80',
+    icon: 'compass',
+    illustrationColors: ['#1C2A39', '#5A3D5C', '#ECC87A'],
+    thaiContent: {
+      origin: 'ในปี 1969 Jack Heuer ผู้บริหารแบรนด์ผู้หลงใหลในความเร็วและโลกยานยนต์ ต้องการสร้างสรรค์สิ่งใหม่ที่วงการนาฬิกาไม่เคยเห็นมาก่อน เขาจึงเปิดตัว Heuer Monaco นาฬิกาสปอร์ตจับเวลาในรูปทรงสี่เหลี่ยมจัตุรัสที่มีขนาดหน้าปัดหนา เม็ดมะยมย้ายไปอยู่ทางด้านซ้ายเพื่อเป็นสัญลักษณ์ว่า "คุณไม่จำเป็นต้องไขลานอีกต่อไป" เพราะนี่คือนวัตกรรมเครื่องไขลานอัตโนมัติ Chronograph รุ่นแรกของโลก',
+      innovations: 'ด้วยการจัดวางเม็ดมะยมด้านซ้ายขัดสอดรับกับปุ่มกดจับเวลาทางด้านขวาสองฝั่ง พร้อมโทนสีหน้าปัดน้ำเงินขัดซันเรย์ตัดกับวงจับเวลารูปสี่เหลี่ยมสีขาวสองช่อง และเข็มสีส้มสดสะดุดตา นอกจากนี้ยังเป็นนาฬิกาทรงสี่เหลี่ยมรุ่นแรกของโลกที่สามารถพัฒนาโครงสร้างให้กันน้ำได้ลึก 100% ทำให้เป็นนาฬิกาสปอร์ตทนทานระดับตำนาน',
+      legends: 'นาฬิกาได้รับความนิยมและสถานะระดับตำนานสูงสุดเมื่อ "Steve McQueen" ราชาคิงออฟคูลแห่งฮอลลีวูด ได้เลือกนาฬิการุ่นนี้มาสวมใส่เพื่อถ่ายทำภาพยนตร์แข่งรถสุดคลาสสิกอย่าง "Le Mans" ในปี 1971 ในยุคปัจจุบัน Tag Heuer Monaco Calibre 11 และรุ่นหน้าปัดพิเศษต่าง ๆ ยังเป็นที่เสาะหาของสุภาพบุรุษผู้รักความเร็วทั่วโลก',
+    },
+  },
+  {
+    id: '20',
+    category: 'Audemars Piguet',
+    editorialCategory: 'Watch Guide',
+    title: 'ศึกแห่งความดุดัน: 30 ปีประวัติศาสตร์ของ Audemars Piguet Royal Oak Offshore นาฬิกาสปอร์ตขนาดใหญ่',
+    subtitle: 'จากฉายา "เดอะบีสต์" ที่เกือบโดนผู้บริหาร AP แบนในอดีตสู่ไอคอนแห่งนาฬิกาสปอร์ตหรูหราขนาดโอเวอร์ไซส์',
+    readingTime: '5 นาที',
+    author: 'AP Heritage Analyst',
+    imageUrl: 'https://images.unsplash.com/photo-1614162692292-7ac56d7f7f1e?auto=format&fit=crop&w=600&q=80',
+    icon: 'grid',
+    illustrationColors: ['#1C1C1C', '#8E6F3E', '#ECC87A'],
+    thaiContent: {
+      origin: 'หลังจาก Royal Oak รุ่นคลาสสิกเปิดตัวได้ 20 ปี และกลายเป็นที่นิยมของคนชั้นสูง ในปี 1993 ดีไซเนอร์หนุ่มนาม Emmanuel Gueit ได้รับโจทย์จากแบรนด์ให้รังสรรค์รุ่นพิเศษเพื่อขยายฐานสู่กลุ่มคนรุ่นใหม่ผู้รักความท้าทายและสุนทรียภาพที่ทรงพลังยิ่งขึ้น เขาจึงนำเสนอ Royal Oak Offshore ขนาดตัวเรือนหนา 42 มม. ซึ่งในยุคนั้นถูกสบประมาทอย่างรุนแรงและได้รับฉายาว่า "The Beast" (อสูรกาย)',
+      innovations: 'Offshore ปฏิวัติวงการนาฬิกาสปอร์ตด้วยการขยายขนาดตัวเรือนให้ใหญ่สะใจ โชว์รอยต่อปะเก็นซิลิโคนสีดำขนาดใหญ่อย่างเด่นชัดรอบใต้ขอบแปดเหลี่ยม ปุ่มกดและเม็ดมะยมหุ้มด้วยวัสดุยางสังเคราะห์ที่ทนทาน พร้อมการดีไซน์หน้าปัดลวดลายตารางแบบใหญ่พิเศษ "Méga Tapisserie" และการกันน้ำระดับความกดดันลึกถึง 100 เมตร',
+      legends: 'Offshore กลายเป็นนาฬิกายอดฮิตอันดับหนึ่งของเหล่านักกีฬาซูเปอร์สตาร์และศิลปินแร็ปเปอร์ระดับโลกอย่างรวดเร็ว รุ่นระดับตำนานประกอบด้วย Offshore Chronograph 42 มม. รุ่นดั้งเดิม และรุ่น Offshore Diver Ref. 15720ST หน้าปัดสีสะดุดตาที่เป็นตัวเลือกของสุภาพบุรุษสายลุยขาลุยอย่างแท้จริง',
+    },
+  },
+];
+
+const ARTICLES_EN: Record<string, { title: string, subtitle: string, origin: string, innovations: string, legends: string }> = {
+  '1': {
+    title: 'Rolex Submariner Collecting Guide: Essential References & Spotting Tips',
+    subtitle: 'Navigating decades of steel dive watch history to find your perfect vintage or modern reference.',
+    origin: 'The Rolex Submariner debuted in 1953 (Ref. 6204) as the pioneering dive watch water-resistant to 100m. Its rotating bezel, black dial, and high-visibility indices set the universal blueprint for professional diving timepieces.',
+    innovations: 'Collectors distinguish between "Date" and "No Date" models, tracing movements from the reliable Caliber 3135 to the modern Caliber 3235 with its 70-hour power reserve. Modern updates replace the classic aluminum bezels with scratch-resistant patented Cerachrom ceramic.',
+    legends: 'Essential references include the classic Ref. 16610 (aluminum), Ref. 116610LN (ceramic "Super Case"), and the modern Ref. 126610LN (41mm). Highly sought-after color variants include the "Kermit" (16610LV), "Hulk" (116610LV), and "Starbucks" (126610LV).'
+  },
+  '2': {
+    title: 'Decoding Spiromax & Gyromax: Behind Patek Philippe’s Extreme Accuracy',
+    subtitle: 'Exploring the materials science and micro-engineering that revolutionized high-end Swiss watchmaking.',
+    origin: 'At the heart of every mechanical watch lies the balance wheel and escapement regulating time. Patek Philippe invested decades in research to develop components resilient against gravity, temperature fluctuations, and magnetic fields.',
+    innovations: 'Two major innovations define their excellence: 1. "Gyromax Balance" (1951), which regulates inertia using eccentric weights on the balance wheel rim to reduce air resistance. 2. "Spiromax Hairspring" (2006), made of patented anti-magnetic Silinvar (silicon-based composite) that operates without lubrication.',
+    legends: 'These technologies are integrated into Patek’s iconic modern calibers, including Caliber 324 S C, Caliber 26-330 S C (Nautilus Ref. 5711/5811), and Grand Complications Caliber 240, satisfying the strict -3/+2 seconds daily tolerance of the Patek Philippe Seal.'
+  },
+  '3': {
+    title: 'AP Royal Oak Alternatives: 3 Luxury Steel Sports Watches with Genta Design DNA',
+    subtitle: 'Discovering incredible craftsmanship and integrated bracelet heritage beyond the hype.',
+    origin: 'The 1972 Audemars Piguet Royal Oak permanently changed the watch world by elevating stainless steel to the price of gold. For collectors seeking similar vintage aesthetics and integrated bracelet styling, several historic alternatives exist.',
+    innovations: 'Key factors in selecting an integrated luxury sports watch include bevel polishing quality, dial texture complexity, and caliber reliability. Choosing timepieces designed by Gerald Genta or heavily inspired by his layout ensures timeless horological value.',
+    legends: 'Three exceptional choices include: 1. Girard-Perregaux Laureato (1975, octagonal bezel with Clous de Paris dial), 2. IWC Ingenieur Automatic 40 (Ref. IW3289, Genta’s SL design), and 3. Vacheron Constantin Overseas (Ref. 4500V, Maltese cross bezel).'
+  },
+  '4': {
+    title: 'Overcoming Friction: The Co-Axial Escapement Revolution by Omega',
+    subtitle: 'How an invention rejected by Swiss giants replaced the traditional lever escapement after 250 years.',
+    origin: 'Since the 1750s, mechanical watches relied on the Swiss Lever escapement. While reliable, its sliding friction requires constant lubrication and degrades over time, causing accuracy drift.',
+    innovations: 'In the 1970s, English watchmaker George Daniels invented the "Co-Axial Escapement". Using two co-axial wheels and three pallets, it transmits energy via radial pushing rather than sliding, drastically reducing friction and extending service intervals. Omega acquired the patent to scale it.',
+    legends: 'Omega launched Co-Axial movements in 1999 with Caliber 2500. Today, calibers like 8900 and 3861 (Speedmaster Moonwatch) carry METAS Master Chronometer certifications, guaranteeing resistance to magnetic fields up to 15,000 Gauss.'
+  },
+  '5': {
+    title: 'Cartier Santos: The Story of the World’s First Men’s Wristwatch',
+    subtitle: 'Deconstructing the art deco square icon designed for early aviation pioneers.',
+    origin: 'In 1904, pilot Alberto Santos-Dumont complained to Louis Cartier about using pocket watches while flying. Louis designed a dedicated wristwatch for his wrist, giving birth to the first men’s wristwatch and pilot’s watch in history.',
+    innovations: 'The Cartier Santos defied round watch conventions with its square shape and rounded corners. It displayed exposed bezel screws inspired by Eiffel Tower structures (Art Deco). Modern variants preserve this heritage while integrating QuickSwitch and SmartLink bracelet systems.',
+    legends: 'From the original design to the Santos Galbée (1987) and modern Santos de Cartier Medium/Large, this design is coveted by watch collectors globally for its elegant geometry and timeless class.'
+  },
+  '6': {
+    title: 'Rolex Materials Science: Inside Cerachrom, Oystersteel, and Syloxi',
+    subtitle: 'An in-depth look at proprietary alloys and high-tech components forged in secret laboratories.',
+    origin: 'Rolex’s legendary durability against seawater corrosion and shocks comes from in-house metallurgical foundries in Switzerland. The brand controls every molecular step to guarantee extreme structural integrity.',
+    innovations: 'Three patented materials stand out: 1. "Oystersteel" (904L steel) resisting extreme aerospace-level corrosion and polishing to a bright sheen. 2. "Cerachrom Bezel" using highly scratch-resistant ceramic coated with platinum/gold. 3. "Syloxi Hairspring" (2014) made of silicon to protect movement accuracy.',
+    legends: 'These materials are standard in professional references: Submariner Ref. 126610LN, GMT-Master II "Pepsi" Ref. 126710BLRO, and the sunburst Cosmograph Daytona Ref. 126500LN.'
+  },
+  '7': {
+    title: 'Starting Your Collection: 3 Luxury Entry Watches Under $2,000',
+    subtitle: 'A collector’s guide to iconic everyday timepieces with high horological value.',
+    origin: 'Entering the luxury watch world can be overwhelming due to variations in pricing and mechanical quality. New collectors should look for versatile "everyday" automatic watches that hold value and exhibit timeless aesthetics.',
+    innovations: 'Beginner strategies focus on brands with rich heritage, global presence, and robust automatic movements. Clean case finishing and versatile dial dimensions (38mm - 41mm) are ideal for daily wear across formal and casual events.',
+    legends: 'Three top picks under $2,000 include: 1. Seiko Prospex Alpinist SPB121J1 (green dial, gold hands, 70h power reserve), 2. Tissot PRX Powermatic 80 (70s sports style), and 3. Hamilton Khaki Field Auto (vintage military utility).'
+  },
+  '8': {
+    title: 'Annual vs. Perpetual Calendar: Mechanical Differences Explained',
+    subtitle: 'A guide to mechanical calendar complications and how they handle Leap Years.',
+    origin: 'Displaying the date, month, and moonphase accurately is a high-level watchmaking challenge. Standard months vary between 30 and 31 days, and February has 28 or 29 days (Leap Year). Regulating this entirely via mechanical gears is pure art.',
+    innovations: 'The key difference: 1. "Annual Calendar" (invented by Patek in 1996) automatically adjusts for 30 and 31-day months but requires one manual correction on March 1st. 2. "Perpetual Calendar" handles February and leap years automatically, needing no correction until 2100.',
+    legends: 'Top calendar references include Patek Philippe Ref. 5327G (perpetual), Ref. 5396G (annual), and the legendary Audemars Piguet Royal Oak Perpetual Calendar Ref. 26574ST, standing as high-value crowns of any collection.'
+  },
+  '9': {
+    title: 'Grand Seiko Spring Drive: The Marriage of Mechanical & Quartz',
+    subtitle: 'The engineering behind the signature glide-wheel movement resembling the flow of time.',
+    origin: 'In 1977, Seiko engineer Yoshikazu Akahane dreamed of creating a watch with a continuous sweep seconds hand powered by a mainspring instead of batteries. It took 28 years and over 600 failed prototypes to perfect the "Spring Drive" in 1999.',
+    innovations: 'The Spring Drive retains mainspring energy storage but replaces the traditional balance wheel with a patented "Tri-synchro Regulator". This mechanism generates electric current to regulate a glide wheel via quartz crystal oscillations, achieving +-1s daily accuracy.',
+    legends: 'The most famous Spring Drive model is the Grand Seiko SBGA211 "Snowflake" (titanium, textured white dial) and the SBGA413 "Shunbun" (light pink cherry blossom dial), showcasing the pinnacle of Japanese horological art.'
+  },
+  '10': {
+    title: 'The Tourbillon: Is the Gravity-Defying Cage Still Relevant Today?',
+    subtitle: 'From Breguet’s pocket watch solution to a symbol of haute horlogerie and ultimate luxury status.',
+    origin: 'In the late 18th century, pocket watches were kept vertically in pockets, allowing gravity to drag the hairspring and balance wheel, causing inaccuracy. In 1801, Abraham-Louis Breguet patented the "Tourbillon" to resolve this gravity effect.',
+    innovations: 'The tourbillon houses the balance wheel and escapement inside a tiny cage that rotates 360 degrees every 60 seconds, averaging out positional errors. While wrist movements make it less functionally necessary today, it remains the ultimate metric of watchmaking skill.',
+    legends: 'Today’s tourbillons represent ultimate luxury, such as the Audemars Piguet Royal Oak Double Balance Wheel Openworked, the Extra-Thin Flying Tourbillon Ref. 26530ST, and Breguet’s own historic Classique Tourbillon series.'
+  },
+  '11': {
+    title: 'Why Tudor Black Bay is the Best Vintage Diver Under $4,000',
+    subtitle: 'Deconstructing the brand legacy of Rolex’s sibling and its rise as a robust, modern collector icon.',
+    origin: 'Tudor was founded in 1926 by Hans Wilsdorf (Rolex founder) to offer high-quality watches with Rolex-level case durability but using external movements to lower costs. Today, Tudor has established an independent identity for vintage-inspired designs.',
+    innovations: 'The Black Bay series (2012) merges Tudor’s history, showcasing the crown guards-free big crown from 1958 and signature "Snowflake" hands from 1970s French Navy watches. It utilizes in-house MT calibers with a COSC certification and 70h power reserve.',
+    legends: 'Popular models include the Black Bay Fifty-Eight (Ref. M79030N, 39mm), the adventure-styled Black Bay Pro, and the Black Bay 54 (37mm, modeling the original 1954 Ref. 7922).'
+  },
+  '12': {
+    title: 'Timezone Travelers: The Pan Am Flight History of Rolex GMT-Master II',
+    subtitle: 'How a navigation tool for airline pilots became the most coveted dual-time watch in the world.',
+    origin: 'In the 1950s, transcontinental commercial flights emerged, causing crew jet lag. Pan American World Airways (Pan Am) partnered with Rolex to design a watch displaying two time zones simultaneously, leading to the GMT-Master in 1954 (Ref. 6542).',
+    innovations: 'The GMT mechanism features an independent local hour hand alongside a dedicated 24-hour hand pointing to a rotating two-tone bezel. The modern GMT-Master II (Caliber 3285) lets travelers adjust local time in one-hour increments without stopping the watch.',
+    legends: 'Its signature two-tone bezels represent horological culture: the blue-red "Pepsi" (Ref. 126710BLRO), blue-black "Batman" (Ref. 126710BLNR), and left-handed green-black "Sprite" (Ref. 126720VTNR).'
+  },
+  '13': {
+    title: 'IWC Schaffhausen: The Unique Pellaton Automatic Winding System',
+    subtitle: 'Inside the ultra-durable Y-shaped pawl system and ceramic construction resisting wear.',
+    origin: 'IWC Schaffhausen is situated in northern Switzerland, prioritizing clean engineering and mechanical durability. In 1950, technical director Albert Pellaton invented a revolutionary bi-directional winding mechanism.',
+    innovations: 'The "Pellaton Winding System" uses an eccentric cam under the rotor rather than traditional gear trains. The cam pushes a Y-shaped arm with two ceramic pawls that wind the mainspring in both rotation directions, minimizing friction and wear.',
+    legends: 'This ingenious winding system powers large movements like the Caliber 52000 in the Portugieser Automatic 7-Days (offering a massive 168-hour power reserve) and the rugged Pilot’s Watch series.'
+  },
+  '14': {
+    title: 'The Art of Simplicity: Collecting Patek Philippe Calatrava Dress Watches',
+    subtitle: 'Decoding the French hobnail bezel and Bauhaus design philosophy of a 90-year classic.',
+    origin: 'In 1932, Patek Philippe embraced the German Bauhaus design philosophy ("form follows function"), launching a round, minimalist gold timepiece named after the brand’s Calatrava cross symbol.',
+    innovations: 'The Calatrava is loved for its slim lugs, clean dials, and hand-finished hobnail "Clous de Paris" bezels. These tiny pyramid structures require meticulous hand decoration to capture light evenly from all directions.',
+    legends: 'Legendary dress models include the historic Ref. 96, the popular Ref. 5196 (37mm), and the modern Ref. 6119G (39mm white gold) powered by the hand-wound double-barrel Caliber 30-255 PS with a 65h reserve.'
+  },
+  '15': {
+    title: 'Space Tech on the Wrist: Richard Mille’s Carbon TPT & Quartz TPT',
+    subtitle: 'Why ultra-lightweight ten-million-baht watches can withstand tennis grand slam swings.',
+    origin: 'Since 2001, Richard Mille rejected traditional heavy precious metal luxury watchmaking. Instead, the brand pioneered space-age composite materials used in Formula 1 racing, fighter jets, and spacecraft.',
+    innovations: 'Partnering with advanced material labs, they developed "Carbon TPT" and "Quartz TPT". These composites are made of ultra-thin layers of carbon fibers or silica under 30 microns thick, compressed under high pressure to create unique natural wave patterns.',
+    legends: 'The RM 27 Rafael Nadal family showcase this tech: the RM 27-04 Tourbillon weighs just 30 grams including the strap but resists up to 12,000 G-shocks using a steel cable suspension system.'
+  },
+  '16': {
+    title: 'A. Lange & Söhne: Hand-Engraving & Germanic Double Assembly Philosophy',
+    subtitle: 'Exploring the incredible craftsmanship and two-step assembly process for zero errors.',
+    origin: 'While Swiss watches utilize rhodium-plated brass, German watchmaking icon A. Lange & Söhne uses untreated "German Silver" (copper-nickel-zinc alloy) for its mainplates, acquiring a warm golden patina over time.',
+    innovations: 'German horology signature steps include: 1. "Hand-Engraved Balance Cock": Every balance cock is hand-chiseled with floral patterns, making each watch unique. 2. "Double Assembly Process": Every movement is assembled, tested, then completely disassembled and cleaned before a final second assembly.',
+    legends: 'German watchmaking masterpieces include the off-center Lange 1 (outsize date) and the Datograph flyback chronograph, regarded as one of the most beautiful mechanical movements ever engineered.'
+  },
+  '17': {
+    title: 'Space Missions: The Lunar Voyage of the Omega Speedmaster Moonwatch',
+    subtitle: 'Why mechanical hand-wound watches were the only choice to survive space vacuum.',
+    origin: 'In 1964, NASA sought high-fidelity chronographs for Gemini and Apollo programs. Personnel purchased chronographs from retail shops in Houston to subject them to extreme space-vacuum, temperature, and shock testing.',
+    innovations: 'Testing included thermal extremes from -18C to 93C, 40G centrifuges, and launch vibrations. Only the Omega Speedmaster survived without glass distortion. NASA certified it, and Buzz Aldrin wore it on the moon in 1969.',
+    legends: 'The modern Speedmaster Professional Moonwatch (42mm) is powered by the Master Chronometer Caliber 3861 with Co-Axial escapement, standing as a legendary piece of aviation history.'
+  },
+  '18': {
+    title: 'Cartier Tank: The Century-Old Rectangular Icon Inspired by Tanks',
+    subtitle: 'How a military tank-inspired timepiece became the ultimate mark of elegance.',
+    origin: 'Louis Cartier was inspired by the clean rectangular track lines of French Renault military tanks in WWI, leading to the rectangular-cased Cartier Tank watch with parallel side bars in 1917.',
+    innovations: 'The Cartier Tank is celebrated for its roman numerals, blued steel sword hands, and a sapphire cabochon crown. Modern additions incorporate the QuickSwitch and SmartLink systems for instant strap swaps.',
+    legends: 'Worn by royalty and stars like Princess Diana, Andy Warhol, and Jacqueline Kennedy, popular variants include the Tank Louis Cartier, Tank Must, and the steel-bracelet Tank Française.'
+  },
+  '19': {
+    title: 'Speed Spirit: Steve McQueen and the Iconic Tag Heuer Monaco',
+    subtitle: 'The history of the world’s first square water-resistant automatic chronograph.',
+    origin: 'In 1969, Jack Heuer launched the Heuer Monaco, a bold square chronograph with the winding crown on the left side, signaling "no winding required" due to the revolutionary Calibre 11 automatic chronograph movement.',
+    innovations: 'The Monaco stood out with its blue sunray dial, white sub-dials, orange hands, and a square structure that was 100% water-resistant—a major industrial achievement for square cases in 1969.',
+    legends: 'Worn by Steve McQueen in the 1971 racing movie "Le Mans", the Tag Heuer Monaco Calibre 11 remains a highly coveted mechanical masterpiece for motorsport lovers globally.'
+  },
+  '20': {
+    title: '30 Years of Audemars Piguet Royal Oak Offshore: The Beast Chronograph',
+    subtitle: 'From a controversial oversized prototype to the ultimate luxury high-impact sports watch.',
+    origin: 'In 1993, AP designer Emmanuel Gueit was tasked to expand the Royal Oak to younger audiences. He created the 42mm Royal Oak Offshore, which was initially mocked and nicknamed "The Beast".',
+    innovations: 'The Offshore pioneered rugged sports horology, exposing a massive black silicone gasket under the octagonal bezel, incorporating rubber-clad pushers, and a prominent "Méga Tapisserie" textured dial.',
+    legends: 'Adopted by superstar athletes and musicians, legendary models include the Offshore Chronograph (42mm) and the high-visibility Offshore Diver Ref. 15720ST.'
+  }
+};
+
+export function MagazineScreen() {
+  const { t, lang } = useLanguage();
+  const [selectedEditorial, setSelectedEditorial] = useState<string>('ทั้งหมด');
+  const [selectedBrand, setSelectedBrand] = useState<string>('ทั้งหมด');
+  const [activeArticle, setActiveArticle] = useState<Article | null>(null);
+
+  const editorialCategories = [
+    { id: 'ทั้งหมด', title: lang === 'th' ? 'ทั้งหมด' : 'All', subtitle: 'All Stories' },
+    { id: 'Watch Guide', title: 'Watch Guide', subtitle: lang === 'th' ? 'คู่มือเลือกซื้อ & สะสม' : 'Buying & Collecting' },
+    { id: 'Watch Technology', title: 'Watch Tech', subtitle: lang === 'th' ? 'นวัตกรรม & กลไก' : 'Innovation & Movements' },
+  ];
+
+  const brands = [
+    'ทั้งหมด',
+    'Rolex',
+    'Patek Philippe',
+    'Audemars Piguet',
+    'Omega',
+    'Cartier',
+    'Grand Seiko',
+    'Seiko',
+    'Tudor',
+    'IWC',
+    'Richard Mille',
+    'Lange & Söhne',
+    'Tag Heuer',
+  ];
+
+  const filteredArticles = MAGAZINE_ARTICLES.filter((art) => {
+    const matchesEditorial = selectedEditorial === 'ทั้งหมด' || art.editorialCategory === selectedEditorial;
+    const matchesBrand = selectedBrand === 'ทั้งหมด' || art.category === selectedBrand;
+    return matchesEditorial && matchesBrand;
+  });
+
+  return (
+    <View style={styles.container}>
+      <LinearGradient
+        colors={['#1B1612', '#0A0805']}
+        style={StyleSheet.absoluteFillObject}
+      />
+      
+      <SafeAreaView style={{ flex: 1 }}>
+        {/* Luxury Magazine Header */}
+        <View style={styles.header}>
+          <View style={styles.headerCenter}>
+            <Ionicons name="book-outline" size={14} color="#ECC87A" style={styles.headerLogo} />
+            <Text style={styles.headerTitleMain}>{t('magazine.title').toUpperCase()}</Text>
+            <Text style={styles.headerTitleSub}>{t('magazine.subtitle').toUpperCase()}</Text>
+          </View>
+        </View>
+
+        {/* 1st Filter: High-Level Editorial Categories */}
+        <View style={styles.editorialContainer}>
+          <View style={styles.editorialTabs}>
+            {editorialCategories.map((tab) => {
+              const active = selectedEditorial === tab.id;
+              return (
+                <Pressable
+                  key={tab.id}
+                  style={[styles.editorialTab, active && styles.editorialTabActive]}
+                  onPress={() => setSelectedEditorial(tab.id)}
+                >
+                  <Text style={[styles.editorialTextMain, active && styles.editorialTextMainActive]}>
+                    {tab.title}
+                  </Text>
+                  <Text style={[styles.editorialTextSub, active && styles.editorialTextSubActive]}>
+                    {tab.subtitle}
+                  </Text>
+                </Pressable>
+              );
+            })}
+          </View>
+        </View>
+
+        {/* 2nd Filter: Horizontal Brand Carousel */}
+        <View style={styles.brandContainer}>
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.brandScroll}
+          >
+            {brands.map((brand) => {
+              const active = selectedBrand === brand;
+              return (
+                <Pressable
+                  key={brand}
+                  style={[styles.brandBadge, active && styles.brandBadgeActive]}
+                  onPress={() => setSelectedBrand(brand)}
+                >
+                  <Text style={[styles.brandText, active && styles.brandTextActive]}>
+                    {brand === 'ทั้งหมด' ? (lang === 'th' ? 'ทั้งหมด' : 'ALL') : brand.toUpperCase()}
+                  </Text>
+                </Pressable>
+              );
+            })}
+          </ScrollView>
+        </View>
+
+        {/* Articles List */}
+        <ScrollView contentContainerStyle={styles.listContent}>
+          {filteredArticles.length === 0 ? (
+            <View style={styles.emptyContainer}>
+              <Feather name="book" size={36} color="rgba(236, 200, 122, 0.2)" style={{ marginBottom: 12 }} />
+              <Text style={styles.emptyText}>{lang === 'th' ? 'ไม่พบข้อมูลบทความที่เกี่ยวข้อง' : 'No relevant articles found'}</Text>
+              <Text style={styles.emptySubText}>{lang === 'th' ? 'ลองปรับเปลี่ยนการเลือกหมวดหมู่หรือแบรนด์ด้านบน' : 'Try adjusting the category or brand filters above.'}</Text>
+            </View>
+          ) : (
+            filteredArticles.map((art) => (
+              <Pressable
+                key={art.id}
+                style={[styles.articleCard, { overflow: 'hidden' }]}
+                onPress={() => setActiveArticle(art)}
+              >
+                <LinearGradient
+                  colors={['rgba(35, 29, 23, 0.9)', 'rgba(18, 14, 11, 0.98)']}
+                  style={StyleSheet.absoluteFillObject}
+                />
+                
+                {/* Premium Watch Image Banner */}
+                <View style={styles.artIllustrationContainer}>
+                  <Image
+                    source={{ uri: art.imageUrl }}
+                    style={StyleSheet.absoluteFillObject}
+                    resizeMode="cover"
+                  />
+                  <LinearGradient
+                    colors={['rgba(18, 14, 11, 0.1)', 'rgba(18, 14, 11, 0.85)']}
+                    style={StyleSheet.absoluteFillObject}
+                  />
+                  
+                  {/* Editorial Category Tag Badge */}
+                  <View style={[
+                    styles.editorialBadge,
+                    { backgroundColor: art.editorialCategory === 'Watch Guide' ? 'rgba(10, 42, 27, 0.85)' : 'rgba(128, 52, 41, 0.85)' }
+                  ]}>
+                    <Text style={styles.editorialBadgeText}>
+                      {art.editorialCategory === 'Watch Guide' ? 'GUIDE' : 'TECH'}
+                    </Text>
+                  </View>
+
+                  {/* Reading Time Badge */}
+                  <View style={styles.timeBadge}>
+                    <Feather name="clock" size={10} color="#000" style={{ marginRight: 3 }} />
+                    <Text style={styles.timeBadgeText}>
+                      {lang === 'th' ? art.readingTime : art.readingTime.replace('นาที', 'min')}
+                    </Text>
+                  </View>
+                </View>
+
+                <View style={styles.artInfoBox}>
+                  <Text style={styles.artCategoryText}>{art.category.toUpperCase()}</Text>
+                  <Text style={styles.artTitleText} numberOfLines={2}>
+                    {lang === 'en' && ARTICLES_EN[art.id] ? ARTICLES_EN[art.id].title : art.title}
+                  </Text>
+                  <Text style={styles.artSubtitleText} numberOfLines={2}>
+                    {lang === 'en' && ARTICLES_EN[art.id] ? ARTICLES_EN[art.id].subtitle : art.subtitle}
+                  </Text>
+                  
+                  <View style={styles.artFooter}>
+                    <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                      <View style={styles.avatarMini}>
+                        <Text style={styles.avatarMiniText}>C</Text>
+                      </View>
+                      <Text style={styles.artAuthorText} numberOfLines={1}>{art.author}</Text>
+                    </View>
+                    <Feather name="arrow-right" size={14} color="#ECC87A" />
+                  </View>
+                </View>
+              </Pressable>
+            ))
+          )}
+        </ScrollView>
+      </SafeAreaView>
+
+      {/* Slide-up Modal Reading View */}
+      <Modal
+        visible={activeArticle !== null}
+        animationType="slide"
+        transparent={false}
+        onRequestClose={() => setActiveArticle(null)}
+      >
+        <View style={styles.modalContainer}>
+          <LinearGradient
+            colors={['#17120F', '#080605']}
+            style={StyleSheet.absoluteFillObject}
+          />
+          {activeArticle && (
+            <SafeAreaView style={{ flex: 1 }}>
+              {/* Modal Custom Header */}
+              <View style={styles.modalHeader}>
+                <Pressable
+                  style={styles.modalCloseBtn}
+                  onPress={() => setActiveArticle(null)}
+                  hitSlop={12}
+                >
+                  <Ionicons name="chevron-back" size={24} color="#ECC87A" />
+                  <Text style={styles.modalCloseText}>{lang === 'th' ? 'กลับ' : 'Back'}</Text>
+                </Pressable>
+                <Text style={styles.modalHeaderTitle} numberOfLines={1}>
+                  {activeArticle.editorialCategory}
+                </Text>
+                <View style={{ width: 48 }} />
+              </View>
+
+              <ScrollView contentContainerStyle={styles.modalScroll}>
+                {/* Hero Banner with Premium Watch Image */}
+                <View style={styles.modalHeroBanner}>
+                  <Image
+                    source={{ uri: activeArticle.imageUrl }}
+                    style={StyleSheet.absoluteFillObject}
+                    resizeMode="cover"
+                  />
+                  <LinearGradient
+                    colors={['rgba(23, 18, 15, 0.2)', 'rgba(23, 18, 15, 0.85)']}
+                    style={StyleSheet.absoluteFillObject}
+                  />
+                  <View style={styles.modalHeroBadge}>
+                    <Text style={styles.modalHeroBadgeText}>{activeArticle.category.toUpperCase()}</Text>
+                  </View>
+                </View>
+
+                {/* Article Content Box */}
+                <View style={styles.modalContentBox}>
+                  <View style={styles.modalCategoryRow}>
+                    <Text style={[
+                      styles.modalEditorialTag,
+                      { color: activeArticle.editorialCategory === 'Watch Guide' ? '#2ecc71' : '#ff7675' }
+                    ]}>
+                      {activeArticle.editorialCategory.toUpperCase()}
+                    </Text>
+                  </View>
+                  <Text style={styles.modalTitle}>
+                    {lang === 'en' && ARTICLES_EN[activeArticle.id] ? ARTICLES_EN[activeArticle.id].title : activeArticle.title}
+                  </Text>
+                  <Text style={styles.modalSubtitle}>
+                    {lang === 'en' && ARTICLES_EN[activeArticle.id] ? ARTICLES_EN[activeArticle.id].subtitle : activeArticle.subtitle}
+                  </Text>
+                  
+                  {/* Author Line */}
+                  <View style={styles.modalAuthorLine}>
+                    <Feather name="feather" size={12} color="#ECC87A" style={{ marginRight: 6 }} />
+                    <Text style={styles.modalAuthorText}>
+                      {lang === 'th' ? `ผู้เขียน: ${activeArticle.author}` : `Author: ${activeArticle.author}`}
+                    </Text>
+                    <Text style={styles.modalDividerDot}>•</Text>
+                    <Feather name="clock" size={12} color="#B5AFA5" style={{ marginRight: 4, marginLeft: 2 }} />
+                    <Text style={styles.modalReadingTime}>
+                      {lang === 'th' 
+                        ? `${activeArticle.readingTime} ในการอ่าน` 
+                        : `${activeArticle.readingTime.replace('นาที', 'min')} read`}
+                    </Text>
+                  </View>
+
+                  <View style={styles.contentDivider} />
+
+                  {/* HISTORY & TECH DETAILS */}
+                  <Text style={styles.thaiSectionTitle}>
+                    {activeArticle.editorialCategory === 'Watch Guide' 
+                      ? (lang === 'th' ? '📚 จุดกำเนิดและความเป็นมา' : '📚 Origin & History') 
+                      : (lang === 'th' ? '⚙️ หลักการทำงานและการออกแบบ' : '⚙️ How it Works & Design')}
+                  </Text>
+                  <Text style={styles.thaiParagraph}>
+                    {lang === 'en' && ARTICLES_EN[activeArticle.id] ? ARTICLES_EN[activeArticle.id].origin : activeArticle.thaiContent.origin}
+                  </Text>
+
+                  <Text style={styles.thaiSectionTitle}>
+                    {activeArticle.editorialCategory === 'Watch Guide' 
+                      ? (lang === 'th' ? '⚙️ นวัตกรรมและคู่มือการเลือกซื้อ' : '⚙️ Innovations & Buying Guide') 
+                      : (lang === 'th' ? '🔬 ความลับแห่งความเที่ยงตรงและชิ้นส่วน' : '🔬 Secrets of Precision & Components')}
+                  </Text>
+                  <Text style={styles.thaiParagraph}>
+                    {lang === 'en' && ARTICLES_EN[activeArticle.id] ? ARTICLES_EN[activeArticle.id].innovations : activeArticle.thaiContent.innovations}
+                  </Text>
+
+                  <Text style={styles.thaiSectionTitle}>
+                    {activeArticle.editorialCategory === 'Watch Guide' 
+                      ? (lang === 'th' ? '👑 รหัสอ้างอิงและรุ่นแนะนำสำหรับการสะสม' : '👑 Iconic References & Recommendations') 
+                      : (lang === 'th' ? '👑 แบรนด์และรุ่นสำคัญที่นำมาสืบทอดใช้งาน' : '👑 Key Brands & Legacy Models')}
+                  </Text>
+                  <Text style={styles.thaiParagraph}>
+                    {lang === 'en' && ARTICLES_EN[activeArticle.id] ? ARTICLES_EN[activeArticle.id].legends : activeArticle.thaiContent.legends}
+                  </Text>
+
+                  {/* Bottom Premium Ending Card */}
+                  <View style={styles.modalEndCard}>
+                    <Ionicons name="shield-checkmark" size={24} color="#ECC87A" style={{ marginBottom: 6 }} />
+                    <Text style={styles.modalEndTitle}>CHRONO24 LUXURY INSIGHT</Text>
+                    <Text style={styles.modalEndSub}>
+                      {lang === 'th'
+                        ? 'รวบรวมและวิเคราะห์ข้อมูลโดยระบบสืบค้นอัตลักษณ์ Luxury Watch Authenticator สาระนาฬิกาสปอร์ตและวิศวกรรมชั้นสูงระดับโลก'
+                        : "Curated and analyzed by Luxury Watch Authenticator's identity matching engine. World-class sports watches and haute horlogerie insights."}
+                    </Text>
+                  </View>
+                </View>
+              </ScrollView>
+            </SafeAreaView>
+          )}
+        </View>
+      </Modal>
+    </View>
+  );
+}
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: '#0A0805',
+  },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: spacing.md,
+    borderBottomWidth: 1,
+    borderColor: 'rgba(255,255,255,0.03)',
+    backgroundColor: 'rgba(18, 14, 11, 0.45)',
+  },
+  headerCenter: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: spacing.md,
+  },
+  headerLogo: {
+    marginBottom: 4,
+  },
+  headerTitleMain: {
+    fontSize: 14,
+    fontWeight: '900',
+    color: '#ECC87A',
+    letterSpacing: 4,
+    textAlign: 'center',
+  },
+  headerTitleSub: {
+    fontSize: 7.5,
+    fontWeight: '800',
+    color: '#7A736A',
+    letterSpacing: 1.2,
+    textAlign: 'center',
+    marginTop: 2.5,
+  },
+  editorialContainer: {
+    paddingHorizontal: spacing.md,
+    paddingTop: spacing.md,
+    paddingBottom: spacing.xs,
+  },
+  editorialTabs: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  editorialTab: {
+    flex: 1,
+    paddingVertical: 10,
+    borderRadius: radius.md,
+    borderWidth: 1,
+    borderColor: 'rgba(236, 200, 122, 0.12)',
+    backgroundColor: 'rgba(28, 22, 17, 0.5)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  editorialTabActive: {
+    borderColor: '#ECC87A',
+    backgroundColor: 'rgba(236, 200, 122, 0.1)',
+  },
+  editorialTextMain: {
+    fontSize: 11,
+    fontWeight: '800',
+    color: '#B5AFA5',
+    letterSpacing: 0.5,
+  },
+  editorialTextMainActive: {
+    color: '#ECC87A',
+  },
+  editorialTextSub: {
+    fontSize: 8,
+    fontWeight: '600',
+    color: '#7A736A',
+    marginTop: 2,
+    letterSpacing: 0.2,
+  },
+  editorialTextSubActive: {
+    color: '#ECC87A',
+  },
+  brandContainer: {
+    paddingVertical: spacing.sm,
+    borderBottomWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.03)',
+  },
+  brandScroll: {
+    paddingHorizontal: spacing.md,
+    gap: 8,
+  },
+  brandBadge: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: radius.full,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.05)',
+    backgroundColor: 'rgba(18, 14, 11, 0.4)',
+  },
+  brandBadgeActive: {
+    borderColor: '#ECC87A',
+    backgroundColor: '#ECC87A',
+  },
+  brandText: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: '#7A736A',
+    letterSpacing: 1,
+  },
+  brandTextActive: {
+    color: '#0A0805',
+    fontWeight: '800',
+  },
+  listContent: {
+    padding: spacing.md,
+    gap: spacing.md,
+    paddingBottom: 80,
+  },
+  articleCard: {
+    borderRadius: radius.lg,
+    borderWidth: 1,
+    borderColor: 'rgba(236, 200, 122, 0.12)',
+    elevation: 3,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.4,
+    shadowRadius: 6,
+  },
+  artIllustrationContainer: {
+    height: 140,
+    width: '100%',
+    justifyContent: 'center',
+    alignItems: 'center',
+    position: 'relative',
+  },
+  illustrationOverlay: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    top: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(0,0,0,0.3)',
+  },
+  illustrationIcon: {
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.6,
+    shadowRadius: 10,
+  },
+  editorialBadge: {
+    position: 'absolute',
+    top: 12,
+    left: 12,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.1)',
+  },
+  editorialBadgeText: {
+    fontSize: 8,
+    fontWeight: '900',
+    color: '#FFF',
+    letterSpacing: 1.5,
+  },
+  timeBadge: {
+    position: 'absolute',
+    top: 12,
+    right: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#ECC87A',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 8,
+  },
+  timeBadgeText: {
+    fontSize: 9,
+    fontWeight: '800',
+    color: '#0A0805',
+  },
+  artInfoBox: {
+    padding: spacing.md,
+  },
+  artCategoryText: {
+    fontSize: 10,
+    fontWeight: '900',
+    color: '#ECC87A',
+    letterSpacing: 2,
+    marginBottom: 4,
+  },
+  artTitleText: {
+    fontSize: 15,
+    fontWeight: '800',
+    color: '#FFFFFF',
+    lineHeight: 21,
+    marginBottom: 4,
+  },
+  artSubtitleText: {
+    fontSize: 12.5,
+    color: '#B5AFA5',
+    lineHeight: 18,
+    marginBottom: 12,
+  },
+  artFooter: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    borderTopWidth: 1,
+    borderColor: 'rgba(255,255,255,0.03)',
+    paddingTop: 10,
+  },
+  avatarMini: {
+    width: 18,
+    height: 18,
+    borderRadius: 9,
+    backgroundColor: '#ECC87A',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 6,
+  },
+  avatarMiniText: {
+    fontSize: 10,
+    fontWeight: '900',
+    color: '#000',
+  },
+  artAuthorText: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: '#7A736A',
+  },
+  modalContainer: {
+    flex: 1,
+    backgroundColor: '#080605',
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.md,
+    borderBottomWidth: 1,
+    borderColor: 'rgba(255,255,255,0.03)',
+    backgroundColor: 'rgba(18, 14, 11, 0.85)',
+  },
+  modalCloseBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  modalCloseText: {
+    color: '#ECC87A',
+    fontSize: 15,
+    fontWeight: '700',
+    marginLeft: 2,
+  },
+  modalHeaderTitle: {
+    fontSize: 15,
+    fontWeight: '800',
+    color: '#FFFFFF',
+    letterSpacing: 1.5,
+  },
+  modalScroll: {
+    paddingBottom: 48,
+  },
+  modalHeroBanner: {
+    height: 200,
+    justifyContent: 'center',
+    alignItems: 'center',
+    position: 'relative',
+  },
+  modalHeroBadge: {
+    position: 'absolute',
+    bottom: 16,
+    backgroundColor: '#ECC87A',
+    paddingHorizontal: 12,
+    paddingVertical: 4,
+    borderRadius: 12,
+  },
+  modalHeroBadgeText: {
+    fontSize: 10,
+    fontWeight: '900',
+    color: '#000',
+    letterSpacing: 2,
+  },
+  modalContentBox: {
+    padding: spacing.md,
+  },
+  modalCategoryRow: {
+    marginBottom: 6,
+  },
+  modalEditorialTag: {
+    fontSize: 10,
+    fontWeight: '900',
+    letterSpacing: 1.5,
+  },
+  modalTitle: {
+    fontSize: 21,
+    fontWeight: '800',
+    color: '#FFFFFF',
+    lineHeight: 28,
+    marginBottom: 8,
+  },
+  modalSubtitle: {
+    fontSize: 14.5,
+    color: '#B5AFA5',
+    lineHeight: 21,
+    marginBottom: 14,
+  },
+  modalAuthorLine: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  modalAuthorText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#ECC87A',
+  },
+  modalDividerDot: {
+    color: '#7A736A',
+    marginHorizontal: 8,
+  },
+  modalReadingTime: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: '#7A736A',
+  },
+  contentDivider: {
+    height: 1,
+    backgroundColor: 'rgba(255,255,255,0.05)',
+    marginVertical: 16,
+  },
+  thaiSectionTitle: {
+    fontSize: 16,
+    fontWeight: '800',
+    color: '#ECC87A',
+    marginTop: 18,
+    marginBottom: 8,
+    letterSpacing: 0.5,
+  },
+  thaiParagraph: {
+    fontSize: 14,
+    color: '#E0DDD7',
+    lineHeight: 23,
+    textAlign: 'justify',
+    marginBottom: 8,
+  },
+  modalEndCard: {
+    marginTop: 36,
+    backgroundColor: 'rgba(236, 200, 122, 0.04)',
+    borderColor: 'rgba(236, 200, 122, 0.12)',
+    borderWidth: 1,
+    borderRadius: radius.md,
+    padding: spacing.md,
+    alignItems: 'center',
+  },
+  modalEndTitle: {
+    fontSize: 12,
+    fontWeight: '900',
+    color: '#ECC87A',
+    letterSpacing: 2,
+    marginBottom: 4,
+  },
+  modalEndSub: {
+    fontSize: 11,
+    color: '#7A736A',
+    lineHeight: 16,
+    textAlign: 'center',
+  },
+  emptyContainer: {
+    paddingVertical: 48,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  emptyText: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#B5AFA5',
+    marginBottom: 4,
+  },
+  emptySubText: {
+    fontSize: 11,
+    color: '#7A736A',
+  },
+});

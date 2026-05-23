@@ -61,7 +61,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // Pricing Monthly
     '#grid-sub .pricing-card:nth-child(1) .plan-name': { en: 'Standard Collector', th: 'สะสมระดับมาตรฐาน' },
     '#grid-sub .pricing-card:nth-child(1) .price-period': { en: '/ month', th: '/ เดือน' },
-    '#grid-sub .pricing-card:nth-child(1) .price-thai': { en: 'ประมาณ ฿1,090 / เดือน', th: 'ประมาณ ฿1,090 / เดือน' },
+    '#grid-sub .pricing-card:nth-child(1) .price-thai': { en: 'ประมาณ ฿990 / เดือน', th: 'ประมาณ ฿990 / เดือน' },
     '#grid-sub .pricing-card:nth-child(1) .plan-features': {
       en: `
         <li><span>✓</span> 30 AI Authenticity Scans / Mo</li>
@@ -83,7 +83,7 @@ document.addEventListener('DOMContentLoaded', () => {
     '#grid-sub .pricing-card:nth-child(2) .plan-name': { en: 'Pro Dealer', th: 'ดีลเลอร์ระดับโปร' },
     '#grid-sub .pricing-card:nth-child(2) .best-value-badge': { en: 'BEST VALUE', th: 'คุ้มค่าที่สุด ⭐' },
     '#grid-sub .pricing-card:nth-child(2) .price-period': { en: '/ month', th: '/ เดือน' },
-    '#grid-sub .pricing-card:nth-child(2) .price-thai': { en: 'ประมาณ ฿2,890 / เดือน', th: 'ประมาณ ฿2,890 / เดือน' },
+    '#grid-sub .pricing-card:nth-child(2) .price-thai': { en: 'ประมาณ ฿1,990 / เดือน', th: 'ประมาณ ฿1,990 / เดือน' },
     '#grid-sub .pricing-card:nth-child(2) .plan-features': {
       en: `
         <li><span>✓</span> 80 AI Authenticity Scans / Mo</li>
@@ -104,7 +104,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     '#grid-sub .pricing-card:nth-child(3) .plan-name': { en: 'Premium Executive', th: 'ดีลเลอร์ระดับสูง' },
     '#grid-sub .pricing-card:nth-child(3) .price-period': { en: '/ month', th: '/ เดือน' },
-    '#grid-sub .pricing-card:nth-child(3) .price-thai': { en: 'ประมาณ ฿7,290 / เดือน', th: 'ประมาณ ฿7,290 / เดือน' },
+    '#grid-sub .pricing-card:nth-child(3) .price-thai': { en: 'ประมาณ ฿4,990 / เดือน', th: 'ประมาณ ฿4,990 / เดือน' },
     '#grid-sub .pricing-card:nth-child(3) .plan-features': {
       en: `
         <li><span>✓</span> 200 AI Authenticity Scans / Mo</li>

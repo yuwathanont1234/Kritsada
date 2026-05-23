@@ -1359,12 +1359,12 @@ function MembershipScreen({ navigation }: any) {
               </View>
               
               <View style={styles.tierPriceSection}>
-                <Text style={styles.tierPrice}>{lang === 'th' ? '฿1,090' : '$29.99'}</Text>
+                <Text style={styles.tierPrice}>{lang === 'th' ? '฿990' : '$29.99'}</Text>
                 <Text style={styles.tierPriceUnit}>{t('membership.monthly')}</Text>
               </View>
               
               <Text style={[styles.tierDailyEst, { color: '#B0C4DE' }]}>
-                {t('membership.estimatedDaily')}{lang === 'th' ? '฿36' : '$0.99'}
+                {t('membership.estimatedDaily')}{lang === 'th' ? '฿33' : '$0.99'}
               </Text>
             </View>
 
@@ -1416,12 +1416,12 @@ function MembershipScreen({ navigation }: any) {
               </View>
               
               <View style={styles.tierPriceSection}>
-                <Text style={[styles.tierPrice, { color: colors.amber }]}>{lang === 'th' ? '฿2,890' : '$79.99'}</Text>
+                <Text style={[styles.tierPrice, { color: colors.amber }]}>{lang === 'th' ? '฿1,990' : '$59.99'}</Text>
                 <Text style={[styles.tierPriceUnit, { color: colors.amber }]}>{t('membership.monthly')}</Text>
               </View>
               
               <Text style={[styles.tierDailyEst, { color: colors.amber }]}>
-                {t('membership.estimatedDaily')}{lang === 'th' ? '฿96' : '$2.66'}
+                {t('membership.estimatedDaily')}{lang === 'th' ? '฿66' : '$1.99'}
               </Text>
             </View>
 
@@ -1479,12 +1479,12 @@ function MembershipScreen({ navigation }: any) {
               </View>
               
               <View style={styles.tierPriceSection}>
-                <Text style={[styles.tierPrice, { color: '#fff' }]}>{lang === 'th' ? '฿7,290' : '$199.99'}</Text>
+                <Text style={[styles.tierPrice, { color: '#fff' }]}>{lang === 'th' ? '฿4,990' : '$149.99'}</Text>
                 <Text style={[styles.tierPriceUnit, { color: colors.textSecondary }]}>{t('membership.monthly')}</Text>
               </View>
               
               <Text style={[styles.tierDailyEst, { color: colors.amber }]}>
-                {t('membership.estimatedDaily')}{lang === 'th' ? '฿243' : '$6.66'}
+                {t('membership.estimatedDaily')}{lang === 'th' ? '฿166' : '$4.99'}
               </Text>
             </View>
 

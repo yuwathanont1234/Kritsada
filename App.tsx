@@ -1061,16 +1061,16 @@ function SettingsScreen({ navigation }: any) {
   };
 
   const handleClearData = async () => {
-    Alert.alert('Wipe All Data', 'This will delete all vaulted timepiece scans and reset membership tier to Free. This action is irreversible.', [
-      { text: 'Cancel', style: 'cancel' },
+    Alert.alert(t('settings.wipeConfirmTitle'), t('settings.wipeConfirmDesc'), [
+      { text: t('common.cancel'), style: 'cancel' },
       {
-        text: 'Wipe Data',
+        text: t('settings.wipeConfirmTitle'),
         style: 'destructive',
         onPress: async () => {
           await AsyncStorage.clear();
           await load();
           if (globalUpdateAppTier) globalUpdateAppTier('free');
-          Alert.alert('Success', 'All vault records and scan history have been wiped.');
+          Alert.alert(t('common.success'), t('settings.wipeSuccess'));
         },
       },
     ]);
@@ -1186,12 +1186,16 @@ function SettingsScreen({ navigation }: any) {
                 {membership?.tier?.toUpperCase() || 'FREE'}
               </Text>
             </View>
-            <Text style={styles.planDetails}>
+             <Text style={styles.planDetails}>
               {membership?.isTrialing
                 ? (lang === 'th' ? `เปิดใช้งานสิทธิ์ทดลองใช้ Premium ฟรี (${membership?.trialDaysLeft} วันที่เหลือ)` : `Active in Free Premium Trial (${membership?.trialDaysLeft} days remaining)`)
-                : membership?.isActive
-                  ? (lang === 'th' ? `เปิดใช้งานการสมัครสมาชิกพรีเมียม (${membership?.period === 'monthly' ? 'รายเดือน' : 'รายปี'})` : `Active premium subscription (${membership?.period || 'monthly'})`)
-                  : (lang === 'th' ? 'ระดับสแตนดาร์ดฟรี (จำกัดการสแกนด้วย AI 5 ครั้งต่อเดือน)' : 'Standard tier (limited to 5 AI scans per month)')}
+                : membership?.tier === 'free'
+                  ? (lang === 'th' ? 'ระดับทดลองใช้ฟรี (จำกัดการสแกนความแท้ด้วย AI ทั้งหมด 5 ครั้ง)' : 'Free Trial tier (limited to 5 lifetime AI scans)')
+                  : membership?.tier === 'standard'
+                    ? (lang === 'th' ? 'ระดับแพลทินัมสแตนดาร์ด (สูงสุด 50 สแกน/เดือน, ช่องถ่าย 2 มุม)' : 'Platinum Standard tier (up to 50 scans/month, 2 photo slots)')
+                    : membership?.tier === 'pro'
+                      ? (lang === 'th' ? 'ระดับดีลเลอร์โกลด์โปร (สูงสุด 100 สแกน/เดือน, รายงาน A5 PDF, ช่องถ่าย 3 มุม)' : 'Dealer Gold Pro tier (up to 100 scans/month, A5 PDF reports, 3 photo slots)')
+                      : (lang === 'th' ? 'ระดับวีไอพีเอลิทพรีเมียม (สูงสุด 200 สแกน/เดือน, พอร์ตโฟลิโอสะสมไม่จำกัดความจุ, PDF ไม่มีลายน้ำ)' : 'VIP Elite Premium tier (up to 200 scans/month, unlimited portfolio, watermark-free PDF)')}
             </Text>
             <Pressable style={styles.planUpgradeBtn} onPress={() => navigation.navigate('Membership')}>
               <Text style={styles.planUpgradeText}>{t('settings.manageSub')}</Text>

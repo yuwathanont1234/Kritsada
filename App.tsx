@@ -1370,10 +1370,10 @@ function MembershipScreen({ navigation }: any) {
 
             <View style={styles.featuresList}>
               {[
-                lang === 'th' ? 'ตรวจสอบสิทธิ์ AI สูงสุด 50 สแกนต่อเดือน' : 'AI verification up to 50 scans per month',
-                lang === 'th' ? 'ปลดล็อกการวิเคราะห์ขอบหน้าปัดและฟอนต์ตัวอักษรหน้าปัด' : 'Unlocks bezel alignment & dial typography analytics',
-                lang === 'th' ? 'การเปรียบเทียบและดัชนีราคาตลาดรอง (USD)' : 'Estimated market valuation indexing (USD)',
-                lang === 'th' ? 'การสแกนความละเอียดสูงแบบ 2 มุมกล้อง (หน้าปัด + ฝาหลัง)' : 'High-fidelity 2-angle scan (dial + caseback)'
+                lang === 'th' ? 'ตรวจสอบสิทธิ์ด้วยระบบ AI มาตรฐาน 2 ระบบย่อย (สูงสุด 50 สแกนต่อเดือน)' : 'Standard 2-Engine AI verification (up to 50 scans per month)',
+                lang === 'th' ? 'ความแม่นยำการวิเคราะห์ทางแสงระดับมาตรฐาน (Standard 88% Accuracy)' : 'Standard 88% visual optical accuracy rating',
+                lang === 'th' ? 'ความละเอียดภาพสแกน 2 มุมกล้องหลัก (หน้าปัดและฝาหลังความละเอียดสูง)' : 'Standard 2-angle optical resolution (dial face + caseback micro-shots)',
+                lang === 'th' ? 'ปลดล็อกการวิเคราะห์ขอบหน้าปัดและฟอนต์ตัวอักษรเพื่อคัดกรองเบื้องต้น' : 'Unlocks bezel alignment & dial typography proportions screening'
               ].map((feat, idx) => (
                 <View key={idx} style={styles.featureRow}>
                   <Feather name="check" size={14} color="#B0C4DE" style={styles.featureIcon} />
@@ -1427,11 +1427,11 @@ function MembershipScreen({ navigation }: any) {
 
             <View style={styles.featuresList}>
               {[
-                lang === 'th' ? 'ตรวจสอบสิทธิ์ AI สูงสุด 100 สแกนต่อเดือน' : 'AI verification up to 100 scans per month',
-                lang === 'th' ? 'อัปเดตดัชนีราคาตลาดสดแบบเรียลไทม์และรีเฟรช' : 'Live market index updates & real-time refresh',
-                lang === 'th' ? 'การสแกนความละเอียดสูงแบบ 3 มุมกล้อง (หน้าปัด, ฝาหลัง, เม็ดมะยม)' : 'High-fidelity 3-angle scan (dial, caseback, profile)',
-                lang === 'th' ? 'การเปรียบเทียบใบเซอร์ผู้เชี่ยวชาญและวิเคราะห์ตำแหน่งความแท้' : 'Expert certificate exemplar matches & visual heatmaps',
-                lang === 'th' ? 'สร้างใบรับรองและรายงานสแกนนาฬิกาเป็นไฟล์ PDF คุณภาพระดับพรีเมียม' : 'Premium PDF scan report generation & exporting'
+                lang === 'th' ? 'ตรวจสอบสิทธิ์ด้วยระบบ AI ขั้นสูง 4 ระบบย่อย (สูงสุด 100 สแกนต่อเดือน)' : 'Advanced 4-Engine AI verification (up to 100 scans per month)',
+                lang === 'th' ? 'ความแม่นยำประเมินทางทัศนศาสตร์ระดับมืออาชีพ (Professional 94% Accuracy)' : 'Professional 94% visual optical accuracy rating',
+                lang === 'th' ? 'ความละเอียดระดับไมโครสแกน 3 มุมกล้อง (หน้าปัด, ฝาหลัง และขอบเม็ดมะยม)' : 'High-definition 3-angle micro-resolution (adds case side & crown details)',
+                lang === 'th' ? 'วิเคราะห์ตำแหน่งพิกัดจุดความแท้ร่วมกับการเทียบเคียงใบเซอร์ผู้เชี่ยวชาญ' : 'Generates interactive landmark heatmaps & expert certificate exemplar matches',
+                lang === 'th' ? 'สร้างไฟล์รายงานผลสแกนและใบรับรองในรูปแบบ PDF ระดับพรีเมียม' : 'Premium PDF scan report generation & high-end collector exporting'
               ].map((feat, idx) => (
                 <View key={idx} style={styles.featureRow}>
                   <Feather name="check" size={14} color={colors.amber} style={styles.featureIcon} />
@@ -1490,11 +1490,11 @@ function MembershipScreen({ navigation }: any) {
 
             <View style={styles.featuresList}>
               {[
-                lang === 'th' ? 'สิทธิ์การเข้าถึงตรวจสอบ AI แบบลำดับความสำคัญสูงสุด 200 สแกนต่อเดือน' : 'Ultimate priority access up to 200 scans per month',
-                lang === 'th' ? 'การแผนที่ความร้อนและการวินิจฉัยแสงเลเซอร์ตัวสลักตราสัญญาลักษณ์' : 'Micro-hallmark optical heatmaps & laser diagnostics',
-                lang === 'th' ? 'สแกนความละเอียดสูงระดับสุดยอด 4 มุมกล้อง (หน้าปัด, ฝาหลัง, เม็ดมะยม, สายสาย)' : 'High-fidelity 4-angle scan (adds typography & caliber micro-shots)',
-                lang === 'th' ? 'ตู้นิรภัยสำหรับเก็บนาฬิกาไม่จำกัดขนาด พร้อมการบันทึกเอกสารซื้อขายส่วนตัว' : 'Unlimited collection vault size & custom purchase logs',
-                lang === 'th' ? 'การสร้างไฟล์รายงานผลสแกนและแชร์ในนามแบรนด์ร้านค้า (ไม่มีลายน้ำ)' : 'Custom branding PDF export without security watermarks'
+                lang === 'th' ? 'ตรวจสอบสิทธิ์ด้วยระบบ AI พรีเมียม 8 ระบบย่อย (สูงสุด 200 สแกน, คิวสแกนด่วนพิเศษ)' : 'Premium 8-Engine AI verification (up to 200 scans, highest queue priority)',
+                lang === 'th' ? 'ความแม่นยำสูงระดับสุดยอดมาตรฐานสถาบันประมูล (Executive 99.2% Accuracy)' : 'Ultimate high-fidelity auction-grade accuracy (99.2% Executive Accuracy)',
+                lang === 'th' ? 'ความละเอียดระดับกล้องขยายไมโครสโคป 4 มุมกล้อง (วิเคราะห์เนื้อโลหะและกลไกแกนล้อ)' : 'Microscopic 4-angle resolution (adds millimeter caliber finishes & movement gear micro-shots)',
+                lang === 'th' ? 'วิเคราะห์ทำแผนที่ความร้อนเจาะลึกตราประทับโลหะจิ๋ว ตราสลักทองคำ และรหัสขอบเลเซอร์' : 'Generates deep heatmaps for micro-hallmarks, laser markings & gold stamps',
+                lang === 'th' ? 'ตู้นิรภัยไม่จำกัดขนาด พร้อมส่งออกรายงาน PDF ในนามแบรนด์ตนเองโดยไม่มีลายน้ำ' : 'Unlimited collection vault size & brand-customized PDF reports without watermarks'
               ].map((feat, idx) => (
                 <View key={idx} style={styles.featureRow}>
                   <Feather name="check" size={14} color={colors.amber} style={styles.featureIcon} />

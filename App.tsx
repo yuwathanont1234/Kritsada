@@ -1430,7 +1430,7 @@ function MembershipScreen({ navigation }: any) {
                 lang === 'th' ? 'ตรวจสอบสิทธิ์ AI สูงสุด 100 สแกนต่อเดือน' : 'AI verification up to 100 scans per month',
                 lang === 'th' ? 'อัปเดตดัชนีราคาตลาดสดแบบเรียลไทม์และรีเฟรช' : 'Live market index updates & real-time refresh',
                 lang === 'th' ? 'การสแกนความละเอียดสูงแบบ 3 มุมกล้อง (หน้าปัด, ฝาหลัง, เม็ดมะยม)' : 'High-fidelity 3-angle scan (dial, caseback, profile)',
-                lang === 'th' ? 'การลบพื้นหลังรูปถ่ายอัตโนมัติสำหรับตู้สะสม' : 'Automated background removal for perfect showcase',
+                lang === 'th' ? 'การเปรียบเทียบใบเซอร์ผู้เชี่ยวชาญและวิเคราะห์ตำแหน่งความแท้' : 'Expert certificate exemplar matches & visual heatmaps',
                 lang === 'th' ? 'สร้างใบรับรองและรายงานสแกนนาฬิกาเป็นไฟล์ PDF คุณภาพระดับพรีเมียม' : 'Premium PDF scan report generation & exporting'
               ].map((feat, idx) => (
                 <View key={idx} style={styles.featureRow}>

@@ -20,7 +20,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { PrimaryButton } from '../components/PrimaryButton';
 import { ScanCoachingOverlay } from '../components/ScanCoachingOverlay';
-import { UpgradeModal } from '../components/UpgradeModal';
+import { UpgradeModal, UpgradeReason } from '../components/UpgradeModal';
 import { DataConsentModal } from '../components/DataConsentModal';
 import { AiProcessingConsentModal } from '../components/AiProcessingConsentModal';
 import { hasValidAiConsent } from '../lib/aiConsent';
@@ -222,6 +222,7 @@ export function ScanScreen({ navigation }: Props) {
     visible: boolean;
     reason: string;
     isFreeQuotaWall: boolean;
+    reasonPayload?: UpgradeReason;
   }>({ visible: false, reason: '', isFreeQuotaWall: false });
 
   // "Hot moment" data-consent modal. Triggered when a Free user without
@@ -502,10 +503,22 @@ export function ScanScreen({ navigation }: Props) {
         }
       }
 
+      // Compute caps/used details for reason payload
+      let cap = 5;
+      let used = 5;
+      if (membership.tier === 'standard') {
+        cap = 10;
+        used = 10;
+      } else if (membership.tier === 'pro') {
+        cap = 30;
+        used = 30;
+      }
+
       setQuotaModal({
         visible: true,
         reason: check.reason ?? 'Monthly scan allocation has been fully exhausted.',
         isFreeQuotaWall,
+        reasonPayload: { kind: 'auth_quota_exhausted', used, cap, windowDays: 30 },
       });
       void logTesterEvent('feature_used', {
         feature: 'quota_wall_shown',
@@ -843,6 +856,8 @@ export function ScanScreen({ navigation }: Props) {
               ]}
               onPress={takePicture}
               disabled={busy}
+              accessibilityRole="button"
+              accessibilityLabel={t('a11y.shutter')}
             >
               <View style={styles.shutterInner} />
             </Pressable>
@@ -935,6 +950,7 @@ export function ScanScreen({ navigation }: Props) {
           navigation.navigate('Membership');
         }}
         tier={quotaModal.isFreeQuotaWall ? 'premium' : 'pro'}
+        reason={quotaModal.reasonPayload}
         iconEmoji="📷"
         title={lang === 'th' ? 'สิทธิ์การสแกนหมดแล้ว' : 'Scan Limit Reached'}
         body={quotaModal.reason}

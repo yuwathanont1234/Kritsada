@@ -7,9 +7,9 @@ import {
   Pressable,
   Dimensions,
   Modal,
-  SafeAreaView,
   Image,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { Feather, Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { colors, spacing, radius } from '../lib/theme';
@@ -43,7 +43,7 @@ const MAGAZINE_ARTICLES: Article[] = [
     title: 'คู่มือการสะสม Rolex Submariner: แนะนำจุดสังเกตและรหัสอ้างอิงยอดนิยม',
     subtitle: 'การเลือกซื้อมหาสมุทรเหล็กกล้าผ่านเจเนอเรชันต่างๆ เพื่อการสะสมที่มั่นคงที่สุด',
     readingTime: '6 นาที',
-    author: 'Chrono24 Senior Watch Editor',
+    author: 'Senior Watch Editor',
     imageUrl: 'https://images.unsplash.com/photo-1547996160-81dfa63595aa?auto=format&fit=crop&w=600&q=80',
     icon: 'compass',
     illustrationColors: ['#0A2A1B', '#114D32', '#ECC87A'],
@@ -376,6 +376,176 @@ const MAGAZINE_ARTICLES: Article[] = [
       legends: 'Offshore กลายเป็นนาฬิกายอดฮิตอันดับหนึ่งของเหล่านักกีฬาซูเปอร์สตาร์และศิลปินแร็ปเปอร์ระดับโลกอย่างรวดเร็ว รุ่นระดับตำนานประกอบด้วย Offshore Chronograph 42 มม. รุ่นดั้งเดิม และรุ่น Offshore Diver Ref. 15720ST หน้าปัดสีสะดุดตาที่เป็นตัวเลือกของสุภาพบุรุษสายลุยขาลุยอย่างแท้จริง',
     },
   },
+  {
+    id: '21',
+    category: 'Breitling',
+    editorialCategory: 'Watch Technology',
+    title: 'Breitling Navitimer: คอมพิวเตอร์การบินบนข้อมือและประวัติศาสตร์วงแหวนคำนวณสไลด์รูล',
+    subtitle: 'ทำความเข้าใจเครื่องมือคำนวณความเร็ว อัตราสิ้นเปลืองน้ำมัน และการไต่ระดับของนักบินโดยไม่ต้องใช้ไฟฟ้า',
+    readingTime: '5 นาที',
+    author: 'Aero Horology Expert',
+    imageUrl: 'https://images.unsplash.com/photo-1522312346375-d1a52e2b99b3?auto=format&fit=crop&w=600&q=80',
+    icon: 'compass',
+    illustrationColors: ['#1C160E', '#4E3E20', '#ECC87A'],
+    thaiContent: {
+      origin: 'ในปี 1952 Breitling ได้แนะนำนาฬิกาที่เป็นมากกว่าเครื่องบอกเวลาสำหรับนักบิน นั่นคือ "Navitimer" (ย่อมาจาก Navigation Timer) ซึ่งออกแบบขึ้นสำหรับสมาคมเจ้าของและนักบินอากาศยาน (AOPA) จุดเด่นสุดพิเศษคือการผนวกเอาวงแหวนคำนวณสไลด์รูล (Circular Slide Rule) เข้ากับขอบตัวเรือนนาฬิกาโครโนกราฟ ทำให้นักบินสามารถทำการคำนวณการบินที่ซับซ้อนได้อย่างรวดเร็วในยุคที่ยังไม่มีเครื่องคำนวณอิเล็กทรอนิกส์หรือคอมพิวเตอร์',
+      innovations: 'ฟังก์ชันขอบสไลด์รูลหมุนได้ของ Navitimer ทำงานเหมือนระบบคิดเลขลอการิทึม ช่วยให้นักบินสามารถคำนวณระยะทาง อัตราความเร็วในการไต่ระดับ (Climb Rate) การแปลงหน่วย (เช่น ไมล์เป็นกิโลเมตร หรือแกลลอนเป็นลิตร) และที่สำคัญที่สุดคือ อัตราการสิ้นเปลืองน้ำมันเชื้อเพลิง (Fuel Consumption Rate) ซึ่งเป็นเรื่องชี้ชะตาชีวิตในการบินระยะไกล ขับเคลื่อนด้วยกลไกจับเวลาอัตโนมัติคลาสสิกของ Breitling ที่มีความแม่นยำสูง',
+      legends: 'รุ่นที่ถือเป็นตำนานและของสะสมยอดนิยมสูงสุดประกอบด้วย Navitimer B01 Chronograph 43 มม. ที่ใช้กลไกคาลิเบอร์ In-House B01 และรุ่นวินเทจ Ref. 806 รุ่นประวัติศาสตร์ที่คงดีเอ็นเอโลโก้ปีกของ AOPA ไว้อย่างสง่างามบนหน้าปัด',
+    },
+  },
+  {
+    id: '22',
+    category: 'Jaeger-LeCoultre',
+    editorialCategory: 'Watch Guide',
+    title: 'Jaeger-LeCoultre Reverso: ศิลปะการพลิกหน้าปัดเพื่อปกป้องกระจกและตำนานกีฬาโปโลระดับสูง',
+    subtitle: 'ถอดรหัสนาฬิกาสไตล์อาร์ตเดโคสองหน้าปัดและวิศวกรรมตัวเรือนแบบสไลด์พลิกหมุนได้ที่หาตัวจับยาก',
+    readingTime: '5 นาที',
+    author: 'Fine Horology Archivist',
+    imageUrl: 'https://images.unsplash.com/photo-1524592094714-0f0654e20314?auto=format&fit=crop&w=600&q=80',
+    icon: 'award',
+    illustrationColors: ['#1A1A1A', '#3C3F42', '#A39081'],
+    thaiContent: {
+      origin: 'จุดเริ่มต้นของ Reverso เกิดขึ้นในปี 1930 บนสนามแข่งกีฬาโปโลของเหล่านายทหารอังกฤษในประเทศอินเดีย ซึ่งการหวดลูกโปโลที่รุนแรงมักทำให้กระจกนาฬิกาพังเสียหายได้ง่าย César de Trey นักเดินทางชาวสวิสจึงนำปัญหานี้ไปปรึกษา Jacques-David LeCoultre และช่างฝีมือผู้ร่วมงาน จนกลายเป็นสัญญาสิทธิบัตรการออกแบบตัวเรือนสี่เหลี่ยมผืนผ้าที่สามารถสไลด์และหมุนพลิกกลับด้านได้ในปี 1931 เพื่อหันด้านฝาหลังโลหะมารับแรงกระแทกจากไม้โปโลแทน',
+      innovations: 'Reverso โดดเด่นด้วยดีไซน์ทรงสี่เหลี่ยมผืนผ้าสัดส่วนทองคำและลายเส้นสลักสามขีด (Gadroons) สไตล์ Art Deco ด้านข้างตัวเรือน วิศวกรรมระบบล็อกสไลด์พลิกแบบฟันสปริงมีความนุ่มนวลและแน่นหนาอย่างยิ่ง ในยุคปัจจุบันเทคโนโลยีนี้ได้วิวัฒนาการไปสู่ระบบ "Duoface" ซึ่งสามารถพลิกหน้าปัดกลับมาเป็นอีกดีไซน์หรืออีกเขตเวลาได้ โดยใช้พลังงานร่วมกับชุดกลไกเพียงเครื่องเดียว',
+      legends: 'นาฬิการุ่นที่เป็นสัญลักษณ์ได้แก่ Reverso Classic Monoface (รุ่นหน้าปัดเดียวดั้งเดิมด้านหลังสลักลายสัญลักษ์ส่วนบุคคล), Reverso Tribute Duoface (รุ่นสองหน้าปัดแสดงสองเขตเวลา) และรุ่นกลไกซับซ้อน Reverso Hybris Mechanica ซึ่งสะท้อนสุดยอดฝีมือของผู้สถาปนาสมญานาม "The Watchmaker of Watchmakers"',
+    },
+  },
+  {
+    id: '23',
+    category: 'Vacheron Constantin',
+    editorialCategory: 'Watch Technology',
+    title: 'Vacheron Constantin Overseas: มาตราประทับตราเจนีวา (Geneva Seal) และวิศวกรรมการขัดแต่งกลไกระดับสูงสุด',
+    subtitle: 'เจาะลึกนาฬิกาสปอร์ตหรูที่ผสานดีไซน์ขอบหน้าปัดมอลตาครอสและมาตรฐานการรับรองคุณภาพชั้นสูงแห่งประวัติศาสตร์ 270 ปี',
+    readingTime: '5 นาที',
+    author: 'Haute Horlogerie Analyst',
+    imageUrl: 'https://images.unsplash.com/photo-1614162692292-7ac56d7f7f1e?auto=format&fit=crop&w=600&q=80',
+    icon: 'shield',
+    illustrationColors: ['#151C2A', '#2E4A6F', '#D4AF37'],
+    thaiContent: {
+      origin: 'Vacheron Constantin เป็นหนึ่งในแบรนด์ระดับ "Holy Trinity" ที่เก่าแก่ที่สุดในโลกที่เปิดทำการมาอย่างต่อเนื่องตั้งแต่ปี 1755 ซีรีส์สปอร์ตหรูอย่าง "Overseas" ได้รับการต่อยอดมาจากการดีไซน์นาฬิการุ่นไอคอนิก "222" ในปี 1977 และโดดเด่นด้วยการประทับ "Poinçon de Genève" (Geneva Seal) ซึ่งเป็นตราเครื่องหมายรับรองคุณภาพด้านวิศวกรรมชิ้นส่วนและการขัดแต่งที่เข้มงวดที่สุดชิ้นหนึ่งของอุตสาหกรรมนาฬิกาสวิส',
+      innovations: 'เพื่อที่จะได้รับตราเจนีวาเซียร์ นาฬิกาต้องผลิตในรัฐเจนีวาและชิ้นส่วนทุกชิ้นในกลไก (ไม่เว้นแม้แต่ฟันเฟืองขนาดเล็กใต้สะพานจักรที่มองไม่เห็นด้วยตาเปล่า) ต้องผ่านการขัดลบมุมด้วยมือ (Anglage), ขัดผิวซาติน, ขัดเงาแบบกระจกเงา (Mirror Polishing) และตกแต่งลาย Côtes de Genève หน้าปัดสีน้ำเงินโปร่งแสงของ Overseas และขอบเบเซลดีไซน์เหลี่ยมฟันปลาที่ลอกแบบมาจาก "Maltese Cross" (กางเขนมอลตา สัญลักษณ์ของแบรนด์) คือศิลปะชั้นสูง',
+      legends: 'นาฬิกาชิ้นยอดเยี่ยมในตระกูล ได้แก่ Overseas Automatic Ref. 4500V หรือรหัสใหม่ 4520V ขนาด 41 มม. ที่มีระบบถอดสายด่วนด้วยปุ่มเดียว (Interchangeable Strap System) พร้อมสายยางสตีล และหนังจระเข้บรรจุในกล่องเดียว และรุ่น Overseas Ultra-Thin Perpetual Calendar ในตัวเรือนทองคำ 18K',
+    },
+  },
+  {
+    id: '24',
+    category: 'Zenith',
+    editorialCategory: 'Watch Technology',
+    title: 'Zenith El Primero: กลไกโครโนกราฟความถี่สูง 36,000 vph และเรื่องราวการลักลอบเก็บรักษาพิมพ์เขียวในอดีต',
+    subtitle: 'ย้อนตำนานกลไกจับเวลาอัตโนมัติความเร็วสูงรุ่นแรกของโลกที่ขับเคลื่อนนาฬิกาหรูแบรนด์อื่นในยุควิกฤตควอตซ์',
+    readingTime: '5 นาที',
+    author: 'Movement Design Specialist',
+    imageUrl: 'https://images.unsplash.com/photo-1614162692292-7ac56d7f7f1e?auto=format&fit=crop&w=600&q=80',
+    icon: 'zap',
+    illustrationColors: ['#1A1D20', '#3D454E', '#ECC87A'],
+    thaiContent: {
+      origin: 'ในปี 1969 Zenith ได้เปิดตัวกลไกจับเวลาโครโนกราฟระบบคอลัมน์วีลไขลานอัตโนมัติรุ่นแรกของโลกในชื่อ "El Primero" (แปลว่า "ที่หนึ่ง" ในภาษาสเปน) โดดเด่นด้วยรอบความถี่ที่เร็วเป็นประวัติการณ์ถึง 5Hz หรือ 36,000 ครั้งต่อชั่วโมง ซึ่งทำงานได้ละเอียดถึงระดับ 1/10 ของวินาที อย่างไรก็ตาม เมื่อวิกฤตควอตซ์มาถึงกลุ่มทุนเจ้าของแบรนด์ได้สั่งทำลายเครื่องจักรและพิมพ์เขียวทิ้งเพื่อหันไปผลิตแร่ควอตซ์แทน',
+      innovations: 'วีรบุรุษผู้กอบกู้ประวัติศาสตร์นี้คือ "Charles Vermot" ช่างทำนาฬิกาหัวดื้อผู้ขัดคำสั่งเจ้าของแบรนด์ เขาแอบลักลอบนำเอาเครื่องจักร อุปกรณ์ และพิมพ์เขียวกลไก El Primero นับตันไปซ่อนไว้ในห้องใต้หลังคาลับของโรงงานอย่างปลอดภัย เมื่อกระแสความนิยมนาฬิกาจักรกลหวนกลับคืนมาในทศวรรษ 1980 Zenith จึงสามารถนำอุปกรณ์เหล่านั้นออกมารื้อฟื้นใหม่ได้ทันที และความเที่ยงตรงนี้ยังเคยถูก Rolex ซื้อไปปรับลดความถี่เพื่อใช้ขับเคลื่อนรุ่น Daytona Ref. 16520 ยุคแรกอีกด้วย',
+      legends: 'นาฬิการุ่นคลาสสิกตลอดกาลคือ Zenith Chronomaster Original (ที่คงรูปทรงขนาด 38 มม. และวงหน้าปัดสามสีไอคอนิก น้ำเงิน/เทาอ่อน/เทาเข้ม) และรุ่นทายาทแนวสปอร์ตความถี่จับเวลา 1/100 วินาทีอย่าง Chronomaster Sport ขอบเซรามิก',
+    },
+  },
+  {
+    id: '25',
+    category: 'Panerai',
+    editorialCategory: 'Watch Guide',
+    title: 'Panerai Luminor: ถอดประวัติศาสตร์นาฬิกาดำน้ำของกองทัพเรืออิตาลีและสัญลักษณ์กลไกตัวล็อกเม็ดมะยม',
+    subtitle: 'เรียนรู้การกำเนิดสารเรืองแสงลูมินอร์ที่ปลอดภัยและเหตุผลที่บอดี้ทรงสี่เหลี่ยมเบาะรองนอนเป็นดีไซน์อันเป็นเอกลักษณ์',
+    readingTime: '4 นาที',
+    author: 'Military Watch Historian',
+    imageUrl: 'https://images.unsplash.com/photo-1522312346375-d1a52e2b99b3?auto=format&fit=crop&w=600&q=80',
+    icon: 'anchor',
+    illustrationColors: ['#1C231C', '#3C4E3C', '#B5AFA5'],
+    thaiContent: {
+      origin: 'Panerai ก่อตั้งขึ้นในเมืองฟลอเรนซ์ ประเทศอิตาลี ในปี 1860 โดยเริ่มจากการเป็นร้านจำหน่ายและประดิษฐ์อุปกรณ์วัดเวลาความแม่นยำของทหารเรือ ในทศวรรษ 1930 กองทัพเรืออิตาลีต้องการนาฬิกาดำน้ำขนาดใหญ่พิเศษเพื่อให้หน่วยปฏิบัติการพิเศษใต้น้ำสวมใส่ขณะขับขี่ตอร์ปิโดนำทางมนุษย์โจมตีท่าเรือข้าศึกในความมืดสนิท นำไปสู่การพัฒนาหน้าปัดสารเรืองแสง Radiomir (ทำจากเรเดียม) และวิวัฒนาการต่อมาเป็นสารเคมีชนิดใหม่ที่ปลอดภัยในชื่อ "Luminor" (ทำจากทริเทียม) ในปี 1949',
+      innovations: 'การออกแบบที่เป็นเอกลักษณ์คือกลไกคันโยกครอบล็อกเม็ดมะยม (Patented Crown-Protecting Device) ซึ่งจดสิทธิบัตรในปี 1956 คันโยกนี้จะทำหน้าที่ดันเม็ดมะยมและซีลยางซิลิโคนเข้าหารอยต่อข้างตัวเรือนอย่างหนาแน่น ป้องกันไม่ให้น้ำรั่วซึมจากการกดดันใต้น้ำลึก และป้องกันอันตรายจากการตกกระแทก นอกจากนี้หน้าปัดโครงสร้างแบบประกบสองชั้น (Sandwich Dial) ซึ่งเจาะรูตัวเลขเพื่อโชว์แผ่นพรายน้ำสว่างจ้าด้านล่างก็ยังช่วยเพิ่มทักษะอ่านค่าเวลาใต้น้ำได้อย่างยอดเยี่ยม',
+      legends: 'นาฬิกาที่เป็นตำนานและเป็นที่ต้องการสะสม ได้แก่ Luminor Marina Ref. PAM01312 ขนาด 44 มม. และตระกูล Luminor Base PAM00112 ในตัวเรือนทรง cushion-shaped สุดแกร่งที่สะกดใจสายลุยทั่วโลก',
+    },
+  },
+  {
+    id: '26',
+    category: 'Rolex',
+    editorialCategory: 'Watch Guide',
+    title: 'เจาะตำนาน Rolex Daytona: จากนาฬิกาจับเวลาที่เคยขายไม่ออกสู่สัญลักษณ์ความเร็วของ Paul Newman',
+    subtitle: 'เปิดประวัติศาสตร์การแข่งขันความเร็วในสนามแข่งเดย์โทนาและการวิวัฒนาการสู่กลไกจับเวลาระดับผู้นำอุตสาหกรรม',
+    readingTime: '5 นาที',
+    author: 'Rolex Heritage Specialist',
+    imageUrl: 'https://images.unsplash.com/photo-1547996160-81dfa63595aa?auto=format&fit=crop&w=600&q=80',
+    icon: 'award',
+    illustrationColors: ['#0A2A1B', '#114D32', '#ECC87A'],
+    thaiContent: {
+      origin: 'Rolex Cosmograph Daytona เปิดตัวครั้งแรกในปี 1963 ในฐานะนาฬิกาจับเวลาสำหรับนักแข่งรถมืออาชีพบนชายหาดเดย์โทนา รัฐฟลอริดา ในช่วงแรก Daytona ไม่ได้รับความนิยมมากนักเนื่องจากเป็นกลไกไขลานที่ค่อนข้างหนาและผู้บริโภคยุคนั้นยังชอบนาฬิกาสามเข็มคลาสสิกมากกว่า ทว่าทุกอย่างเปลี่ยนไปอย่างสิ้นเชิงเมื่อภรรยาของ Paul Newman ดารานักแข่งรถสุดหล่อมอบ Daytona รหัส Ref. 6239 พร้อมสลักข้อความพิเศษให้แก่เขา',
+      innovations: 'จุดเด่นของรุ่น Paul Newman คือหน้าปัดดีไซน์สปอร์ตย้อนยุค "Exotic Dial" ที่มีสเกลจับเวลาแบบตัวอักษรอาร์ตเดโคและขีดบอกวินาทีสี่เหลี่ยมจัตุรัสเล็ก ๆ ปลายก้าน และด้วยการพัฒนาเทคโนโลยีที่ต่อเนื่อง Rolex ได้ก้าวเข้าสู่การใช้เครื่องอัตโนมัติ In-House Caliber 4130 และปรับปรุงมาเป็น Caliber 4131 ในรุ่นปัจจุบัน ซึ่งมีส่วนประกอบของคอลัมน์วีลและแนวดิ่งแบบผสม (Vertical Clutch) ช่วยให้ปุ่มจับเวลาทำงานได้อย่างนุ่มนวลและแม่นยำสูง',
+      legends: 'รุ่นที่ถือเป็นตำนานและมีราคาพุ่งทะยานสู่ห้วงอวกาศคือ Rolex Daytona Ref. 116500LN ขอบหน้าปัดสีดำเซรามิก Cerachrom ที่ขึ้นชื่อว่าหน้าปัดแพนด้า และรุ่นล่าสุดขนาด 40 มม. ในรหัส Ref. 126500LN รวมถึงรุ่นวินเทจ Paul Newman ดั้งเดิมที่ถูกประมูลไปในราคาสูงสุดเป็นสถิติโลกกว่า 17.8 ล้านดอลลาร์สหรัฐในปี 2017',
+    },
+  },
+  {
+    id: '27',
+    category: 'Patek Philippe',
+    editorialCategory: 'Watch Guide',
+    title: 'Patek Philippe Nautilus: จากภาพวาดบนกระดาษเช็ดปากในร้านอาหารสู่ราชาสปอร์ตหรูยอดนิยม',
+    subtitle: 'เจาะดีไซน์ตัวเรือนทรงช่องหน้าต่างเรือนกระจกข้างคู่และประวัติศาสตร์การเปลี่ยนผ่านของรุ่นระดับตำนาน Ref. 5711',
+    readingTime: '5 นาที',
+    author: 'Fine Dress Watch Curator',
+    imageUrl: 'https://images.unsplash.com/photo-1614162692292-7ac56d7f7f1e?auto=format&fit=crop&w=600&q=80',
+    icon: 'grid',
+    illustrationColors: ['#1C2A39', '#2E4C6D', '#ECC87A'],
+    thaiContent: {
+      origin: 'ในงานจัดแสดงสินค้าบาเซิลเวิลด์ปี 1974 ช่างออกแบบนาฬิการะดับตำนาน Gerald Genta กำลังรับประทานอาหารกลางวันที่ร้านอาหารฝั่งตรงข้ามบูธของ Patek Philippe เขาเห็นผู้บริหารแบรนด์นั่งคุยกันและมีแรงบันดาลใจฉับพลันที่จะสร้างสรรค์นาฬิกาสปอร์ตหรูหราให้เข้ากับสไตล์การล่องเรือหรูของพวกเขา เขาหยิบดินสอขึ้นมาและวาดสเก็ตช์ภาพนาฬิกาเรือนหนึ่งลงบนกระดาษเช็ดปากในเวลาเพียง 5 นาที และนั่นคือพิมพ์เขียวการกำเนิดของ Nautilus Ref. 3700 ในปี 1976',
+      innovations: 'รูปทรงของ Nautilus ได้รับแรงบันดาลใจโดยตรงจาก "Porthole" หรือช่องหน้าต่างทรงกลมหนาที่อยู่ข้างตัวเรือสำราญ โดดเด่นด้วยหูตัวเรือนสองข้างที่เชื่อมต่อเหมือนบานพับเปิดข้างตัวเรือ และสายสตีลเชื่อมต่อที่ขัดแต่งปัดลายซาตินและขัดเงาอย่างประณีตประดุจงานประติมากรรม ในรุ่นระดับตำนาน Ref. 5711 ที่เปิดตัวปี 2006 ได้ก้าวขึ้นเป็นสัญญาลักษณ์ความหรูหราขีดสุดด้วยการแกะสลักหน้าปัดลายลูกรอกแนวนอนสีน้ำเงินอมเขียวขัดซันเรย์ที่เป็นเอกลักษณ์เฉพาะตัว',
+      legends: 'หลังจาก Ref. 5711 ปิดตำนานลงอย่างเป็นทางการด้วยรุ่นหน้าปัดพิเศษสีเขียวมะกอกและหน้าปัดสีฟ้า Tiffany Blue มูลค่าประมูลประวัติศาสตร์ Patek Philippe ได้สืบทอดบัลลังก์ผ่าน Ref. 5811/1G ตัวเรือนทองคำขาวขนาด 41 มม. เพื่อรักษาระดับผลงานศิลปะชิ้นเอกที่เหนือกาลเวลาของ Gerald Genta สืบไป',
+    },
+  },
+  {
+    id: '28',
+    category: 'Audemars Piguet',
+    editorialCategory: 'Watch Guide',
+    title: 'Audemารs Piguet Royal Oak: ปฏิวัติประเพณี 1972 และนวัตกรรมการออกแบบขอบหน้าปัดแปดเหลี่ยมอันทรงคุณค่า',
+    subtitle: 'ย้อนรอยคืนประวัติศาสตร์ก่อนเปิดตัวงานบาเซิลเวิลด์ที่ช่วยชีวิตโรงงานนาฬิกาให้รอดพ้นจากสภาวะวิกฤตกลไกควอตซ์',
+    readingTime: '5 นาที',
+    author: 'Royal Oak Historian',
+    imageUrl: 'https://images.unsplash.com/photo-1600857544200-b2f666a9a2ec?auto=format&fit=crop&w=600&q=80',
+    icon: 'grid',
+    illustrationColors: ['#201C1A', '#4A3525', '#ECC87A'],
+    thaiContent: {
+      origin: 'ในช่วงปี 1971 อุตสาหกรรมนาฬิกาสวิสกำลังดิ่งลงสู่จุดจบเนื่องจากพายุนาฬิกาควอตซ์ราคาถูกจากเอเชียเข้ามาครองตลาด Audemars Piguet ที่มียอดขายตกต่ำจึงตระหนักว่าแบรนด์จำเป็นต้องสรรสร้างนาฬิกาสปอร์ตเหล็กหรูที่ยังไม่มีใครเคยสร้างมาก่อน ผู้จัดการแบรนด์จึงโทรศัพท์หา Gerald Genta ในเวลาบ่ายสองก่อนงานเปิดตัวที่บาเซิลเวิลด์เพียงวันเดียวเพื่อขอให้เขาดีไซน์นาฬิกาสปอร์ตสเตนเลสสตีลที่ยอดเยี่ยมและทันสมัยที่สุดเท่าที่จะทำได้',
+      innovations: 'Genta ใช้เวลาเพียงหนึ่งคืนในการออกแบบดีไซน์โดยดึงแรงบันดาลใจจากหมวกดำน้ำทองเหลืองแบบโบราณ นำเสนอขอบหน้าปัดทรงแปดเหลี่ยมอันทรงพลังยึดด้วยสกรูหกเหลี่ยมทองคำขาวโชว์ให้เห็นอย่างเปิดเผยรอบหน้าปัด โทนหน้าปัดลวดลายกากบาทแบบสี่เหลี่ยมเล็ก ๆ ที่สลักด้วยเครื่องจักรอายุร้อยปี "Petite Tapisserie" และการจัดวางสายเหล็กชุบแปรรูปทรงสอบลาดอย่างไร้รอยต่อ มันได้สร้างมาตรฐานใหม่ระดับโลกที่พลิกฟื้นแบรนด์ให้กลับมาเป็นผู้นำอย่างรุ่งโรจน์',
+      legends: 'นาฬิกาที่เป็นสัญลักษณ์ชิ้นสำคัญ ได้แก่ Royal Oak "Jumbo" Extra-Thin Ref. 15202ST ขนาด 39 มม. และรุ่นสืบทอดล่าสุด Ref. 16202ST ขับเคลื่อนด้วยคาลิเบอร์ 7121 เป็นที่สุดแห่งนาฬิกาสปอร์ตหรูที่นักสะสมต้องดิ้นรนหามาเป็นของตนเอง',
+    },
+  },
+  {
+    id: '29',
+    category: 'Tudor',
+    editorialCategory: 'Watch Technology',
+    title: 'Tudor Pelagos: นาฬิกาดำน้ำวัสดุไทเทเนียมพร้อมวาล์วระบายก๊าซฮีเลียมและบานพับสายปรับระดับอัตโนมัติ',
+    subtitle: 'ทำความเข้าใจเครื่องมือสำหรับนักดำน้ำมืออาชีพที่มีประสิทธิภาพกันน้ำลึกถึง 500 เมตรและน้ำหนักเบาเป็นพิเศษ',
+    readingTime: '5 นาที',
+    author: 'Deep Sea Tool Specialist',
+    imageUrl: 'https://images.unsplash.com/photo-1622434641406-a158123450f9?auto=format&fit=crop&w=600&q=80',
+    icon: 'settings',
+    illustrationColors: ['#1A2530', '#2E4C6D', '#ECC87A'],
+    thaiContent: {
+      origin: 'ในขณะที่ Black Bay มุ่งเน้นดีไซน์ย้อนยุคสวยงาม "Tudor Pelagos" คือสุดยอดตัวแทนของนาฬิกาเครื่องมือ (Tool Watch) ยุคใหม่ที่ออกแบบมาเพื่อการใช้งานใต้น้ำลึกสำหรับนักดำน้ำระดับอาชีพอย่างแท้จริง ตัวเรือนทำจากวัสดุเกรดพรีเมียมอย่าง "Titanium Grade 2" น้ำหนักเบากว่าสตีลถึง 40% แต่มีความเหนียวทนทานต่อการกระแทกและทนการกัดกร่อนจากน้ำเค็มสูงเป็นเลิศ สามารถกันน้ำลึกได้ถึง 500 เมตร (1,640 ฟุต)',
+      innovations: 'Pelagos บรรจุนวัตกรรมวิศวกรรมเฉพาะตัว 2 รายการสำคัญ: 1. "Helium Escape Valve" วาล์วระบายก๊าซฮีเลียมอัตโนมัติข้างตัวเรือน ซึ่งช่วยระบายก๊าซฮีเลียมที่สะสมตัวภายในนาฬิการะหว่างการพักอาศัยในห้องควบคุมแรงดัน (Saturation Diving) เพื่อไม่ให้กระจกนาฬิการะเบิดหลุดออก 2. "Floating Spring Clasp" บานพับสิทธิบัตรพิเศษที่มีกลไกสปริงในตัว ซึ่งสายนาฬิกาจะสามารถยืดตัวหรือหดตัวตามความหนาของชุดประดาน้ำนีโอพรีนที่หดตัวจากแรงกดอากาศใต้น้ำได้โดยอัตโนมัติ',
+      legends: 'นาฬิการุ่นที่เป็นสัญลักษณ์ได้แก่ Pelagos 42 มม. หน้าปัดสีดำหรือฟ้าด้าน (ขับเคลื่อนด้วยกลไก In-house คาลิเบอร์ MT5612 สำรองลาน 70 ชั่วโมง) และ Pelagos FXD ที่พัฒนาร่วมกับคอมมานโดกองทัพเรือฝรั่งเศส (Marine Nationale)',
+    },
+  },
+  {
+    id: '30',
+    category: 'Hublot',
+    editorialCategory: 'Watch Technology',
+    title: 'Hublot Big Bang: ปรัชญาศิลปะแห่งการผสมผสาน (Art of Fusion) และการก้าวข้ามขีดจำกัดด้วยวัสดุทองคำคู่กับยาง',
+    subtitle: 'วิเคราะห์การใช้วัสดุศาสตร์สมัยใหม่ อาทิ คาร์บอน ไทเทเนียม เซรามิก และโลหะผสมพิเศษในการออกแบบนาฬิกาสปอร์ตร่วมสมัย',
+    readingTime: '5 นาที',
+    author: 'Materials Fusion Specialist',
+    imageUrl: 'https://images.unsplash.com/photo-1508685096489-7aacd43bd3b1?auto=format&fit=crop&w=600&q=80',
+    icon: 'activity',
+    illustrationColors: ['#1F1A17', '#4E3629', '#D4AF37'],
+    thaiContent: {
+      origin: 'Hublot ก่อตั้งขึ้นในปี 1980 โดย Carlo Crocco ซึ่งเขาสร้างความสั่นสะเทือนระดับประวัติศาสตร์ด้วยการกล้าจับคู่วัสดุทองคำ 18K ทรงคุณค่า เข้ากับสายยางธรรมชาติสีดำเรียบง่าย ซึ่งไม่มีแบรนด์นาฬิกาชั้นสูงรายใดเคยทำมาก่อน ในปี 2004 ภายใต้การนำของตำนานผู้ปฏิวัติ Jean-Claude Biver แบรนด์ได้เปิดตัวสัญลักษณ์เรือนใหม่ "Big Bang" เพื่อประกาศปรัชญาการออกแบบที่เรียกว่า "Art of Fusion" (ศิลปะแห่งการหลอมรวมวัสดุที่แตกต่างเข้าด้วยกัน)',
+      innovations: 'แก่นแท้ของ Big Bang คือการสร้างสรรค์ตัวเรือนสไตล์แซนด์วิชที่สามารถประกบวัสดุหลากชนิดร่วมกันได้ในเรือนเดียว แบรนด์ได้จัดตั้งศูนย์วิจัยวัสดุศาสตร์จนสามารถจดสิทธิบัตรนวัตกรรมระดับโลกอย่าง "Magic Gold" ซึ่งเป็นทองคำผสมเซรามิกทนรอยขีดข่วนเป็นอันดับหนึ่งของโลก (ไม่มีวันเป็นรอยนอกจากถูกกรีดด้วยเพชร) การผสาน คาร์บอนไฟเบอร์, คริสตัลแซฟไฟร์โปร่งแสงหลากสี, ไทเทเนียม และเซรามิกสีสันสดใสเข้าไว้ด้วยกันอย่างอิสระ',
+      legends: 'รุ่นยอดนิยมและสร้างชื่อเสียงระดับสากล ได้แก่ Big Bang Unico Chronograph 42 มม. ขับเคลื่อนด้วยกลไกจับเวลาอัตโนมัติแบบล้อคอลัมน์วีลด้านหน้า In-house Unico HUB1280 และรุ่นดีไซน์ร่วมสมัย Classic Fusion ในวัสดุ Magic Gold หรือ Titanium สุดล้ำสมัย',
+    },
+  },
 ];
 
 const ARTICLES_EN: Record<string, { title: string, subtitle: string, origin: string, innovations: string, legends: string }> = {
@@ -518,6 +688,76 @@ const ARTICLES_EN: Record<string, { title: string, subtitle: string, origin: str
     origin: 'In 1993, AP designer Emmanuel Gueit was tasked to expand the Royal Oak to younger audiences. He created the 42mm Royal Oak Offshore, which was initially mocked and nicknamed "The Beast".',
     innovations: 'The Offshore pioneered rugged sports horology, exposing a massive black silicone gasket under the octagonal bezel, incorporating rubber-clad pushers, and a prominent "Méga Tapisserie" textured dial.',
     legends: 'Adopted by superstar athletes and musicians, legendary models include the Offshore Chronograph (42mm) and the high-visibility Offshore Diver Ref. 15720ST.'
+  },
+  '21': {
+    title: 'Breitling Navitimer: The Aviation Computer on Your Wrist & the Slide Rule History',
+    subtitle: 'Deciphering the mathematical tool used by pilots to calculate speed, fuel consumption, and climb rate without electricity.',
+    origin: 'Introduced in 1952, the Breitling Navitimer (Navigation Timer) was designed for the Aircraft Owners and Pilots Association (AOPA). Its defining innovation was the integration of a circular slide rule bezel with a chronograph, creating a physical flight computer on the wrist long before digital instruments.',
+    innovations: 'The slide rule operates on a logarithmic system, letting pilots calculate ground speed, climb rates, descent curves, fuel burn, and unit conversions (like miles to kilometers) on the fly. This mechanical tool proved to be life-saving during long-distance navigation. The modern models are powered by the high-performance Breitling Manufacture Caliber B01.',
+    legends: 'Iconic models include the Navitimer B01 Chronograph 43mm (utilizing the in-house B01 movement) and the vintage-inspired Ref. 806 Re-Edition, which beautifully revives the historic winged logo of the AOPA.'
+  },
+  '22': {
+    title: 'Jaeger-LeCoultre Reverso: The Art of the Swiveling Case & Noble Polo Fields',
+    subtitle: 'Deconstructing the Art Deco icon with dual dials and the mechanical slider case protecting the dial from impact.',
+    origin: 'The Reverso was born in 1930 on the polo fields of British army officers in India. The intensity of polo matches often shattered the glass of their watches. Swiss traveler César de Trey took this challenge to Jacques-David LeCoultre, resulting in a patented rectangular sliding and swiveling case in 1931, allowing players to flip the metal case-back forward to absorb shocks.',
+    innovations: 'The Reverso features exquisite Art Deco aesthetics, with its golden ratio proportions and triple horizontal grooves (gadroons). Modern engineering evolved this system into "Duoface" models, where a single mechanical movement powers two separate dials on each side, displaying different timezones or designs.',
+    legends: 'Iconic models include the Reverso Classic Monoface (offering a blank metal back perfect for custom engraving), the Reverso Tribute Duoface, and the ultra-complicated Reverso Hybris Mechanica, proving the brand’s title as "The Watchmaker of Watchmakers".'
+  },
+  '23': {
+    title: 'Vacheron Constantin Overseas: The Geneva Seal & Haute Horlogerie Finishing',
+    subtitle: 'Deep dive into the luxury sports icon integrating the Maltese Cross design and the elite certification of Swiss excellence.',
+    origin: 'Vacheron Constantin is one of the oldest "Holy Trinity" watchmakers, operating continuously since 1755. The modern "Overseas" sports series, which evolved from the historic Ref. 222 designed in 1977, proudly bears the prestigious "Poinçon de Genève" (Geneva Seal), which represents the ultimate certification of Swiss high-watchmaking excellence.',
+    innovations: 'To earn the Geneva Seal, the movement must be manufactured in Geneva, and every single component (even invisible tiny gears beneath plates) must be finished by hand. This includes hand-polished anglage (chamfering), mirror polishing, satin brushing, and Côtes de Genève patterns. The signature blue lacquer dials and Maltese Cross-inspired bezels represent horological art.',
+    legends: 'The flagship model is the Overseas Automatic Ref. 4500V (or the updated Ref. 4520V) featuring an interchangeable quick-release strap system including steel, rubber, and alligator straps in one box, alongside the ultra-thin Overseas Perpetual Calendar.'
+  },
+  '24': {
+    title: 'Zenith El Primero: The High-Frequency 36,000 vph Movement & the Hero Who Saved the Blueprints',
+    subtitle: 'The saga of the first automatic chronograph beating at 5Hz, and the secret attic that preserved Swiss mechanical history.',
+    origin: 'In 1969, Zenith launched "El Primero" (meaning "the first" in Spanish), the world’s first automatic integrated column-wheel chronograph. It beat at a high frequency of 5Hz (36,000 vph), enabling 1/10th of a second accuracy. However, during the Quartz Crisis, Zenith’s corporate owners ordered all mechanical tooling and blueprints destroyed to transition to quartz.',
+    innovations: 'A rebellious watchmaker named "Charles Vermot" defied the order. He secretly cataloged and hid tons of steel presses, mechanical tools, and technical drawings in a hidden attic. Years later, when mechanical watches surged in popularity, Zenith retrieved them to resume production. This legendary movement was even purchased by Rolex to power their early automatic Daytona (Ref. 16520).',
+    legends: 'Timeless references include the Chronomaster Original (retaining the classic 38mm proportions and the tri-color sub-dials: blue, light grey, dark grey) and the modern Chronomaster Sport featuring a 1/10th of a second bezel.'
+  },
+  '25': {
+    title: 'Panerai Luminor: Deconstructing the Italian Navy Diving History & the Crown Guard Protector',
+    subtitle: 'Tracing the evolution of safe tritium-based lume and the cushion case design that defined rugged military styling.',
+    origin: 'Panerai was founded in Florence, Italy, in 1860, specializing in precision military instruments. In the 1930s, the Royal Italian Navy commissioned Panerai to design massive, highly luminous dive watches for underwater commandos piloting manned torpedoes. This led to radium-based Radiomir and later to the safe, tritium-based patent "Luminor" in 1949.',
+    innovations: 'The defining characteristic of the Luminor is its patented crown-protecting device (1956). The lever mechanism hermetically seals the winding crown against the case, protecting gaskets from extreme water pressure and external shocks. The "sandwich dial" construction, with stencil-cut indices overlaying a luminous disc, offers unparalleled legibility under water.',
+    legends: 'Legendary collector pieces include the Luminor Marina PAM01312 (44mm) and the clean, classic Luminor Base PAM00112 in the robust cushion case shape loved by dive watch enthusiasts globally.'
+  },
+  '26': {
+    title: 'The Rolex Daytona Saga: From a Slow-Selling Chronograph to the Holy Grail of Paul Newman Race Heritage',
+    subtitle: 'Tracing the history of Daytona beach speed runs and the evolution into the ultimate luxury status symbol.',
+    origin: 'The Rolex Cosmograph Daytona debuted in 1963 as a professional timing tool for motorsports on the Daytona beach circuit. In its early decades, the Daytona was a commercial slow-burner as manual-wind chronographs were out of mainstream fashion. Its fate was completely rewritten when Joanne Woodward gave her husband, actor-racer Paul Newman, a Daytona Ref. 6239.',
+    innovations: 'The Paul Newman models feature retro "Exotic Dials" with art deco typography and square-tipped hashmarks. Technically, Rolex evolved the collection to the automatic in-house Caliber 4130, and recently to Caliber 4131, which utilizes a vertical clutch and column-wheel mechanism for instant, buttery chronograph activation.',
+    legends: 'Coveted modern models include the ceramic-bezel steel Ref. 116500LN and the latest Ref. 126500LN. In 2017, Paul Newman’s personal Ref. 6239 made history, auctioning for a record-breaking $17.8 million.'
+  },
+  '27': {
+    title: 'Patek Philippe Nautilus: From a Restaurant Napkin Sketch to the Undisputed Sovereign of Luxury Sports Watches',
+    subtitle: 'Exploring the porthole design with lateral ears by Gerald Genta and the historic market rise of the Ref. 5711.',
+    origin: 'At Baselworld 1974, master watch designer Gerald Genta was dining across Patek Philippe’s booth. Inspired by the executives launching luxury cruises, he sketched a watch on a restaurant napkin in under five minutes. That sketch became the blueprint for the historic Nautilus Ref. 3700 launched in 1976.',
+    innovations: 'The Nautilus features an integrated structure inspired by a ship’s "porthole", showcasing two lateral ears resembling hinges and an integrated steel bracelet finished with complex brushed-and-polished facets. The Ref. 5711 (released in 2006) achieved legendary hype status for its sunburst black-blue embossed dial.',
+    legends: 'After the Ref. 5711 concluded its run with rare olive-green and Tiffany-blue dial versions, Patek Philippe introduced the Ref. 5811/1G in solid white gold (41mm), preserving Genta’s timeless design blueprint.'
+  },
+  '28': {
+    title: 'Audemars Piguet Royal Oak: The 1972 Revolution & the Design Blueprint of the Octagonal Steel Icon',
+    subtitle: 'Discovering the single-night design marathon by Gerald Genta that saved Audemars Piguet during the Quartz Crisis.',
+    origin: 'By 1971, Swiss high horology was on the brink of collapse due to the surge of inexpensive Asian quartz watches. Desperate to innovate, Audemars Piguet contacted Gerald Genta just one afternoon before the Basel fair, requesting a category-defining "steel luxury sports watch".',
+    innovations: 'Genta spent a single night designing the Royal Oak, drawing inspiration from vintage diving helmets. He introduced a bold octagonal bezel locked with exposed white gold hexagonal screws, a textured "Petite Tapisserie" grid dial, and a complex integrated steel bracelet. It revolutionized the watch world.',
+    legends: 'Legendary models include the Royal Oak "Jumbo" Extra-Thin Ref. 15202ST (39mm) and its modern successor Ref. 16202ST powered by the advanced thin Caliber 7121.'
+  },
+  '29': {
+    title: 'Tudor Pelagos: Titanium Professional Diver with Helium Escape Valve & Self-Adjusting Spring Clasp',
+    subtitle: 'Deep dive into the ultimate deep-sea modern tool watch with 500m water resistance and full titanium utility.',
+    origin: 'While the Black Bay focuses on vintage heritage, the "Tudor Pelagos" is the ultimate modern professional tool watch. Forged in Titanium Grade 2, it is 40% lighter than steel but incredibly resistant to sea-water corrosion and impacts. It is rated for a massive 500 meters (1,640 feet) depth.',
+    innovations: 'The Pelagos boasts two major technical innovations: 1. "Helium Escape Valve" protecting the sapphire crystal from popping off during decompression in saturation chambers. 2. "Floating Spring Clasp" which automatically stretches or contracts to adjust for wetsuit compression at deep depths.',
+    legends: 'The signature models are the Pelagos 42mm in matte black or blue (powered by the COSC Manufacture Caliber MT5612 with 70h reserve) and the fixed-lug Pelagos FXD developed with the French Navy (Marine Nationale).'
+  },
+  '30': {
+    title: 'Hublot Big Bang: The Art of Fusion Philosophy & the Avant-Garde Pairing of Gold with Natural Rubber',
+    subtitle: 'Analyzing the fusion of carbon, titanium, ceramic, and proprietary gold alloys in modern sports luxury.',
+    origin: 'Hublot was founded in 1980 by Carlo Crocco, who shocked the watch world by pairing a precious 18K gold case with a casual black rubber strap. Under Jean-Claude Biver’s leadership in 2004, the brand launched the "Big Bang" chronograph to declare the philosophy of the "Art of Fusion".',
+    innovations: 'The Big Bang features a multi-component sandwich case designed to fuse high-tech composites. Hublot patented "Magic Gold", the world’s first scratch-resistant 18K gold alloy (fusing gold with boron carbide ceramic). The brand pushes boundaries by fusing carbon fiber, colorful sapphire crystal, and titanium.',
+    legends: 'The flagship model is the Big Bang Unico Chronograph 42mm powered by the in-house column-wheel Caliber HUB1280, and the contemporary Classic Fusion line in Magic Gold and Titanium.'
   }
 };
 
@@ -547,6 +787,12 @@ export function MagazineScreen() {
     'Richard Mille',
     'Lange & Söhne',
     'Tag Heuer',
+    'Breitling',
+    'Jaeger-LeCoultre',
+    'Vacheron Constantin',
+    'Zenith',
+    'Panerai',
+    'Hublot',
   ];
 
   const filteredArticles = MAGAZINE_ARTICLES.filter((art) => {
@@ -633,6 +879,8 @@ export function MagazineScreen() {
                 key={art.id}
                 style={[styles.articleCard, { overflow: 'hidden' }]}
                 onPress={() => setActiveArticle(art)}
+                accessibilityRole="button"
+                accessibilityLabel={t('a11y.article', { title: art.title })}
               >
                 <LinearGradient
                   colors={['rgba(35, 29, 23, 0.9)', 'rgba(18, 14, 11, 0.98)']}
@@ -807,7 +1055,7 @@ export function MagazineScreen() {
                   {/* Bottom Premium Ending Card */}
                   <View style={styles.modalEndCard}>
                     <Ionicons name="shield-checkmark" size={24} color="#ECC87A" style={{ marginBottom: 6 }} />
-                    <Text style={styles.modalEndTitle}>CHRONO24 LUXURY INSIGHT</Text>
+                    <Text style={styles.modalEndTitle}>HOROLOGY LUXURY INSIGHT</Text>
                     <Text style={styles.modalEndSub}>
                       {lang === 'th'
                         ? 'รวบรวมและวิเคราะห์ข้อมูลโดยระบบสืบค้นอัตลักษณ์ Luxury Watch Authenticator สาระนาฬิกาสปอร์ตและวิศวกรรมชั้นสูงระดับโลก'

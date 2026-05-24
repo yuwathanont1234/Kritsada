@@ -14,7 +14,8 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { PrimaryButton } from '../components/PrimaryButton';
 import { ScanningImageAnimation } from '../components/ScanningImageAnimation';
-import { analyzeWatchByTier } from '../lib/aiRouter';
+import { ErrorState } from '../components/ErrorState';
+import { analyzeWatchByTier, logFullyCachedScan } from '../lib/aiRouter';
 import { getMembership } from '../lib/auth';
 import {
   clearScanCaches,
@@ -33,6 +34,7 @@ import {
   incrementTrialScans,
 } from '../lib/tier';
 import { preflightWatchCheck } from '../lib/scanPreflight';
+import { checkAntiAbuse, recordSuccessfulScan, recordFailedScan } from '../lib/antiAbuse';
 import { cropToBbox, isValidBbox } from '../lib/bboxCrop';
 import { logTesterEvent } from '../lib/testerMode';
 import {
@@ -593,10 +595,27 @@ export function LoadingScreen({ route, navigation }: Props) {
         const membership = await getMembership();
         setAiCount(AI_COUNT_BY_TIER[membership.tier] ?? 7);
 
+        // 0. Anti-Abuse Check
+        const antiAbuseCheck = await checkAntiAbuse(
+          membership.tier,
+          membership.isTrialing
+        );
+        if (!antiAbuseCheck.allowed) {
+          Alert.alert('Security Alert', antiAbuseCheck.userMessage, [
+            { text: 'OK', onPress: () => navigation.goBack() },
+          ]);
+          return;
+        }
+
         // Preflight check
         const preflight = await preflightWatchCheck(frontUri);
         if (!preflight.ok) {
-          Alert.alert('Image Verification', preflight.userMessage, [
+          const wasLockedOut = await recordFailedScan();
+          const finalMsg = wasLockedOut
+            ? 'ระบบตรวจพบพฤติกรรมการใช้งานที่น่าสงสัย (อัปโหลดรูปไม่ถูกต้องติดต่อกัน) เพื่อความปลอดภัย ระบบได้ระงับการสแกนชั่วคราวเป็นเวลา 15 นาที'
+            : preflight.userMessage;
+
+          Alert.alert('Image Verification', finalMsg, [
             { text: 'OK', onPress: () => navigation.goBack() },
           ]);
           return;
@@ -694,13 +713,15 @@ export function LoadingScreen({ route, navigation }: Props) {
 
         // Cost logging
         const consentForCost = await getDataConsent();
-        logCostEvent({
-          type: 'scan',
-          costUsd: cacheHit ? 0 : COST_PER_CALL.scan,
-          tier: membership.tier,
-          cohortHash: consentForCost.granted ? consentForCost.cohortHash : null,
-          cacheHit,
-        }).catch(() => {});
+        if (cacheHit) {
+          logFullyCachedScan(
+            membership.tier,
+            consentForCost.granted ? consentForCost.cohortHash : null
+          ).catch(() => {});
+        }
+
+        // Anti-Abuse update on successful execution
+        await recordSuccessfulScan();
 
         // Crop processing
         let processedFrontUri: string | undefined;
@@ -740,22 +761,11 @@ export function LoadingScreen({ route, navigation }: Props) {
 
   if (error) {
     return (
-      <SafeAreaView style={styles.container}>
-        <Text style={styles.errorIcon}>😢</Text>
-        <Text style={styles.errorTitle}>{lang === 'th' ? 'การวินิจฉัยล้มเหลว' : 'Diagnosis Failed'}</Text>
-        <Text style={styles.errorMsg}>{error}</Text>
-        <View style={{ width: '100%', gap: spacing.sm }}>
-          <PrimaryButton
-            label={lang === 'th' ? 'วิเคราะห์ใหม่อีกครั้ง' : 'Retry Analysis'}
-            onPress={() => navigation.replace('Loading', { frontUri, backUri, extraImages })}
-          />
-          <PrimaryButton
-            label={lang === 'th' ? 'กลับสู่หน้าหลัก' : 'Return Home'}
-            variant="ghost"
-            onPress={() => navigation.popToTop()}
-          />
-        </View>
-      </SafeAreaView>
+      <ErrorState
+        errorMsg={error}
+        onRetry={() => navigation.replace('Loading', { frontUri, backUri, extraImages })}
+        onCancel={() => navigation.goBack()}
+      />
     );
   }
 

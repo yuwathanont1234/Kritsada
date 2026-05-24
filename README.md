@@ -36,8 +36,24 @@ user photo ─┤ Gemini + Google Search → brand / model / ref (text)         
 | Catalog resolution | `app/harvester/catalog.py` |
 | Cross-check + idempotent upsert | `app/harvester/upsert.py` |
 | Worker loop | `app/harvester/worker.py`, `scripts/run_worker.py` |
-| DINOv3 embedding boundary | `supabase/functions/embed-image/index.ts` |
-| Schema | `supabase/migrations/0001_init.sql` |
+| Expert verification API (`/admin/*`) | `app/admin.py` |
+| Fine-grained heatmap verdict (`/verdict/deep`) | `app/verdict/` |
+| DINOv3 embedding boundary (global + patches) | `supabase/functions/embed-image/index.ts` |
+| Schema | `supabase/migrations/0001_init.sql`, `0002_verified.sql` |
+
+## API surface
+
+| Method | Path | Purpose |
+|--------|------|---------|
+| POST | `/scan` | Identify + match; enqueue harvest if model unseen |
+| GET | `/admin/benchmarks?verified=false` | List benchmarks (expert review). `X-Admin-Key` required |
+| POST | `/admin/benchmarks/{id}/verify` | Promote a benchmark to expert-verified |
+| DELETE | `/admin/benchmarks/{id}` | Remove a bad harvest |
+| POST | `/verdict/deep` | Patch-level heatmap vs studio reference + anomaly score |
+
+The matcher prefers expert-verified benchmarks, and `/scan` only returns
+`authentic_candidate` when the match is against a verified row (otherwise
+`review`).
 
 ## Design decisions (why it stays correct as it grows)
 
@@ -70,6 +86,7 @@ cp .env.example .env            # fill in credentials
 
 # Database (Supabase or any Postgres with pgvector + pgcrypto)
 psql "$DATABASE_URL" -f supabase/migrations/0001_init.sql
+psql "$DATABASE_URL" -f supabase/migrations/0002_verified.sql
 
 # Edge function (set its env vars in the Supabase dashboard / secrets)
 supabase functions deploy embed-image
@@ -80,9 +97,22 @@ Place the linear-probe weights at `app/weights/linear_probe.npz` containing
 
 ## Run
 
+### Locally
 ```bash
 uvicorn app.main:app --reload          # fast-path API
 python scripts/run_worker.py           # one or more harvest workers
 
 curl -F image=@watch.jpg http://localhost:8000/scan
 ```
+
+### Docker Compose (Postgres + API + worker)
+```bash
+cp .env.example .env                    # set GEMINI/EMBED/ADMIN secrets
+docker compose up --build
+```
+Compose starts `pgvector/pgvector:pg16` and runs both migrations from
+`supabase/migrations/` automatically on first init (they are mounted into the
+container's init dir). `DATABASE_URL` is injected to point at the `db` service,
+so the only secrets you must provide are the Gemini key, the embed function
+URL/secret, and `ADMIN_API_KEY`. Drop the projection weights into `app/weights/`
+(mounted into both the API and worker containers).

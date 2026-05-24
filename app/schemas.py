@@ -18,6 +18,7 @@ class MatchResult(BaseModel):
     similarity: Optional[float] = None
     source: Optional[str] = None
     source_url: Optional[str] = None
+    verified: Optional[bool] = None
 
 
 class ScanResponse(BaseModel):
@@ -27,3 +28,30 @@ class ScanResponse(BaseModel):
     # are preliminary; a fine-grained region check is required for a final call.
     verdict: Literal["pending_harvest", "review", "authentic_candidate"]
     harvest_enqueued: bool
+
+
+class BenchmarkRow(BaseModel):
+    id: str
+    brand: str
+    ref: str
+    model: Optional[str] = None
+    source: str
+    source_url: Optional[str] = None
+    confidence: Optional[float] = None
+    verified: bool
+    created_at: str
+
+
+class VerifyRequest(BaseModel):
+    verified_by: str
+
+
+class DeepVerdictResponse(BaseModel):
+    brand: str
+    ref: str
+    reference_source_url: Optional[str] = None
+    reference_verified: bool
+    anomaly_score: float = Field(ge=0.0, le=1.0, description="higher = more divergent")
+    verdict: Literal["likely_authentic", "inconclusive", "suspect"]
+    heatmap_png_b64: str
+    note: str

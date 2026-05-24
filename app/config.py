@@ -21,6 +21,12 @@ class Settings(BaseSettings):
     harvest_confidence_threshold: float = 0.7
     crosscheck_min_similarity: float = 0.55
 
+    # Fine-grained heatmap verdict thresholds on the patch anomaly score (0..1).
+    heatmap_authentic_threshold: float = 0.25
+    heatmap_suspect_threshold: float = 0.45
+
+    admin_api_key: str = ""
+
     worker_poll_interval_seconds: float = 3.0
     max_image_bytes: int = 100 * 1024 * 1024
 

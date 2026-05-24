@@ -2,6 +2,7 @@ import logging
 
 from fastapi import FastAPI, File, UploadFile
 
+from app.admin import router as admin_router
 from app.config import get_settings
 from app.db import get_conn
 from app.embedding import embed_image
@@ -9,9 +10,12 @@ from app.harvester.queue import enqueue_harvest
 from app.identification import identify_watch
 from app.matching import benchmark_exists, find_best_match
 from app.schemas import ScanResponse
+from app.verdict.routes import router as verdict_router
 
 logging.basicConfig(level=logging.INFO)
 app = FastAPI(title="Self-Learning Watch Scan RAG")
+app.include_router(admin_router)
+app.include_router(verdict_router)
 
 
 @app.get("/health")
@@ -52,10 +56,13 @@ async def scan(image: UploadFile = File(...)) -> ScanResponse:
                 trigger_embedding=query_vec,
             )
 
-    if not match.matched:
-        verdict = "pending_harvest" if harvest_enqueued else "review"
+    if match.matched:
+        # Trust an auto-harvested benchmark less than an expert-verified one.
+        verdict = "authentic_candidate" if match.verified else "review"
+    elif harvest_enqueued:
+        verdict = "pending_harvest"
     else:
-        verdict = "authentic_candidate"
+        verdict = "review"
 
     return ScanResponse(
         identification=identification,

@@ -10,7 +10,7 @@ def find_best_match(conn, query_vec: np.ndarray) -> MatchResult:
     with conn.cursor() as cur:
         cur.execute(
             """
-            select brand, ref, source, source_url,
+            select brand, ref, source, source_url, verified,
                    1 - (embedding <=> %s) as similarity
             from image_embeddings
             where embedding_version = %s and is_benchmark = true
@@ -24,7 +24,7 @@ def find_best_match(conn, query_vec: np.ndarray) -> MatchResult:
     if row is None:
         return MatchResult(matched=False)
 
-    brand, ref, source, source_url, similarity = row
+    brand, ref, source, source_url, verified, similarity = row
     similarity = float(similarity)
     return MatchResult(
         matched=similarity >= settings.match_threshold,
@@ -33,7 +33,28 @@ def find_best_match(conn, query_vec: np.ndarray) -> MatchResult:
         similarity=similarity,
         source=source,
         source_url=source_url,
+        verified=verified,
     )
+
+
+def get_reference(conn, brand: str, ref: str) -> dict | None:
+    """Best studio reference for a model, preferring expert-verified rows."""
+    settings = get_settings()
+    with conn.cursor() as cur:
+        cur.execute(
+            """
+            select source_url, verified from image_embeddings
+            where brand = %s and ref = %s and embedding_version = %s
+              and is_benchmark = true and source_url is not null
+            order by verified desc, created_at desc
+            limit 1
+            """,
+            (brand, ref, settings.embedding_version),
+        )
+        row = cur.fetchone()
+    if row is None:
+        return None
+    return {"source_url": row[0], "verified": row[1]}
 
 
 def benchmark_exists(conn, brand: str, ref: str) -> bool:

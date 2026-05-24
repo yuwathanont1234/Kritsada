@@ -2,8 +2,10 @@
 // Secure serverless boundary that turns an image into a 1024-dim DINOv3 vector.
 // The DINOv3 model + key never leave the server; the app only sees the vector.
 //
-// Request:  { "image_b64": "<base64>", "content_type": "image/jpeg" }
-// Response: { "embedding": number[1024] }
+// Request (global, default): { "image_b64": "...", "content_type": "image/jpeg" }
+//   Response: { "embedding": number[1024] }
+// Request (patches):         { "image_b64": "...", "mode": "patches" }
+//   Response: { "patches": number[][], "grid": [h, w] }  // dense DINOv3 tokens
 
 import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
 
@@ -25,7 +27,7 @@ serve(async (req: Request) => {
     return json({ error: "unauthorized" }, 401);
   }
 
-  let payload: { image_b64?: string; content_type?: string };
+  let payload: { image_b64?: string; content_type?: string; mode?: string };
   try {
     payload = await req.json();
   } catch {
@@ -34,9 +36,10 @@ serve(async (req: Request) => {
   if (!payload.image_b64) return json({ error: "image_b64 required" }, 400);
 
   const bytes = Uint8Array.from(atob(payload.image_b64), (c) => c.charCodeAt(0));
+  const mode = payload.mode === "patches" ? "patches" : "global";
 
   // Forward to the DINOv3 inference backend.
-  const upstream = await fetch(DINOV3_ENDPOINT, {
+  const upstream = await fetch(`${DINOV3_ENDPOINT}?mode=${mode}`, {
     method: "POST",
     headers: {
       "content-type": payload.content_type ?? "application/octet-stream",
@@ -50,6 +53,19 @@ serve(async (req: Request) => {
   }
 
   const data = await upstream.json();
+
+  if (mode === "patches") {
+    const patches = data.patches;
+    const grid = data.grid;
+    if (
+      !Array.isArray(patches) || !Array.isArray(grid) || grid.length !== 2 ||
+      patches.length !== grid[0] * grid[1]
+    ) {
+      return json({ error: "malformed patch response from backend" }, 502);
+    }
+    return json({ patches, grid });
+  }
+
   const embedding: number[] = data.embedding ?? data;
   if (!Array.isArray(embedding) || embedding.length !== EXPECTED_DIM) {
     return json(

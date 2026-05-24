@@ -6,6 +6,7 @@ psycopg[binary]==3.2.3
 pgvector==0.3.6
 numpy==2.2.1
 pillow==11.0.0
+opencv-python-headless==4.10.0.84
 google-genai==1.2.0
 pydantic==2.10.4
 pydantic-settings==2.7.1

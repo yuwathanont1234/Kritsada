@@ -51,6 +51,7 @@ class DeepVerdictResponse(BaseModel):
     ref: str
     reference_source_url: Optional[str] = None
     reference_verified: bool
+    aligned: bool
     anomaly_score: float = Field(ge=0.0, le=1.0, description="higher = more divergent")
     verdict: Literal["likely_authentic", "inconclusive", "suspect"]
     heatmap_png_b64: str

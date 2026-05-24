@@ -37,7 +37,8 @@ user photo ─┤ Gemini + Google Search → brand / model / ref (text)         
 | Cross-check + idempotent upsert | `app/harvester/upsert.py` |
 | Worker loop | `app/harvester/worker.py`, `scripts/run_worker.py` |
 | Expert verification API (`/admin/*`) | `app/admin.py` |
-| Fine-grained heatmap verdict (`/verdict/deep`) | `app/verdict/` |
+| Fine-grained heatmap verdict (`/verdict/deep`) | `app/verdict/heatmap.py` |
+| Keypoint/homography alignment (ORB + RANSAC) | `app/verdict/align.py` |
 | DINOv3 embedding boundary (global + patches) | `supabase/functions/embed-image/index.ts` |
 | Schema | `supabase/migrations/0001_init.sql`, `0002_verified.sql` |
 
@@ -73,10 +74,31 @@ The matcher prefers expert-verified benchmarks, and `/scan` only returns
    `(brand, ref, source_url, embedding_version)`; re-runs and racing workers
    never duplicate.
 5. **Honest verdicts.** Retrieval similarity yields a *preliminary* verdict
-   only. A final premium-authenticity call (heatmap / fine-grained region
-   matching of logo, text, dial texture) is intentionally out of scope here —
-   global embeddings retrieve the right model but do not by themselves separate
-   genuine from high-grade counterfeit.
+   only. The premium-authenticity call lives in `/verdict/deep`: the scan is
+   homography-aligned to the studio reference (`app/verdict/align.py`) and then
+   compared at the level of dense DINOv3 patch tokens, surfacing the divergent
+   regions. Global embeddings retrieve the right *model*; this patch comparison
+   is what begins to separate genuine from high-grade counterfeit.
+
+## Testing
+
+```bash
+pip install -r requirements-dev.txt
+pytest                                  # 16 tests, no external services needed
+```
+The API tests mock the embedding/Gemini/DB boundaries, so they run without API
+keys, DINOv3, or Postgres. The alignment test exercises real OpenCV on a
+synthetic warp.
+
+### End-to-end locally without DINOv3 / weights
+```bash
+python scripts/make_dummy_weights.py                       # random 256x1024 probe
+uvicorn scripts.mock_embed_server:app --port 9000          # fake embed-image
+# point EMBED_FUNCTION_URL at http://localhost:9000/functions/v1/embed-image
+```
+This lets `/verdict/deep` and the matching/harvester paths run against a real
+Postgres (e.g. the compose `db`) with deterministic stand-in vectors. `/scan`
+identification still needs a real Gemini key.
 
 ## Setup
 

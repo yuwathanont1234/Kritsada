@@ -10,6 +10,7 @@
 
 import * as ImageManipulator from 'expo-image-manipulator';
 import { applyLinearProbe } from './linearProbe';
+import { supabase, USE_EDGE_FUNCTIONS } from './supabase';
 
 const REPLICATE_TOKEN = process.env.EXPO_PUBLIC_REPLICATE_API_TOKEN || '';
 const SUPABASE_URL = process.env.EXPO_PUBLIC_SUPABASE_URL || '';
@@ -24,7 +25,7 @@ function shouldUseProbeV2(): boolean {
 // Default DINOv3 model on Replicate
 const EMBED_MODEL_VERSION =
   process.env.EXPO_PUBLIC_REPLICATE_EMBED_MODEL ||
-  '75b33f253f7714a281ad3e9b28f63e3232d583716ef6718f2e46641077ea040a';
+  '1dcb6b130ac6ae0574282178705d0e219526ac6d9276c93eda065dfaacae772f';
 const EMBED_DIMENSION = parseInt(
   process.env.EXPO_PUBLIC_REPLICATE_EMBED_DIM || '1024',
   10
@@ -198,6 +199,14 @@ const embedCache = new Map<string, number[]>();
 const EMBED_CACHE_MAX = 20;
 const inflightCache = new Map<string, Promise<number[]>>();
 
+export function isEmbeddingCached(frontUri: string, backUri?: string | null): boolean {
+  const hasFront = embedCache.has(frontUri);
+  if (backUri) {
+    return hasFront && embedCache.has(backUri);
+  }
+  return hasFront;
+}
+
 export async function embedImage(uri: string): Promise<number[]> {
   if (!REPLICATE_TOKEN) {
     throw new Error('ยังไม่ได้ตั้งค่า REPLICATE_API_TOKEN');
@@ -229,6 +238,26 @@ async function embedImageReal(uri: string): Promise<number[]> {
   const tEncode = Date.now();
   const dataUrl = await imageToDataUrl(uri);
   const encodeMs = Date.now() - tEncode;
+
+  if (USE_EDGE_FUNCTIONS) {
+    console.log(`[visualRag:${uri.slice(-15)}] Secure Edge Routing: Calling serverless embed-image backend`);
+    const { data, error } = await supabase.functions.invoke('embed-image', {
+      body: { image: dataUrl }
+    });
+
+    if (error) {
+      console.error('[visualRag:edge] secure backend invocation failed:', error);
+      throw new Error('ระบบตรวจสอบภาพขัดข้องชั่วคราว (Edge Embed Error) กรุณาลองใหม่อีกครั้ง');
+    }
+
+    if (!data || !Array.isArray(data.embedding)) {
+      throw new Error('ระบบตรวจสอบภาพส่งข้อมูลรูปแบบไม่ถูกต้อง');
+    }
+
+    return data.embedding as number[];
+  }
+
+  console.warn(`[SECURITY WARNING] Direct client-side Replicate calls active. Enable Edge Functions in production!`);
 
   const tCreate = Date.now();
   const createRes = await fetch('https://api.replicate.com/v1/predictions', {

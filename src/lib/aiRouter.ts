@@ -20,7 +20,10 @@ import {
   findSimilarExpertCerts,
   isVisualRagConfigured,
   SimilarWatch,
+  isEmbeddingCached,
 } from './visualRag';
+import { logCostEvent, COST_PER_CALL } from './costBreaker';
+import { getDataConsent } from './dataConsent';
 
 /**
  * Tier-based AI routing for Luxury Watch Authenticator.
@@ -105,7 +108,9 @@ async function retryIdentifyWithGoogle(
   backUri: string | undefined,
   ragArg: SimilarWatch[] | undefined,
   prevAttempt: ScanResult,
-  imageMaxWidth: number
+  imageMaxWidth: number,
+  tier: MembershipTier,
+  cohortHash: string | null
 ): Promise<ScanResult | null> {
   try {
     const retryT0 = Date.now();
@@ -120,6 +125,15 @@ async function retryIdentifyWithGoogle(
     console.log(
       `[aiRouter] Gemini-grounded retry done in ${Date.now() - retryT0}ms, confidence ${prevAttempt.confidence ?? 0} → ${retried.confidence ?? 0}`
     );
+
+    // Cost logging for grounded identify scan retry
+    logCostEvent({
+      type: 'scan',
+      costUsd: COST_PER_CALL.scan,
+      tier,
+      cohortHash,
+      cacheHit: false,
+    }).catch(() => {});
 
     return {
       ...retried,
@@ -155,6 +169,17 @@ export async function assessAuthenticityByTier(
     disableThinking: true,
   });
   console.log(`[aiRouter] auth-on-demand done in ${Date.now() - t0}ms`);
+
+  // Cost logging for authenticity assessment
+  const consent = await getDataConsent().catch(() => ({ granted: false, cohortHash: null }));
+  logCostEvent({
+    type: 'authenticity',
+    costUsd: COST_PER_CALL.authenticity,
+    tier,
+    cohortHash: consent.granted ? consent.cohortHash : null,
+    cacheHit: false,
+  }).catch(() => {});
+
   return result;
 }
 
@@ -177,8 +202,73 @@ export async function fetchPricesByTier(
     { disableThinking: true, idConfidence: identified.confidence }
   );
   console.log(`[aiRouter] price-on-demand fetched in ${Date.now() - priceT0}ms`);
+
+  // Cost logging for deep price search
+  const consent = await getDataConsent().catch(() => ({ granted: false, cohortHash: null }));
+  logCostEvent({
+    type: 'deep_search',
+    costUsd: COST_PER_CALL.deep_search,
+    tier,
+    cohortHash: consent.granted ? consent.cohortHash : null,
+    cacheHit: false,
+  }).catch(() => {});
+
   const now = new Date().toISOString();
   return { prices, fromCache: false, fetchedAt: now };
+}
+
+export async function logFullyCachedScan(
+  tier: MembershipTier,
+  cohortHash: string | null
+): Promise<void> {
+  const enableVisualRag = !(tier === 'free') && isVisualRagConfigured();
+  const promises: Promise<void>[] = [];
+
+  if (enableVisualRag) {
+    promises.push(
+      logCostEvent({
+        type: 'embedding',
+        costUsd: 0,
+        cacheHit: true,
+        tier,
+        cohortHash,
+      })
+    );
+  }
+
+  promises.push(
+    logCostEvent({
+      type: 'scan',
+      costUsd: 0,
+      cacheHit: true,
+      tier,
+      cohortHash,
+    })
+  );
+
+  promises.push(
+    logCostEvent({
+      type: 'authenticity',
+      costUsd: 0,
+      cacheHit: true,
+      tier,
+      cohortHash,
+    })
+  );
+
+  promises.push(
+    logCostEvent({
+      type: 'deep_search',
+      costUsd: 0,
+      cacheHit: true,
+      tier,
+      cohortHash,
+    })
+  );
+
+  await Promise.all(promises).catch((err) => {
+    console.warn('[aiRouter] logFullyCachedScan failed:', err);
+  });
 }
 
 /**
@@ -205,6 +295,7 @@ export async function analyzeWatchByTier(
   // Visual RAG candidates (Standard+)
   let candidates: SimilarWatch[] = [];
   const enableVisualRag = !(tier === 'free' && !isTrialing) && isVisualRagConfigured();
+  const embedCached = enableVisualRag ? isEmbeddingCached(frontUri, backUri) : false;
   
   let embedding: number[] | null = null;
   const embedPromise = enableVisualRag
@@ -213,6 +304,21 @@ export async function analyzeWatchByTier(
         return null;
       })
     : Promise.resolve(null);
+
+  if (enableVisualRag) {
+    embedPromise.then(async (resolvedEmbed) => {
+      if (resolvedEmbed) {
+        const consent = await getDataConsent().catch(() => ({ granted: false, cohortHash: null }));
+        logCostEvent({
+          type: 'embedding',
+          costUsd: embedCached ? 0 : COST_PER_CALL.embedding,
+          tier,
+          cohortHash: consent.granted ? consent.cohortHash : null,
+          cacheHit: embedCached,
+        }).catch(() => {});
+      }
+    }).catch(() => {});
+  }
 
   if (enableVisualRag) {
     candidates = await getVisualCandidates(frontUri, backUri);
@@ -234,6 +340,16 @@ export async function analyzeWatchByTier(
   );
 
   console.log(`[aiRouter] identify done in ${Date.now() - totalT0}ms`);
+
+  // Cost logging for initial fast identify
+  const consent = await getDataConsent().catch(() => ({ granted: false, cohortHash: null }));
+  logCostEvent({
+    type: 'scan',
+    costUsd: COST_PER_CALL.scan,
+    tier,
+    cohortHash: consent.granted ? consent.cohortHash : null,
+    cacheHit: false,
+  }).catch(() => {});
 
   // Phase 1B: pgvector Database / Expert Certificate visual cross-validation
   let dbValidated = false;
@@ -333,7 +449,9 @@ export async function analyzeWatchByTier(
       backUri,
       ragArg,
       identified,
-      imageMaxWidth
+      imageMaxWidth,
+      tier,
+      consent.granted ? consent.cohortHash : null
     );
     if (groundedResult && groundedResult.confidence > identified.confidence) {
       identified = groundedResult;

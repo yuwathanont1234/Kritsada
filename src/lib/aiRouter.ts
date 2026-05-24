@@ -21,7 +21,6 @@ import {
   isVisualRagConfigured,
   SimilarWatch,
   isEmbeddingCached,
-  harvestVerifiedWatchOnDemand,
 } from './visualRag';
 import { logCostEvent, COST_PER_CALL } from './costBreaker';
 import { getDataConsent } from './dataConsent';
@@ -461,11 +460,6 @@ export async function analyzeWatchByTier(
 
   if (identified.identified) {
     console.log(`[aiRouter] Watch identified successfully (${identified.brand} ${identified.name}). Enriching with authenticity and pricing...`);
-    
-    // Trigger On-Demand Reference Harvesting in the background for new references
-    if (enableVisualRag && candidates.length === 0) {
-      harvestVerifiedWatchOnDemand(identified.brand, identified.reference, identified.name).catch(() => {});
-    }
     try {
       // Build AuthSignals for technical reasoning
       const authSignals: any = {

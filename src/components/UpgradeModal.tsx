@@ -19,6 +19,13 @@ import {
 } from 'react-native';
 import { colors, radius, spacing } from '../lib/theme';
 
+import { useLanguage } from '../lib/localization';
+
+export type UpgradeReason =
+  | { kind: 'auth_quota_exhausted'; used: number; cap: number; windowDays: number }
+  | { kind: 'feature_locked'; feature: 'heatmap' | 'ai_qa' | 'bg_removal' }
+  | { kind: 'tier_lock'; required: 'standard' | 'pro' | 'premium' };
+
 export type UpgradeBenefit = {
   icon: string; // emoji
   text: string;
@@ -43,6 +50,8 @@ type Props = {
   ctaText?: string;
   /** Cancel text override (default: "Not Now") */
   cancelText?: string;
+  /** Optional contextual reason for why the upgrade is prompted */
+  reason?: UpgradeReason;
 };
 
 export function UpgradeModal({
@@ -56,10 +65,52 @@ export function UpgradeModal({
   benefits,
   ctaText,
   cancelText = 'Not Now',
+  reason,
 }: Props) {
+  const { t } = useLanguage();
   const tierLabel =
     tier === 'standard' ? 'STANDARD' : tier === 'pro' ? 'PRO' : 'PREMIUM';
   const finalCtaText = ctaText ?? `UPGRADE TO ${tierLabel}`;
+
+  const renderReasonAlert = () => {
+    if (!reason) return null;
+
+    let text = '';
+    switch (reason.kind) {
+      case 'auth_quota_exhausted':
+        text = t('upgradeReason.auth_quota_exhausted', {
+          used: reason.used,
+          cap: reason.cap,
+          windowDays: reason.windowDays,
+        });
+        break;
+      case 'feature_locked':
+        if (reason.feature === 'heatmap') {
+          text = t('upgradeReason.feature_locked_heatmap');
+        } else if (reason.feature === 'ai_qa') {
+          text = t('upgradeReason.feature_locked_ai_qa');
+        } else if (reason.feature === 'bg_removal') {
+          text = t('upgradeReason.feature_locked_bg_removal');
+        }
+        break;
+      case 'tier_lock':
+        if (reason.required === 'standard') {
+          text = t('upgradeReason.tier_lock_standard');
+        } else if (reason.required === 'pro') {
+          text = t('upgradeReason.tier_lock_pro');
+        } else if (reason.required === 'premium') {
+          text = t('upgradeReason.tier_lock_premium');
+        }
+        break;
+    }
+
+    return (
+      <View style={styles.reasonAlert}>
+        <Feather name="alert-circle" size={14} color={colors.amber} style={{ marginRight: 8, marginTop: 1 }} />
+        <Text style={styles.reasonAlertText}>{text}</Text>
+      </View>
+    );
+  };
 
   return (
     <Modal
@@ -118,6 +169,9 @@ export function UpgradeModal({
                 </View>
               ))}
             </View>
+
+            {/* Reason Alert */}
+            {renderReasonAlert()}
 
             {/* Buttons */}
             <Pressable
@@ -301,6 +355,24 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: '600',
     color: colors.textMuted,
+  },
+  reasonAlert: {
+    width: '100%',
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    backgroundColor: 'rgba(236, 200, 122, 0.06)',
+    borderColor: 'rgba(236, 200, 122, 0.25)',
+    borderWidth: 1,
+    borderRadius: radius.md,
+    padding: spacing.md,
+    marginTop: spacing.md,
+  },
+  reasonAlertText: {
+    flex: 1,
+    fontSize: 12,
+    color: colors.amberLight,
+    fontWeight: '500',
+    lineHeight: 17,
   },
 });
 const tierChipText = styles.tierChipText; // Fixes compilation issue in style sheet

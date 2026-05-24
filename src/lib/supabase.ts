@@ -4,3 +4,4 @@ const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL || 'https://placeholder
 const supabaseAnonKey = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.placeholder';
 
 export const supabase = createClient(supabaseUrl, supabaseAnonKey);
+export const USE_EDGE_FUNCTIONS = process.env.EXPO_PUBLIC_USE_EDGE_FUNCTIONS === 'true';

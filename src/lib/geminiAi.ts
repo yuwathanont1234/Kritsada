@@ -18,6 +18,7 @@ import { ScanResult } from './types';
 import { fillScanResultDefaults } from './ai';
 import type { AuthPayload, PricePayload } from './ai';
 import { publishRetry } from './retryStatus';
+import { supabase, USE_EDGE_FUNCTIONS } from './supabase';
 
 // Model strings are env-overridable
 const GEMINI_FLASH_MODEL =
@@ -158,14 +159,18 @@ function extractJson(text: string): any {
 
   try {
     return JSON.parse(cleaned);
-  } catch {}
+  } catch (err) {
+    console.warn('[gemini:extractJson] Initial direct parse failed. Cleaned content was not raw JSON.', err);
+  }
 
   const codeBlockRegex = /```(?:json)?\s*([\s\S]*?)\s*```/g;
   let match;
   while ((match = codeBlockRegex.exec(cleaned)) !== null) {
     try {
       return JSON.parse(match[1]);
-    } catch {}
+    } catch (err) {
+      console.warn('[gemini:extractJson] Code block matching parse failed.', err);
+    }
   }
 
   const firstBrace = cleaned.indexOf('{');
@@ -179,7 +184,9 @@ function extractJson(text: string): any {
       } catch {
         try {
           return JSON.parse(sanitizeJsonStrings(balanced));
-        } catch {}
+        } catch (err) {
+          console.warn('[gemini:extractJson] Sanitized balanced JSON parse failed.', err);
+        }
       }
     }
   }
@@ -187,7 +194,9 @@ function extractJson(text: string): any {
   if (firstBrace >= 0 && lastBrace > firstBrace) {
     try {
       return JSON.parse(cleaned.slice(firstBrace, lastBrace + 1));
-    } catch {}
+    } catch (err) {
+      console.warn('[gemini:extractJson] Sliced brace JSON parse failed.', err);
+    }
   }
 
   if (firstBrace >= 0) {
@@ -293,6 +302,29 @@ function pickEndpoint(attempt: number): string {
 }
 
 async function callGeminiJson<T = any>(opts: GeminiCallOptions): Promise<T> {
+  if (USE_EDGE_FUNCTIONS) {
+    console.log(`[gemini:${opts.label}] Secure Edge Routing: Calling serverless analyze-watch backend`);
+    const { data, error } = await supabase.functions.invoke('analyze-watch', {
+      body: {
+        systemInstruction: opts.systemInstruction,
+        parts: opts.parts,
+        enableWebSearch: opts.enableWebSearch,
+        disableThinking: opts.disableThinking,
+        maxOutputTokens: opts.maxOutputTokens,
+        label: opts.label
+      }
+    });
+
+    if (error) {
+      console.error('[gemini:edge] secure backend invocation failed:', error);
+      throw new Error('ระบบ AI ขัดข้องชั่วคราว (Edge Error) กรุณาลองใหม่อีกครั้ง');
+    }
+
+    return data as T;
+  }
+
+  console.warn(`[SECURITY WARNING] Direct client-side AI calls active (label=${opts.label}). Enable Edge Functions in production!`);
+
   const apiKey = getApiKey();
 
   const generationConfig: any = {

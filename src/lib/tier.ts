@@ -733,15 +733,48 @@ export async function getRemainingTrialScans(activeTrialStart: string): Promise<
   return Math.max(0, TRIAL_SCAN_LIMIT - used);
 }
 
+type TrialDailyState = { date: string; count: number };
+
+async function readTrialDailyState(): Promise<TrialDailyState> {
+  const raw = await AsyncStorage.getItem('@luxuryauthenticator/trial_daily_scans');
+  if (!raw) return { date: currentDateKey(), count: 0 };
+  try {
+    const parsed = JSON.parse(raw) as TrialDailyState;
+    if (parsed.date !== currentDateKey()) {
+      return { date: currentDateKey(), count: 0 };
+    }
+    return parsed;
+  } catch {
+    return { date: currentDateKey(), count: 0 };
+  }
+}
+
+export async function getTrialDailyScansUsed(): Promise<number> {
+  return (await readTrialDailyState()).count;
+}
+
+export async function incrementTrialDailyScans(): Promise<number> {
+  const state = await readTrialDailyState();
+  const next = { date: state.date, count: state.count + 1 };
+  await AsyncStorage.setItem('@luxuryauthenticator/trial_daily_scans', JSON.stringify(next));
+  return next.count;
+}
+
+export async function resetTrialDailyScans(): Promise<void> {
+  await AsyncStorage.removeItem('@luxuryauthenticator/trial_daily_scans');
+}
+
 export async function incrementTrialScans(activeTrialStart: string): Promise<number> {
   const state = await readTrialScanState(activeTrialStart);
   const next = { trialStart: state.trialStart, count: state.count + 1 };
   await AsyncStorage.setItem(KEYS.trialScans, JSON.stringify(next));
+  await incrementTrialDailyScans();
   return next.count;
 }
 
 export async function resetTrialScans(): Promise<void> {
   await AsyncStorage.removeItem(KEYS.trialScans);
+  await resetTrialDailyScans();
 }
 
 /** Check if user can scan now based on their tier and trial state. */
@@ -750,18 +783,39 @@ export async function checkScanAllowed(
   freeScansUsedLifetime: number,
   trialStart?: string | null
 ): Promise<{ allowed: boolean; reason?: string; remaining?: number | 'unlimited' }> {
-  // Trial users — capped at TRIAL_SCAN_LIMIT
+  // If Free tier and NOT trialing, they are completely locked out of scanning!
+  if (tier === 'free' && !trialStart) {
+    return {
+      allowed: false,
+      reason: 'ไม่มีระบบสแกนฟรี — กรุณาผูกบัตรเครดิตเพื่อเริ่มสิทธิ์ทดลองใช้ Premium ฟรี 7 วัน (สูงสุด 5 สแกน)',
+      remaining: 0,
+    };
+  }
+
+  // Trial users — capped at TRIAL_SCAN_LIMIT (5 scans)
   if (trialStart) {
     const used = await getTrialScansUsed(trialStart);
     const remaining = TRIAL_SCAN_LIMIT - used;
     if (remaining <= 0) {
       return {
         allowed: false,
-        reason: `ใช้ครบโควต้า ${TRIAL_SCAN_LIMIT} ครั้งของช่วงทดลองแล้ว — สมัครแพ็คเกจสมาชิกเพื่อสแกนต่อ`,
+        reason: `ใช้ครบโควต้าทดลองใช้ ${TRIAL_SCAN_LIMIT} ครั้งแล้ว — ระบบทำการหักชำระเงินผ่านบัตรเครดิตที่ผูกไว้เพื่อเริ่มใช้งานแผนสแตนดาร์ดอัตโนมัติ`,
         remaining: 0,
       };
     }
-    return { allowed: true, remaining };
+
+    // Enforce trial daily cap of 3 scans per day
+    const dailyUsed = await getTrialDailyScansUsed();
+    const dailyRemaining = 3 - dailyUsed;
+    if (dailyRemaining <= 0) {
+      return {
+        allowed: false,
+        reason: '🚫 ช่วงทดลองจำกัดสแกนได้ไม่เกิน 3 ครั้งต่อวัน (กรุณาลองใหม่อีกครั้งในวันพรุ่งนี้ หรือเปิดใช้งานแพ็คเกจแบบเต็ม)',
+        remaining: 0,
+      };
+    }
+
+    return { allowed: true, remaining: Math.min(remaining, dailyRemaining) };
   }
 
   const caps = tierCaps(tier);

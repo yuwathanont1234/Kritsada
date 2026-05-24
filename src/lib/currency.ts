@@ -1,11 +1,16 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const CACHE_KEY = '@luxuryauthenticator/exchange_rate_usd_thb';
-const DEFAULT_RATE = 36.5;
+const CACHE_TTL_MS = 24 * 60 * 60 * 1000; // 24 hours in milliseconds
 
 let memoryRate: number | null = null;
 
-export async function fetchLiveExchangeRate(): Promise<number> {
+interface CachePayload {
+  rate: number;
+  timestamp: number;
+}
+
+export async function fetchLiveExchangeRate(): Promise<number | null> {
   try {
     const response = await fetch('https://open.er-api.com/v6/latest/USD');
     if (response.ok) {
@@ -25,43 +30,53 @@ export async function fetchLiveExchangeRate(): Promise<number> {
     }
   } catch (error) {
     console.warn(
-      '[Currency] Failed to fetch live exchange rate, using cached value if available',
+      '[Currency] Failed to fetch live exchange rate, attempting cache fallback',
       error
     );
   }
 
-  // Fallback to cache if request fails
+  // Fallback to cache (even if expired) if request fails
   try {
     const cached = await AsyncStorage.getItem(CACHE_KEY);
     if (cached) {
-      const parsed = JSON.parse(cached);
+      const parsed: CachePayload = JSON.parse(cached);
       if (parsed && typeof parsed.rate === 'number') {
         memoryRate = parsed.rate;
+        console.warn('[Currency] Live fetch failed. Falling back to expired cached exchange rate:', parsed.rate);
         return parsed.rate;
       }
     }
-  } catch {}
+  } catch (err) {
+    console.warn('[Currency] Error reading cached exchange rate in fetch fallback:', err);
+  }
 
-  memoryRate = DEFAULT_RATE;
-  return DEFAULT_RATE;
+  memoryRate = null;
+  return null;
 }
 
-export async function getExchangeRate(): Promise<number> {
+export async function getExchangeRate(): Promise<number | null> {
   if (memoryRate !== null) {
     return memoryRate;
   }
-  // Try loading from AsyncStorage cache first for instant sync response
+
   try {
     const cached = await AsyncStorage.getItem(CACHE_KEY);
     if (cached) {
-      const parsed = JSON.parse(cached);
+      const parsed: CachePayload = JSON.parse(cached);
       if (parsed && typeof parsed.rate === 'number') {
-        memoryRate = parsed.rate;
-        return parsed.rate;
+        const age = Date.now() - parsed.timestamp;
+        if (age < CACHE_TTL_MS) {
+          memoryRate = parsed.rate;
+          return parsed.rate;
+        }
+        console.warn('[Currency] Cached exchange rate is expired (older than 24h). Triggering refresh...');
       }
     }
-  } catch {}
+  } catch (err) {
+    console.warn('[Currency] Error reading cached exchange rate in getExchangeRate:', err);
+  }
 
-  memoryRate = DEFAULT_RATE;
-  return DEFAULT_RATE;
+  // Expired or no cache. Fetch fresh rate.
+  const freshRate = await fetchLiveExchangeRate();
+  return freshRate;
 }

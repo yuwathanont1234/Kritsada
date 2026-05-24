@@ -1,3 +1,5 @@
+import { Platform } from 'react-native';
+
 // Dark + Amber theme inspired by Coin Snap
 export const colors = {
   // Backgrounds
@@ -64,19 +66,22 @@ export const radius = {
   full: 999,
 };
 
+const headerFont = Platform.OS === 'ios' ? 'Georgia' : 'serif';
+const bodyFont = Platform.OS === 'ios' ? 'System' : 'sans-serif';
+
 // Thai vowels have descenders (◌ู ◌ุ ◌ฺ) and ascenders (◌ี ◌ื ◌็ ◌์ ◌ั) that
 // need ~1.45-1.55× line-height to render fully. RN's default leading is
 // font-dependent and on Android can clip. Set lineHeight explicitly on every
 // preset so titles that wrap don't truncate Thai marks.
 export const typography = {
-  display: { fontSize: 36, fontWeight: '800' as const, color: colors.text, letterSpacing: -0.5, lineHeight: 52 },
-  h1: { fontSize: 28, fontWeight: '800' as const, color: colors.text, letterSpacing: -0.3, lineHeight: 40 },
-  h2: { fontSize: 22, fontWeight: '700' as const, color: colors.text, lineHeight: 32 },
-  h3: { fontSize: 18, fontWeight: '700' as const, color: colors.text, lineHeight: 26 },
-  body: { fontSize: 15, fontWeight: '400' as const, color: colors.text, lineHeight: 22 },
-  bodyBold: { fontSize: 15, fontWeight: '600' as const, color: colors.text, lineHeight: 22 },
-  caption: { fontSize: 13, fontWeight: '500' as const, color: colors.textSecondary, lineHeight: 19 },
-  small: { fontSize: 11, fontWeight: '600' as const, color: colors.textMuted, letterSpacing: 0.6, lineHeight: 16 },
+  display: { fontFamily: headerFont, fontSize: 36, fontWeight: '800' as const, color: colors.text, letterSpacing: 0.5, lineHeight: 52 },
+  h1: { fontFamily: headerFont, fontSize: 28, fontWeight: '800' as const, color: colors.text, letterSpacing: 0.3, lineHeight: 40 },
+  h2: { fontFamily: headerFont, fontSize: 22, fontWeight: '700' as const, color: colors.text, letterSpacing: 0.2, lineHeight: 32 },
+  h3: { fontFamily: headerFont, fontSize: 18, fontWeight: '700' as const, color: colors.text, letterSpacing: 0.1, lineHeight: 26 },
+  body: { fontFamily: bodyFont, fontSize: 15, fontWeight: '400' as const, color: colors.text, lineHeight: 22 },
+  bodyBold: { fontFamily: bodyFont, fontSize: 15, fontWeight: '600' as const, color: colors.text, lineHeight: 22 },
+  caption: { fontFamily: bodyFont, fontSize: 13, fontWeight: '500' as const, color: colors.textSecondary, lineHeight: 19 },
+  small: { fontFamily: bodyFont, fontSize: 11, fontWeight: '600' as const, color: colors.textMuted, letterSpacing: 1.0, lineHeight: 16 },
 };
 
 export const shadow = {

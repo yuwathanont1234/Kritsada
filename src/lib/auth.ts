@@ -14,8 +14,7 @@ const KEYS = {
 
 export const TRIAL_DAYS = 7;
 // Hard cap on scans during the 7-day trial.
-export const TRIAL_SCAN_LIMIT =
-  process.env.EXPO_PUBLIC_TESTER_BUILD === 'true' ? 50 : 10;
+export const TRIAL_SCAN_LIMIT = 5;
 
 export type AuthUser = {
   email: string;
@@ -92,12 +91,22 @@ export async function getMembership(): Promise<MembershipStatus> {
     const start = new Date(trialStart).getTime();
     const elapsedDays = (Date.now() - start) / (1000 * 60 * 60 * 24);
     const daysLeft = Math.max(0, Math.ceil(TRIAL_DAYS - elapsedDays));
-    if (daysLeft > 0) {
+
+    // Dynamic import of tier to prevent circular dependency
+    const tierLib = await import('./tier');
+    const used = await tierLib.getTrialScansUsed(trialStart);
+    const limitExceeded = used >= TRIAL_SCAN_LIMIT;
+
+    if (daysLeft > 0 && !limitExceeded) {
       isTrialing = true;
       trialDaysLeft = daysLeft;
       activeTrialStart = trialStart;
     } else {
-      // Trial expired — run post-trial counter cleanup (idempotent).
+      // Trial expired or scan limit exceeded -> automatically convert to PAID 'standard' tier!
+      await setMembership('standard');
+      tier = 'standard';
+      await AsyncStorage.removeItem(KEYS.trialStart);
+      await AsyncStorage.setItem('@luxuryauthenticator/auto_billed_triggered', 'true');
       void runPostTrialCleanupIfNeeded(trialStart);
     }
   }

@@ -55,7 +55,9 @@ async function deleteImageFile(uri: string): Promise<void> {
   if (!uri.startsWith(FileSystem.documentDirectory ?? '')) return;
   try {
     await FileSystem.deleteAsync(uri, { idempotent: true });
-  } catch {}
+  } catch (err) {
+    console.warn('[Collection] Failed to delete image file:', uri, err);
+  }
 }
 
 export type SaveOptions = {

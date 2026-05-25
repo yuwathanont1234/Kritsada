@@ -316,7 +316,7 @@ async function callGeminiJson<T = any>(opts: GeminiCallOptions): Promise<T> {
     });
 
     if (error) {
-      console.error('[gemini:edge] secure backend invocation failed:', error);
+      console.warn('[gemini:edge] secure backend invocation failed:', error);
       throw new Error('ระบบ AI ขัดข้องชั่วคราว (Edge Error) กรุณาลองใหม่อีกครั้ง');
     }
 

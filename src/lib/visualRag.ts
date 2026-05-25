@@ -246,7 +246,7 @@ async function embedImageReal(uri: string): Promise<number[]> {
     });
 
     if (error) {
-      console.error('[visualRag:edge] secure backend invocation failed:', error);
+      console.warn('[visualRag:edge] secure backend invocation failed:', error);
       throw new Error('ระบบตรวจสอบภาพขัดข้องชั่วคราว (Edge Embed Error) กรุณาลองใหม่อีกครั้ง');
     }
 

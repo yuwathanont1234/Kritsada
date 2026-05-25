@@ -10,6 +10,7 @@
     "ingest:mock": "tsx scripts/ingest-mock-references.ts",
     "ingest:sandbox": "tsx scripts/ingest-sandbox-references.ts",
     "verify:db": "tsx scripts/verify-db-connection.ts",
+    "db:verify": "tsx scripts/db-verify.ts",
     "validate:eas": "node scripts/validate-eas.js",
     "sync:all": "tsx scripts/sync-all-families.ts"
   },

@@ -45,19 +45,22 @@ async def deep_verdict(
     score = anomaly_score(dist)
     heatmap_png = render_heatmap(dist, aligned_bytes)
 
-    if score <= settings.heatmap_authentic_threshold:
-        verdict = "likely_authentic"
-    elif score >= settings.heatmap_suspect_threshold:
-        verdict = "suspect"
-    else:
+    if not aligned:
+        # Without geometric alignment, position-for-position patch comparison is
+        # unreliable, so refuse to assert authentic/suspect — fail safe.
         verdict = "inconclusive"
-
-    note = (
-        "Scan was homography-aligned to the reference before comparison."
-        if aligned
-        else "Alignment failed (too few feature matches); verdict is lower "
-        "confidence as patches may be geometrically misaligned."
-    )
+        note = (
+            "Alignment failed (too few feature matches); forcing inconclusive to "
+            "avoid a false verdict from perspective/scale mismatch."
+        )
+    else:
+        note = "Scan was homography-aligned to the reference before comparison."
+        if score <= settings.heatmap_authentic_threshold:
+            verdict = "likely_authentic"
+        elif score >= settings.heatmap_suspect_threshold:
+            verdict = "suspect"
+        else:
+            verdict = "inconclusive"
 
     return DeepVerdictResponse(
         brand=brand,

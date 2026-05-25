@@ -129,6 +129,32 @@ def test_verdict_deep_suspect_when_divergent(client, monkeypatch):
     assert body["anomaly_score"] >= 0.45
 
 
+def test_verdict_deep_inconclusive_when_not_aligned(client, monkeypatch):
+    import app.verdict.routes as routes
+
+    grid = np.ones((8, 8, 16), dtype="float32")  # identical -> would be authentic
+    calls = iter([grid, grid])
+
+    async def fake_patches(*_a, **_k):
+        return next(calls)
+
+    monkeypatch.setattr(routes, "get_conn", null_conn)
+    monkeypatch.setattr(routes, "get_reference",
+                        lambda *a, **k: {"source_url": "http://x/i.png", "verified": True})
+    monkeypatch.setattr(routes, "download_image", lambda url: (make_png(), "image/png"))
+    monkeypatch.setattr(routes, "align_to_reference", lambda u, r: (make_png(), False))
+    monkeypatch.setattr(routes, "patch_features", fake_patches)
+
+    body = client.post(
+        "/verdict/deep",
+        data={"brand": "Rolex", "ref": "124060"},
+        files={"image": ("w.jpg", make_png(), "image/jpeg")},
+    ).json()
+    # Quality gate overrides the otherwise-authentic score.
+    assert body["aligned"] is False
+    assert body["verdict"] == "inconclusive"
+
+
 def test_verdict_deep_404_without_reference(client, monkeypatch):
     import app.verdict.routes as routes
     monkeypatch.setattr(routes, "get_conn", null_conn)

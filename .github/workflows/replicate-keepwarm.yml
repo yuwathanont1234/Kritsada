@@ -114,6 +114,14 @@ jobs:
             echo "::warning::no HTTP response received"
             exit 1
           fi
+          # HTTP 500 with body indicating Replicate prediction status is
+          # "starting" / "processing" / "queued" — this means Replicate is
+          # cold-starting. The whole point of this ping is to *trigger* that
+          # warm-up. Treat as success.
+          if [ "$HTTP_CODE" = "500" ] && grep -qE '"(starting|processing|queued|booting)"' /tmp/resp.txt 2>/dev/null; then
+            echo "::notice::Replicate cold-start in progress (status=starting/processing) — warm-up triggered. Next ping will land hot."
+            exit 0
+          fi
           if [ "$HTTP_CODE" -ge 500 ]; then
             echo "::warning::embed-image returned $HTTP_CODE — endpoint may be unhealthy"
             exit 1

@@ -1,0 +1,278 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=yes" />
+  <title>Privacy Policy — Luxury Authenticator</title>
+  <meta name="description" content="Privacy Policy for Luxury Authenticator — luxury watch AI authentication app." />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; }
+    html { -webkit-text-size-adjust: 100%; }
+    body {
+      margin: 0;
+      padding: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Noto Sans Thai", sans-serif;
+      background: #0F1115;
+      color: #E5E5E5;
+      line-height: 1.7;
+    }
+    .container {
+      max-width: 760px;
+      margin: 0 auto;
+      padding: 48px 24px 80px;
+    }
+    header {
+      text-align: center;
+      margin-bottom: 48px;
+      padding-bottom: 24px;
+      border-bottom: 1px solid #2A2A30;
+    }
+    h1 {
+      color: #ECC87A;
+      font-size: 32px;
+      margin: 0 0 8px;
+      font-weight: 700;
+    }
+    .subtitle {
+      color: #888;
+      font-size: 14px;
+      margin: 0;
+    }
+    h2 {
+      color: #ECC87A;
+      font-size: 20px;
+      margin-top: 36px;
+      margin-bottom: 12px;
+      border-left: 3px solid #ECC87A;
+      padding-left: 12px;
+    }
+    h3 {
+      color: #D4AF37;
+      font-size: 16px;
+      margin-top: 24px;
+      margin-bottom: 8px;
+    }
+    p, li { color: #D0D0D0; font-size: 15px; }
+    ul { padding-left: 24px; }
+    li { margin-bottom: 6px; }
+    a { color: #ECC87A; text-decoration: none; }
+    a:hover { text-decoration: underline; }
+    .updated {
+      background: #1C1F24;
+      border-left: 3px solid #ECC87A;
+      padding: 12px 16px;
+      margin: 24px 0;
+      border-radius: 4px;
+    }
+    footer {
+      margin-top: 60px;
+      padding-top: 24px;
+      border-top: 1px solid #2A2A30;
+      text-align: center;
+      color: #666;
+      font-size: 13px;
+    }
+    code {
+      background: #1C1F24;
+      padding: 2px 6px;
+      border-radius: 3px;
+      font-size: 13px;
+      color: #ECC87A;
+    }
+    .lang-toggle {
+      text-align: center;
+      margin-bottom: 24px;
+    }
+    .lang-toggle a {
+      display: inline-block;
+      padding: 6px 16px;
+      margin: 0 4px;
+      border: 1px solid #ECC87A;
+      border-radius: 16px;
+      font-size: 13px;
+    }
+    .lang-toggle a.active {
+      background: #ECC87A;
+      color: #0F1115;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <h1>Privacy Policy</h1>
+      <p class="subtitle">Luxury Authenticator — AI Watch Authentication App</p>
+    </header>
+
+    <div class="lang-toggle">
+      <a href="#en" class="active">English</a>
+      <a href="#th">ภาษาไทย</a>
+    </div>
+
+    <div class="updated">
+      <strong>Last Updated:</strong> May 26, 2026<br>
+      <strong>Effective:</strong> May 26, 2026
+    </div>
+
+    <section id="en">
+      <h2>1. Introduction</h2>
+      <p>
+        Luxury Authenticator ("we", "our", "the App") respects your privacy and is committed to protecting your personal data. This Privacy Policy explains how we collect, use, store, and share information when you use our mobile application for luxury watch AI authentication and visual reference matching.
+      </p>
+      <p>
+        By using the App you consent to the data practices described in this policy. If you do not agree, please do not install or use the App.
+      </p>
+
+      <h2>2. Information We Collect</h2>
+
+      <h3>2.1 Information You Provide</h3>
+      <ul>
+        <li><strong>Account information:</strong> Email address used to register (no password is stored — we use magic link authentication).</li>
+        <li><strong>Watch photographs:</strong> Images you capture or upload for AI analysis (front dial, caseback, side profiles).</li>
+        <li><strong>Optional watch details:</strong> Custom name, purchase price, sale records you enter into your personal collection vault.</li>
+        <li><strong>Subscription receipts:</strong> Anonymous receipt validation tokens from Apple App Store / Google Play (we do not see your card number).</li>
+      </ul>
+
+      <h3>2.2 Information Collected Automatically</h3>
+      <ul>
+        <li><strong>Diagnostic logs:</strong> App version, device platform (iOS / Android), crash reports.</li>
+        <li><strong>Scan telemetry:</strong> Anonymized hashes of cohort identifiers, scan latency, model confidence scores — used to improve AI accuracy. <em>No image content is stored in telemetry.</em></li>
+        <li><strong>Membership tier:</strong> Stored locally on device and synced to our authentication server.</li>
+      </ul>
+
+      <h3>2.3 Information We Do NOT Collect</h3>
+      <ul>
+        <li>We do not access your contacts, calendar, location, microphone, or any other system data outside the explicit Camera and Photo Library permissions you grant.</li>
+        <li>We do not store payment card data — all transactions are processed by Apple App Store or Google Play.</li>
+        <li>We do not perform facial recognition or biometric identification on any image.</li>
+      </ul>
+
+      <h2>3. How We Use Your Information</h2>
+      <ul>
+        <li><strong>AI watch identification:</strong> Watch photos are sent to our secure inference backend (Supabase Edge Functions + Replicate DINOv3 + Google Gemini) for brand/model identification and visual similarity matching. Original photos are processed in transient memory and are not persisted on our servers beyond the duration of the API call.</li>
+        <li><strong>Authentication assessment:</strong> Photos are analyzed for visual hallmarks consistent with manufacturer specifications. Results are returned to your device.</li>
+        <li><strong>Service improvement:</strong> Anonymized telemetry (latency, confidence scores) helps us improve AI accuracy. We never link telemetry to your identity.</li>
+        <li><strong>Subscription management:</strong> Receipts validate your access tier. We do not share receipt data with third parties.</li>
+      </ul>
+
+      <h2>4. Third-Party Service Providers</h2>
+      <p>We use the following trusted infrastructure providers solely for app functionality:</p>
+      <ul>
+        <li><strong>Supabase (Singapore region):</strong> User authentication, encrypted database, file storage for your saved collection. <a href="https://supabase.com/privacy" target="_blank">Supabase Privacy Policy</a></li>
+        <li><strong>Replicate (United States):</strong> DINOv3 image embedding inference. Images sent only for inference, not stored. <a href="https://replicate.com/privacy" target="_blank">Replicate Privacy Policy</a></li>
+        <li><strong>Google Gemini API:</strong> AI watch identification + market price grounding. <a href="https://policies.google.com/privacy" target="_blank">Google Privacy Policy</a></li>
+        <li><strong>Apple App Store / Google Play:</strong> Subscription billing and receipt validation. Payment data never reaches our servers.</li>
+      </ul>
+
+      <h2>5. Data Storage & Retention</h2>
+      <ul>
+        <li>Your saved watch collection is stored encrypted on Supabase Singapore region (PDPA + GDPR compliant).</li>
+        <li>Photos uploaded for scanning are not persisted — they are processed in transient memory and discarded immediately after the embedding is computed.</li>
+        <li>Account data is retained until you delete your account. You may request deletion at any time via the in-app "Wipe Vault Records & History" function or by contacting us.</li>
+        <li>Anonymized telemetry is retained for up to 18 months for model improvement.</li>
+      </ul>
+
+      <h2>6. Your Rights</h2>
+      <p>Under Thai PDPA, EU GDPR, and California CCPA, you have the right to:</p>
+      <ul>
+        <li><strong>Access:</strong> Request a copy of personal data we hold about you.</li>
+        <li><strong>Rectify:</strong> Correct inaccurate data.</li>
+        <li><strong>Erase ("Right to be Forgotten"):</strong> Delete your account and all associated data instantly via Settings → Wipe Vault.</li>
+        <li><strong>Portability:</strong> Export your saved collection as JSON.</li>
+        <li><strong>Withdraw consent:</strong> Disable cloud sync or AI processing in Settings; cancel subscription via your App Store / Google Play account.</li>
+        <li><strong>Object:</strong> Disable telemetry by toggling off "Anonymous diagnostics" in Settings.</li>
+      </ul>
+
+      <h2>7. Children's Privacy</h2>
+      <p>
+        The App is intended for users aged 17 and above (App Store rating). We do not knowingly collect data from children under 13. If you believe a child has used the App, contact us and we will delete the data immediately.
+      </p>
+
+      <h2>8. Security</h2>
+      <p>
+        All data transmissions use TLS 1.3 encryption. Server-side data is encrypted at rest using AES-256. We follow industry best practices including rotating credentials, RLS (Row Level Security) on database tables, and signed Edge Function invocations.
+      </p>
+      <p>
+        No system is 100% secure. If a data breach occurs that affects your personal data, we will notify you within 72 hours via email and in-app banner.
+      </p>
+
+      <h2>9. International Data Transfers</h2>
+      <p>
+        Your data may be processed in Singapore (Supabase), United States (Replicate, Google), and Thailand (your device). All transfers use Standard Contractual Clauses (SCC) for GDPR compliance and PDPA-recognized safeguards.
+      </p>
+
+      <h2>10. Changes to This Policy</h2>
+      <p>
+        We may update this Privacy Policy from time to time. We will notify you of material changes via in-app banner and update the "Last Updated" date. Continued use after a change constitutes acceptance.
+      </p>
+
+      <h2>11. Trademark Disclaimer</h2>
+      <p>
+        Luxury Authenticator is an independent AI-driven diagnostic tool. All brand names, trademarks, and logos referenced in the App (including but not limited to <em>Rolex, Patek Philippe, Audemars Piguet, Omega, Cartier, Tudor, Tissot, Hamilton, Swatch, Casio</em> and others) are the property of their respective owners. We are not affiliated with, authorized by, endorsed by, or in any way officially connected to any of these manufacturers or authorized dealers.
+      </p>
+      <p>
+        Brand names are used solely for descriptive reference purposes to identify the watches users wish to verify. AI assessments are independent opinions and do not constitute legal certifications of authenticity.
+      </p>
+
+      <h2>12. Contact</h2>
+      <p>
+        For privacy questions or to exercise your rights, contact:
+      </p>
+      <ul>
+        <li>Email: <a href="mailto:privacy@luxauth.app">privacy@luxauth.app</a></li>
+        <li>Operator: Kritsada Yuwathanon</li>
+        <li>Location: Bangkok, Thailand</li>
+      </ul>
+    </section>
+
+    <section id="th" style="margin-top:60px; padding-top:40px; border-top:1px solid #2A2A30;">
+      <h2>1. บทนำ (ภาษาไทย)</h2>
+      <p>
+        Luxury Authenticator ("เรา" หรือ "แอป") ให้ความสำคัญสูงสุดกับความเป็นส่วนตัวของผู้ใช้ และมุ่งมั่นในการปกป้องข้อมูลส่วนบุคคลของท่านตามพระราชบัญญัติคุ้มครองข้อมูลส่วนบุคคล พ.ศ. 2562 (PDPA) นโยบายฉบับนี้อธิบายวิธีที่เราเก็บรวบรวม ใช้ และจัดเก็บข้อมูลเมื่อท่านใช้แอปสำหรับการตรวจสอบนาฬิกาหรูด้วยปัญญาประดิษฐ์
+      </p>
+
+      <h2>2. ข้อมูลที่เราเก็บ</h2>
+      <ul>
+        <li><strong>ข้อมูลบัญชี:</strong> ที่อยู่อีเมลที่ใช้สมัคร (ไม่เก็บรหัสผ่าน — ใช้ระบบ Magic Link)</li>
+        <li><strong>ภาพถ่ายนาฬิกา:</strong> รูปที่ท่านถ่ายหรืออัปโหลดเพื่อ AI วิเคราะห์</li>
+        <li><strong>ข้อมูลนาฬิกาที่ท่านระบุเอง:</strong> ชื่อกำหนดเอง ราคาที่ซื้อ ประวัติการขาย ที่ท่านกรอกในตู้นิรภัยส่วนตัว</li>
+      </ul>
+
+      <h2>3. ข้อมูลที่เราไม่เก็บ</h2>
+      <ul>
+        <li>ไม่เข้าถึง: รายชื่อผู้ติดต่อ ปฏิทิน ตำแหน่ง ไมโครโฟน</li>
+        <li>ไม่เก็บ: ข้อมูลบัตรเครดิต (Apple/Google จัดการ)</li>
+        <li>ไม่ทำ: การจดจำใบหน้าหรือชีวมิติใดๆ</li>
+      </ul>
+
+      <h2>4. สิทธิของท่าน (ตาม PDPA)</h2>
+      <ul>
+        <li>สิทธิเข้าถึง: ขอสำเนาข้อมูลของท่านได้</li>
+        <li>สิทธิแก้ไข: แก้ข้อมูลที่ไม่ถูกต้องได้</li>
+        <li>สิทธิลบ ("Right to be Forgotten"): กดปุ่ม "ลบประวัติทั้งหมด" ใน Settings เพื่อลบทันที</li>
+        <li>สิทธิคัดค้าน: ปิด anonymous diagnostics ใน Settings</li>
+      </ul>
+
+      <h2>5. ข้อสงวนเรื่องเครื่องหมายการค้า</h2>
+      <p>
+        Luxury Authenticator เป็นเครื่องมือวินิจฉัย AI อิสระ ไม่มีความเกี่ยวข้อง ไม่ได้รับการแต่งตั้ง และไม่มีความสัมพันธ์ทางการค้ากับผู้ผลิตนาฬิกาหรือตัวแทนจำหน่ายที่ได้รับอนุญาตของแบรนด์ใดๆ ที่อ้างถึงในแอป (รวมถึง Rolex, Patek Philippe, Audemars Piguet, Omega และอื่นๆ) เครื่องหมายการค้าทั้งหมดเป็นทรัพย์สินของเจ้าของที่เกี่ยวข้อง การใช้ชื่อแบรนด์ในแอปเป็นการอ้างอิงเชิงพรรณนาเพื่อระบุรุ่นนาฬิกาเท่านั้น
+      </p>
+
+      <h2>6. ติดต่อเรา</h2>
+      <p>
+        อีเมล: <a href="mailto:privacy@luxauth.app">privacy@luxauth.app</a><br>
+        ผู้ดำเนินการ: กฤษฎา ยุวธานนท์<br>
+        สถานที่: กรุงเทพมหานคร ประเทศไทย
+      </p>
+    </section>
+
+    <footer>
+      <p>
+        © 2026 Luxury Authenticator. All rights reserved. |
+        <a href="terms.html">Terms of Service</a>
+      </p>
+      <p>This page is hosted on GitHub Pages and may be updated without notice.</p>
+    </footer>
+  </div>
+</body>
+</html>

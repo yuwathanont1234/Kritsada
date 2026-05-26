@@ -68,21 +68,52 @@ jobs:
           DATA_URL="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII="
 
           echo "Pinging $SUPABASE_URL/functions/v1/embed-image at $(date -u)"
+
+          # Disable -e for the curl call so a timeout doesn't kill the workflow.
+          # During Replicate cold-start the very first ping after a long idle
+          # period can take 30-90+ seconds — and the whole *point* of this
+          # workflow is to *trigger* that warm-up. If the request times out
+          # mid-warm-up, Replicate is still spinning up in the background and
+          # the NEXT scheduled ping (5-10 min later) will benefit. Treating a
+          # timeout as workflow failure produces noisy red checkmarks without
+          # actually meaning anything is broken.
+          set +e
           HTTP_CODE=$(curl -sS -o /tmp/resp.txt -w "%{http_code}" \
             -X POST \
             -H "Authorization: Bearer $ANON_KEY" \
             -H "x-embed-secret: $EMBED_SECRET" \
             -H "Content-Type: application/json" \
-            --max-time 90 \
+            --max-time 150 \
             -d "{\"image\":\"$DATA_URL\"}" \
             "$SUPABASE_URL/functions/v1/embed-image")
+          CURL_EXIT=$?
+          set -e
 
-          echo "HTTP $HTTP_CODE — response preview:"
-          head -c 400 /tmp/resp.txt; echo
+          echo "curl exit=$CURL_EXIT, HTTP=$HTTP_CODE"
+          if [ -s /tmp/resp.txt ]; then
+            echo "Response preview:"
+            head -c 400 /tmp/resp.txt; echo
+          fi
 
-          # We treat ANY HTTP response (including 4xx) as success — it means
-          # the edge function and Replicate endpoint are reachable and warm.
-          # Only a transport failure (curl exit ≠ 0) or 5xx is treated as bad.
+          # Classify the outcome.
+          # 2xx/4xx — happy path: endpoint reachable, Replicate warm (or model
+          #           rejected our dummy image but that still spun up the GPU).
+          # curl 28 (timeout) — first ping after long idle; Replicate is now
+          #                     warming up. Treat as "warm-up triggered" success.
+          # 5xx — edge function or Replicate genuinely unhealthy.
+          # Other curl errors (DNS, TLS) — transport failure, treat as bad.
+          if [ "$CURL_EXIT" -eq 28 ]; then
+            echo "::notice::curl timed out after 150s — Replicate cold-start warmup triggered. Next scheduled ping will land hot."
+            exit 0
+          fi
+          if [ "$CURL_EXIT" -ne 0 ]; then
+            echo "::warning::curl exit $CURL_EXIT — transport-level failure (DNS/TLS/network)"
+            exit 1
+          fi
+          if [ -z "$HTTP_CODE" ] || [ "$HTTP_CODE" = "000" ]; then
+            echo "::warning::no HTTP response received"
+            exit 1
+          fi
           if [ "$HTTP_CODE" -ge 500 ]; then
             echo "::warning::embed-image returned $HTTP_CODE — endpoint may be unhealthy"
             exit 1

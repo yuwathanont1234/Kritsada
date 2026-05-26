@@ -19,27 +19,18 @@ name: Keep Replicate DINOv3 Warm
 
 on:
   schedule:
-    # Every 10 minutes during ACTIVE HOURS only (skip Thai 00:00-03:59 quiet).
+    # Plain "every 5 minutes, always". Earlier we tried `*/10 0-16,21-23 * * *`
+    # to skip Thai 00:00-04:00 quiet hours (-58% cost), but GitHub Actions
+    # never fired that schedule despite >45 minutes of waiting on a public
+    # repo with an active workflow. Reports from other users suggest the
+    # comma-separated hour-range syntax in cron occasionally fails to
+    # register on newly-created workflows. Falling back to the simplest
+    # possible expression to maximise the chance the cron actually runs.
     #
-    # Time-zone math: Thailand is UTC+7. We skip Thai 00:00-03:59 which
-    # equals UTC 17:00-20:59 (the "previous day" UTC range relative to
-    # local midnight). Cron format below uses UTC since GitHub Actions
-    # runs all schedules in UTC regardless of repo location.
-    #
-    #   Cron hours: 0-16,21-23  (UTC)
-    #     UTC 00-16  = Thai 07:00-23:59  (daytime + evening) ✅ active
-    #     UTC 21-23  = Thai 04:00-06:59  (early morning)      ✅ active
-    #     UTC 17-20  = Thai 00:00-03:59  (quiet — SKIPPED)    ⏸
-    #
-    # Cost vs the original */5 24/7 plan:
-    #   - 5min × 24h:     288 pings/day  ฿11.20/day  ฿336/month  (100% coverage)
-    #   - 10min × 20h:    120 pings/day  ฿4.68/day   ฿140/month  (active-hours 100%)
-    #     → saves ฿196/month (-58%) by skipping low-traffic Thai night
-    #
-    # First scan at Thai 04:00 may pay a one-time cold-start (≈30-60s)
-    # because Replicate goes scale-to-zero during the 4h gap. By 05:00
-    # the endpoint is warm for the rest of the day.
-    - cron: '*/10 0-16,21-23 * * *'
+    # Trade-off: ~฿336/month instead of ~฿140/month. We accept the +฿196
+    # because the alternative (client-side prewarm only) leaves first-of-
+    # the-day users staring at a 60s cold-start spinner.
+    - cron: '*/5 * * * *'
   workflow_dispatch:
 
 # Cancel a previous in-flight run if a new one is triggered before it

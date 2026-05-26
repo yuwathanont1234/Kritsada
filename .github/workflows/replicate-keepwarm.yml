@@ -1,0 +1,90 @@
+name: Keep Replicate DINOv3 Warm
+
+# Pings the Supabase embed-image edge function (which calls Replicate
+# DINOv3 ViT-L/16) on a 5-minute cadence so the Replicate model endpoint
+# stays hot. Without this, after ~10 minutes of inactivity the Replicate
+# endpoint cold-starts and the next embed call takes 30-60 seconds,
+# stalling the entire scan pipeline (RAG embedding times out at 8s, the
+# probe is empty, and identify has nothing to validate against).
+#
+# Cost: ~$0.0011 per embed × 12 pings/hour × 24 hours ≈ $0.32/day ≈ ฿11/day.
+# This is dramatically cheaper than the user experience hit of a 60-second
+# stalled scan, especially for the first scan of the day.
+#
+# GitHub Actions free tier covers this easily (~7,200 minute-runs/month for
+# a ~30-second job = ~3,600 minutes, well under the 2,000/month free tier
+# for private repos — and unlimited for public repos).
+#
+# Trigger manually for debugging: gh workflow run replicate-keepwarm.yml
+
+on:
+  schedule:
+    # Every 10 minutes during ACTIVE HOURS only (skip Thai 00:00-03:59 quiet).
+    #
+    # Time-zone math: Thailand is UTC+7. We skip Thai 00:00-03:59 which
+    # equals UTC 17:00-20:59 (the "previous day" UTC range relative to
+    # local midnight). Cron format below uses UTC since GitHub Actions
+    # runs all schedules in UTC regardless of repo location.
+    #
+    #   Cron hours: 0-16,21-23  (UTC)
+    #     UTC 00-16  = Thai 07:00-23:59  (daytime + evening) ✅ active
+    #     UTC 21-23  = Thai 04:00-06:59  (early morning)      ✅ active
+    #     UTC 17-20  = Thai 00:00-03:59  (quiet — SKIPPED)    ⏸
+    #
+    # Cost vs the original */5 24/7 plan:
+    #   - 5min × 24h:     288 pings/day  ฿11.20/day  ฿336/month  (100% coverage)
+    #   - 10min × 20h:    120 pings/day  ฿4.68/day   ฿140/month  (active-hours 100%)
+    #     → saves ฿196/month (-58%) by skipping low-traffic Thai night
+    #
+    # First scan at Thai 04:00 may pay a one-time cold-start (≈30-60s)
+    # because Replicate goes scale-to-zero during the 4h gap. By 05:00
+    # the endpoint is warm for the rest of the day.
+    - cron: '*/10 0-16,21-23 * * *'
+  workflow_dispatch:
+
+# Cancel a previous in-flight run if a new one is triggered before it
+# finishes. Prevents pile-up if Replicate is slow to respond.
+concurrency:
+  group: replicate-keepwarm
+  cancel-in-progress: true
+
+jobs:
+  ping:
+    name: Ping embed-image (keeps Replicate hot)
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - name: Ping embed-image with a tiny dummy image
+        env:
+          SUPABASE_URL: ${{ secrets.EXPO_PUBLIC_SUPABASE_URL }}
+          ANON_KEY:     ${{ secrets.EXPO_PUBLIC_SUPABASE_ANON_KEY }}
+          EMBED_SECRET: ${{ secrets.EMBED_FUNCTION_SECRET }}
+        run: |
+          set -e
+
+          # 1x1 transparent PNG → base64 data URL (smallest valid image).
+          # Replicate will reject it but the model still spins up to inspect,
+          # which is what keeps the endpoint warm. Bandwidth ≈ 100 bytes.
+          DATA_URL="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII="
+
+          echo "Pinging $SUPABASE_URL/functions/v1/embed-image at $(date -u)"
+          HTTP_CODE=$(curl -sS -o /tmp/resp.txt -w "%{http_code}" \
+            -X POST \
+            -H "Authorization: Bearer $ANON_KEY" \
+            -H "x-embed-secret: $EMBED_SECRET" \
+            -H "Content-Type: application/json" \
+            --max-time 90 \
+            -d "{\"image\":\"$DATA_URL\"}" \
+            "$SUPABASE_URL/functions/v1/embed-image")
+
+          echo "HTTP $HTTP_CODE — response preview:"
+          head -c 400 /tmp/resp.txt; echo
+
+          # We treat ANY HTTP response (including 4xx) as success — it means
+          # the edge function and Replicate endpoint are reachable and warm.
+          # Only a transport failure (curl exit ≠ 0) or 5xx is treated as bad.
+          if [ "$HTTP_CODE" -ge 500 ]; then
+            echo "::warning::embed-image returned $HTTP_CODE — endpoint may be unhealthy"
+            exit 1
+          fi
+          echo "✅ embed-image reachable (HTTP $HTTP_CODE)"

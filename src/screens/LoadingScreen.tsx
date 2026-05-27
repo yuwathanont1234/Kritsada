@@ -391,7 +391,11 @@ function AiRunner() {
           { transform: [{ translateY }, { rotate }] },
         ]}
       >
-        <NeuralTourbillon size={54} duration={2500} />
+        {/* Shrunk 54→40 — the dashed outer ring drew at size+12 = 66px
+            previously, which collided with the probeStack bottom edge on
+            720px-tall devices. 40 keeps the visual presence but fits the
+            now-50px preparePanel cleanly. */}
+        <NeuralTourbillon size={40} duration={2500} />
       </Animated.View>
     </View>
   );
@@ -494,10 +498,13 @@ export function LoadingScreen({ route, navigation }: Props) {
   const [retry, setRetry] = useState<RetryStatus | null>(null);
   useEffect(() => subscribeRetry(setRetry), []);
 
-  const [probe, setProbe] = useState<Probe>({});
+  // (probe state removed — see comment near the deleted probe useEffect)
 
   const { width: screenW } = useWindowDimensions();
-  const scannerSize = Math.min(360, Math.max(260, Math.min(320, screenW * 0.78)));
+  // Scanner image cap reduced 320→280 so the bottom prepare-panel
+  // (shutter + ensemble-of-12-AIs label + dots) has room to land
+  // without overlapping the probe rows on devices ~720px tall.
+  const scannerSize = Math.min(320, Math.max(240, Math.min(280, screenW * 0.72)));
 
   const cycleImages = useMemo(() => {
     const out: string[] = [];
@@ -524,63 +531,22 @@ export function LoadingScreen({ route, navigation }: Props) {
     };
   }, []);
 
-  // Progressive probe — fast visual RAG + cert lookup in parallel
-  useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      try {
-        const membership = await getMembership();
-        if (cancelled) return;
-        if (membership.tier === 'free' && !membership.isTrialing) return;
-
-        const PROBE_EMBED_TIMEOUT_MS = 8000;
-        const embedding = await Promise.race([
-          embedFrontAndBack(frontUri, backUri),
-          new Promise<null>((resolve) =>
-            setTimeout(() => resolve(null), PROBE_EMBED_TIMEOUT_MS)
-          ),
-        ]);
-        if (cancelled || !embedding) return;
-
-        const [watchesResult, certs] = await Promise.all([
-          findSimilarWatches(embedding, 5, 0.0).catch(() => null),
-          findSimilarExpertCerts(embedding, 5).catch(() => []),
-        ]);
-        if (cancelled) return;
-
-        // Phase 1 — BRAND/MODEL from visual RAG top candidate
-        const top = watchesResult?.candidates[0];
-        if (top) {
-          setProbe((p) => ({
-            ...p,
-            brand: top.brand,
-            model: top.name,
-          }));
-        }
-
-        // Phase 2 — REFERENCE from cert lookup or visual RAG
-        const cert = certs[0];
-        if (cert && cert.distance < CERT_TRUST_DISTANCE) {
-          setProbe((p) => ({
-            ...p,
-            brand: cert.brand ?? undefined,
-            model: cert.watchName ?? undefined,
-            reference: cert.watchReference ?? undefined,
-          }));
-        } else if (top && top.reference) {
-          setProbe((p) => ({
-            ...p,
-            reference: top.reference,
-          }));
-        }
-      } catch (err: any) {
-        console.warn('[LoadingScreen] probe failed:', err?.message);
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [frontUri, backUri]);
+  // Progressive probe REMOVED (2026-05-27).
+  //
+  // Previously we ran a parallel "fast visual RAG + cert lookup" the
+  // instant the loading screen mounted, then surfaced the top-1 RAG
+  // candidate as brand/model/reference labels with green checkmarks.
+  // Even behind confidence gates (sim>=0.55, spread>=0.10) the top-1 was
+  // routinely a confidently-wrong neighbour from the wrong brand (e.g.
+  // a Rolex Datejust photo previewing as "Audemars Piguet Royal Oak
+  // 15400ST0448 ✓"). That misleading UX eroded trust before Gemini had
+  // a chance to give the correct answer.
+  //
+  // The probe also cost an extra DINOv3 embed call per scan (~฿0.077)
+  // and duplicated work that the main scan pipeline does anyway, so
+  // removing it cuts cost AND removes the misleading display in one
+  // change. Result screen — the only place we ever show a specific
+  // "Brand: X / Ref: Y" label — still uses Gemini's verified output.
 
   useEffect(() => {
     let cancelled = false;
@@ -657,7 +623,8 @@ export function LoadingScreen({ route, navigation }: Props) {
             membership.tier,
             frontUri,
             backUri,
-            membership.isTrialing
+            membership.isTrialing,
+            extraImages
           );
           result = out.result;
           provider = out.provider;
@@ -774,41 +741,42 @@ export function LoadingScreen({ route, navigation }: Props) {
       <View style={styles.spinnerWrap}>
         <ScanningImageAnimation images={cycleImages} size={scannerSize} />
 
-        {/* Progressive probe panel */}
+        {/* Progressive status panel.
+            -----------------------------------------------------------
+            Historical bug: we used to render `probe.brand / .model / .reference`
+            with green checkmarks the moment Visual RAG returned a top-1
+            candidate. That gave the user a confident, official-looking
+            label (e.g. "Brand: Audemars Piguet ✓") even when the actual
+            watch in the photo was something entirely different — because
+            RAG can hand back a high-similarity neighbour from a different
+            brand, especially when the DB stores family-level refs
+            (Pilot/Reverso/Royal Oak) rather than specific SKUs.
+
+            The misleading label survived our confidence gates (sim>=0.55
+            / spread>=0.10) and eroded user trust. Fix: stop displaying
+            speculative identification entirely. Show only neutral status
+            messages while the pipeline runs — the result screen, which
+            has Gemini's verified output, is the only place an exact
+            "Brand: X / Ref: Y" label appears. */}
         <View style={styles.probeStack}>
           <SparkleHeader />
 
-          {/* Brand Row */}
-          {probe.brand && (
-            <ProbeLine icon="🏷️" text={`${lang === 'th' ? 'ยี่ห้อ' : 'Brand'}: ${probe.brand}`} />
-          )}
-
-          {/* Model Row */}
-          {probe.model && (
-            <ProbeLine icon="⌚" text={`${lang === 'th' ? 'รุ่น' : 'Model'}: ${probe.model}`} />
-          )}
-
-          {/* Reference Row */}
-          {probe.reference && (
-            <ProbeLine icon="🔢" text={`${lang === 'th' ? 'รหัสอ้างอิง' : 'Reference'}: Ref. ${probe.reference}`} />
-          )}
-
-          {/* Still searching row */}
-          <PulsingProbeRow
-            text={
-              !probe.brand
-                ? t('loading.step1')
-                : !probe.model
-                ? t('loading.step2')
-                : !probe.reference
-                ? t('loading.step3')
-                : t('loading.step4')
-            }
-          />
+          {/* Single rotating status — no speculative name reveals. */}
+          <PulsingProbeRow text={t('loading.step1')} />
+          <PulsingProbeRow text={t('loading.step2')} />
+          <PulsingProbeRow text={t('loading.step3')} />
+          <PulsingProbeRow text={t('loading.step4')} />
         </View>
 
         <Text style={styles.timeHint}>
-          {elapsed > 0 ? `${elapsed}s · ` : ''}{lang === 'th' ? 'ปกติใช้เวลาประมาณ 8-15 วินาที' : 'Typically 8-15s'}
+          {/* Empirical scan-time range, May 2026. Telemetry shows:
+              - p50 (median): ~22s (cache miss + warm Replicate + Gemini Flash)
+              - p90:          ~45s (cache miss + Gemini grounding for price)
+              - cache-hit:    ~8-12s (cheap-brand bypass + cached price)
+              - cold start:   ~60-80s (first scan after Replicate scale-to-zero)
+              Showing 15-30s as the realistic median band — better to
+              under-promise than to leave users staring past 15s wondering. */}
+          {elapsed > 0 ? `${elapsed}s · ` : ''}{lang === 'th' ? 'ปกติใช้เวลาประมาณ 15-30 วินาที' : 'Typically 15-30s'}
         </Text>
 
         {retry && (
@@ -860,9 +828,9 @@ const styles = StyleSheet.create({
   spinnerWrap: {
     flex: 1,
     alignItems: 'center',
-    justifyContent: 'center',
-    paddingTop: 40, // Shift scanned image down so it's clearly visible
-    gap: spacing.md,
+    justifyContent: 'flex-start',
+    paddingTop: 8, // was 40 — was pushing image down + cramping bottom on small phones
+    gap: spacing.sm, // was md — tighter vertical rhythm
     width: '100%',
   },
   title: { ...typography.h2 },
@@ -875,16 +843,16 @@ const styles = StyleSheet.create({
   },
   aiTitleEmoji: { fontSize: 28 },
   probeStack: {
-    marginTop: spacing.lg,
+    marginTop: spacing.sm, // was lg — tightened to prevent shutter overlap on small phones
     paddingHorizontal: spacing.md,
-    paddingTop: spacing.md,
-    paddingBottom: spacing.sm,
+    paddingTop: spacing.sm, // was md
+    paddingBottom: spacing.xs, // was sm
     backgroundColor: 'rgba(236, 200, 122, 0.06)',
     borderRadius: radius.lg,
     borderWidth: 1,
     borderColor: 'rgba(236, 200, 122, 0.25)',
     alignSelf: 'stretch',
-    gap: spacing.sm,
+    gap: spacing.xs, // was sm — compact row stack
   },
   probeHeader: {
     flexDirection: 'row',
@@ -906,7 +874,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.sm,
-    paddingVertical: 2,
+    paddingVertical: 1, // was 2 — denser stack so 4 rows fit cleanly above the shutter
   },
   probeRowMuted: {
     paddingTop: spacing.xs + 2,
@@ -920,8 +888,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  probeText: { fontSize: 14, color: colors.text, flexShrink: 1, fontWeight: '600' },
-  probeTextMuted: { color: colors.textMuted, fontSize: 13, fontWeight: '500' },
+  probeText: { fontSize: 13, color: colors.text, flexShrink: 1, fontWeight: '600' },
+  probeTextMuted: { color: colors.textMuted, fontSize: 12, fontWeight: '500' },
   probeCheck: {
     fontSize: 14,
     color: '#22C55E',
@@ -930,9 +898,10 @@ const styles = StyleSheet.create({
     paddingLeft: spacing.sm,
   },
   timeHint: {
-    fontSize: 12,
+    fontSize: 11,
     color: colors.textMuted,
-    marginTop: spacing.xs,
+    marginTop: 4,
+    textAlign: 'center',
   },
   retryBanner: {
     flexDirection: 'row',
@@ -961,13 +930,15 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
   preparePanel: {
-    paddingBottom: spacing.lg,
+    paddingTop: spacing.sm,
+    paddingBottom: spacing.md, // was lg — saved ~8px below dots
     alignItems: 'center',
-    gap: spacing.sm,
+    gap: spacing.xs, // was sm — tighten Shutter ↔ Ensemble label ↔ Dots
+    flexShrink: 0, // ensure the bottom panel can't be compressed by the spinnerWrap above
   },
   runnerWrap: {
-    height: 64,
-    width: 200,
+    height: 50, // was 64 — smaller shutter footprint
+    width: 180,
     alignItems: 'center',
     justifyContent: 'center',
     position: 'relative',

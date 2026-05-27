@@ -153,8 +153,8 @@ export default function VerdictHeader({
                     <View style={styles.heatmapLabelContainer}>
                       <Text style={styles.heatmapLabel}>
                         {lang === 'th'
-                          ? `${greenCount}/${landmarks.length} ผ่าน • ${landmarkBrandLabel}`
-                          : `${greenCount}/${landmarks.length} PASS • ${landmarkBrandLabel}`}
+                          ? `${greenCount}/${landmarks.length} ผ่าน • ${landmarkBrandLabel} HALLMARK`
+                          : `${greenCount}/${landmarks.length} PASS • ${landmarkBrandLabel} HALLMARK`}
                       </Text>
                     </View>
                   </View>
@@ -201,11 +201,15 @@ export default function VerdictHeader({
         )}
       </View>
 
-      {/* Heatmap Overlay Toggle Switch (Bilingual, premium look) */}
+      {/* Hallmark Diagnostic Map Toggle (was "AI Heatmap" — renamed
+          to use horology-native vocabulary that signals expert-grade
+          authentication. "Hallmark" is the RSC/Sotheby's word for a
+          maker's authenticity mark; "Diagnostic Map" frames the
+          numbered landmark grid as medical-precision analysis. */}
       <View style={styles.heatmapToggleRow}>
         <View style={styles.heatmapTextContainer}>
-          <Text style={styles.heatmapTitle}>{lang === 'th' ? 'แสดงแผนภาพตรวจวิเคราะห์ AI Heatmap' : 'AI Heatmap Target Diagnostics'}</Text>
-          <Text style={styles.heatmapDesc}>{lang === 'th' ? 'แสดงพิกัดจัดตำแหน่งออปติคอลและการวิเคราะห์สัดส่วนขนาดเล็ก' : 'Highlight micro-hallmark vectors and dial alignment zones'}</Text>
+          <Text style={styles.heatmapTitle}>{lang === 'th' ? 'แผนภาพตราประจำการตรวจสอบ' : 'Hallmark Diagnostic Map'}</Text>
+          <Text style={styles.heatmapDesc}>{lang === 'th' ? 'แสดงตำแหน่งจุดตรวจสอบเฉพาะของแบรนด์ พร้อมรายงานสัญญาณ AI ต่อจุด' : 'Brand-specific authentication points with per-landmark AI signal report'}</Text>
         </View>
         <Pressable
           onPress={() => setShowHeatmap(!showHeatmap)}

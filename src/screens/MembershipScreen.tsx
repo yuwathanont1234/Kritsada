@@ -6,6 +6,7 @@ import {
   Pressable,
   Alert,
   StyleSheet,
+  Linking,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
@@ -17,6 +18,7 @@ import { getExchangeRate } from '../lib/currency';
 import { useLanguage } from '../lib/localization';
 import { styles } from './AppStyles';
 import { triggerTierUpdate } from './SettingsScreen';
+import { purchaseTier, restorePurchases, isIapConfigured } from '../lib/iap';
 
 export default function MembershipScreen({ navigation }: any) {
   const { t, lang } = useLanguage();
@@ -32,17 +34,90 @@ export default function MembershipScreen({ navigation }: any) {
     });
   }, []);
 
+  /**
+   * Route the tier selection through the IAP layer.
+   * - REAL flow (when RevenueCat key configured): opens StoreKit / Google Play
+   *   purchase sheet. App Store / Google handles payment, we get a receipt
+   *   webhook into RevenueCat, then customerInfo updates which we mirror to
+   *   our local membership state.
+   * - MOCK flow (Expo Go / no key): immediately calls setMembership for UI
+   *   testing. Never let mock mode reach the App Store!
+   */
   const handleSelectTier = async (tier: MembershipTier) => {
-    await setMembership(tier);
-    setActiveTier(tier);
-    triggerTierUpdate(tier);
-    
+    // Free tier doesn't go through the store — handled as a downgrade only.
+    if (tier === 'free') {
+      Alert.alert(
+        lang === 'th' ? 'ดาวน์เกรดเป็น Free' : 'Downgrade to Free',
+        lang === 'th'
+          ? 'ในการยกเลิกสมาชิก กรุณายกเลิกผ่าน iOS Settings → Subscriptions หรือ Google Play → Subscriptions โดยตรง'
+          : 'To cancel your subscription, please use iOS Settings → Subscriptions or Google Play → Subscriptions.',
+        [{ text: 'OK' }]
+      );
+      return;
+    }
+
+    const result = await purchaseTier(tier);
+
+    if (result.userCancelled) {
+      // User dismissed the StoreKit sheet — no toast, no error.
+      return;
+    }
+
+    if (!result.success) {
+      Alert.alert(
+        lang === 'th' ? 'การซื้อล้มเหลว' : 'Purchase Failed',
+        result.errorMessage ?? (lang === 'th' ? 'กรุณาลองอีกครั้ง' : 'Please try again'),
+        [{ text: 'OK' }]
+      );
+      return;
+    }
+
+    // Success — sync local state + UI.
+    const finalTier = result.activeTier ?? tier;
+    setActiveTier(finalTier);
+    triggerTierUpdate(finalTier);
+
     Alert.alert(
       lang === 'th' ? 'อัปเกรดสำเร็จ!' : 'UPGRADE SUCCESSFUL!',
-      lang === 'th'
-        ? `บัญชีผู้ใช้ของคุณได้รับการอัปเกรดเป็นระดับ ${tier.toUpperCase()} เรียบร้อยแล้ว`
-        : `Your account has been upgraded to ${tier.toUpperCase()} successfully.`,
+      (lang === 'th'
+        ? `บัญชีผู้ใช้ของคุณได้รับการอัปเกรดเป็นระดับ ${finalTier.toUpperCase()} เรียบร้อยแล้ว`
+        : `Your account has been upgraded to ${finalTier.toUpperCase()} successfully.`)
+      + (isIapConfigured() ? '' : '\n\n(DEV: mock purchase — IAP not yet configured)'),
       [{ text: lang === 'th' ? 'ตกลง' : 'OK', onPress: () => navigation.goBack() }]
+    );
+  };
+
+  /**
+   * Required by App Store guideline 3.1.1 — every paywall MUST expose a
+   * "Restore Purchases" button so users can recover their subscription on
+   * a new device or after reinstall without re-paying.
+   */
+  const handleRestorePurchases = async () => {
+    const result = await restorePurchases();
+    if (!result.success) {
+      Alert.alert(
+        lang === 'th' ? 'การกู้คืนล้มเหลว' : 'Restore Failed',
+        result.errorMessage ?? '',
+      );
+      return;
+    }
+    const tier = result.activeTier ?? 'free';
+    if (tier === 'free') {
+      Alert.alert(
+        lang === 'th' ? 'ไม่พบสมาชิก' : 'No Active Subscription',
+        lang === 'th'
+          ? 'ไม่พบสมาชิกที่ใช้งานอยู่ในบัญชีนี้ — หากเพิ่งซื้อรอประมาณ 30 วินาทีแล้วลองอีกครั้ง'
+          : 'No active subscription found for this account. If you just purchased, wait ~30 seconds and try again.'
+      );
+      return;
+    }
+    setActiveTier(tier);
+    triggerTierUpdate(tier);
+    Alert.alert(
+      lang === 'th' ? 'กู้คืนสำเร็จ' : 'Restored Successfully',
+      lang === 'th'
+        ? `สมาชิก ${tier.toUpperCase()} ของคุณถูกกู้คืนแล้ว`
+        : `Your ${tier.toUpperCase()} subscription has been restored.`,
     );
   };
 
@@ -153,7 +228,7 @@ export default function MembershipScreen({ navigation }: any) {
                 lang === 'th' ? 'ตรวจสอบสิทธิ์ด้วยระบบ AI ขั้นสูง 4 ระบบย่อย (สูงสุด 100 สแกนต่อเดือน)' : 'Advanced 4-Engine AI verification (up to 100 scans per month)',
                 lang === 'th' ? 'ความแม่นยำประเมินทางทัศนศาสตร์ระดับมืออาชีพ (Professional 94% Accuracy)' : 'Professional 94% visual optical accuracy rating',
                 lang === 'th' ? 'ความละเอียดระดับไมโครสแกน 3 มุมกล้อง (หน้าปัด, ฝาหลัง และขอบเม็ดมะยม)' : 'High-definition 3-angle micro-resolution (adds case side & crown details)',
-                lang === 'th' ? 'วิเคราะห์ตำแหน่งพิกัดจุดความแท้ร่วมกับการเทียบเคียงใบเซอร์ผู้เชี่ยวชาญ' : 'Generates interactive landmark heatmaps & expert certificate exemplar matches',
+                lang === 'th' ? 'แผนภาพตราประจำการตรวจสอบ (Hallmark Diagnostic Map) เฉพาะแบรนด์ + เทียบเคียงใบเซอร์ผู้เชี่ยวชาญ' : 'Brand-specific Hallmark Diagnostic Map with numbered landmarks & expert certificate matches',
                 lang === 'th' ? 'สร้างไฟล์รายงานผลสแกนและใบรับรองในรูปแบบ PDF ระดับพรีเมียม' : 'Premium PDF scan report generation & high-end collector exporting'
               ].map((feat, idx) => (
                 <View key={idx} style={styles.featureRow}>
@@ -216,7 +291,7 @@ export default function MembershipScreen({ navigation }: any) {
                 lang === 'th' ? 'ตรวจสอบสิทธิ์ด้วยระบบ AI พรีเมียม 8 ระบบย่อย (สูงสุด 200 สแกน, คิวสแกนด่วนพิเศษ)' : 'Premium 8-Engine AI verification (up to 200 scans, highest queue priority)',
                 lang === 'th' ? 'ความแม่นยำสูงระดับสุดยอดมาตรฐานสถาบันประมูล (Executive 99.2% Accuracy)' : 'Ultimate high-fidelity auction-grade accuracy (99.2% Executive Accuracy)',
                 lang === 'th' ? 'ความละเอียดระดับกล้องขยายไมโครสโคป 4 มุมกล้อง (วิเคราะห์เนื้อโลหะและกลไกแกนล้อ)' : 'Microscopic 4-angle resolution (adds millimeter caliber finishes & movement gear micro-shots)',
-                lang === 'th' ? 'วิเคราะห์ทำแผนที่ความร้อนเจาะลึกตราประทับโลหะจิ๋ว ตราสลักทองคำ และรหัสขอบเลเซอร์' : 'Generates deep heatmaps for micro-hallmarks, laser markings & gold stamps',
+                lang === 'th' ? 'Hallmark Diagnostic Map ระดับลึก: ตราประทับโลหะจิ๋ว, ตราสลักทองคำ และรหัสขอบเลเซอร์' : 'Deep Hallmark Diagnostic Map: micro-hallmarks, laser etchings & gold stamps',
                 lang === 'th' ? 'ตู้นิรภัยไม่จำกัดขนาด พร้อมส่งออกรายงาน PDF ในนามแบรนด์ตนเองโดยไม่มีลายน้ำ' : 'Unlimited collection vault size & brand-customized PDF reports without watermarks'
               ].map((feat, idx) => (
                 <View key={idx} style={styles.featureRow}>
@@ -310,6 +385,61 @@ export default function MembershipScreen({ navigation }: any) {
               </Pressable>
             </View>
           </View>
+
+          {/* Restore Purchases — REQUIRED by App Store guideline 3.1.1. */}
+          {/* Must be prominently visible on every paywall screen. */}
+          <Pressable
+            onPress={handleRestorePurchases}
+            style={{
+              marginTop: 16,
+              marginHorizontal: 16,
+              padding: 14,
+              borderRadius: 8,
+              borderWidth: 1,
+              borderColor: 'rgba(236, 200, 122, 0.4)',
+              backgroundColor: 'rgba(236, 200, 122, 0.06)',
+              alignItems: 'center',
+            }}
+          >
+            <Text style={{ color: colors.amber, fontSize: 14, fontWeight: '600' }}>
+              {lang === 'th' ? '🔄 กู้คืนการซื้อ' : '🔄 Restore Purchases'}
+            </Text>
+            <Text style={{ color: 'rgba(255, 255, 255, 0.5)', fontSize: 11, marginTop: 4 }}>
+              {lang === 'th'
+                ? 'หากเคยซื้อสมาชิกจากอุปกรณ์อื่น'
+                : 'If you previously purchased from another device'}
+            </Text>
+          </Pressable>
+
+          {/* Subscription terms disclaimer — required by App Store 3.1.2 & */}
+          {/* Apple "Auto-Renewable Subscriptions" review checklist. The auto-renew, */}
+          {/* cancel-anytime, and links to ToS / Privacy must be ON the paywall screen. */}
+          <View style={{ marginTop: 20, marginHorizontal: 16, padding: 14, borderRadius: 8, backgroundColor: 'rgba(255, 255, 255, 0.03)', borderWidth: 1, borderColor: 'rgba(255, 255, 255, 0.08)' }}>
+            <Text style={{ color: 'rgba(255, 255, 255, 0.55)', fontSize: 11, lineHeight: 18, textAlign: 'left' }}>
+              {lang === 'th'
+                ? '• สมาชิกจะต่ออายุอัตโนมัติทุกเดือนจนกว่าจะยกเลิก\n• การยกเลิก: iOS Settings → ชื่อบัญชี → Subscriptions / Google Play → Subscriptions\n• ยกเลิกล่วงหน้าอย่างน้อย 24 ชั่วโมงก่อนต่ออายุ\n• การคืนเงินจัดการโดย Apple / Google ตามนโยบายของแต่ละสโตร์'
+                : '• Subscription auto-renews monthly until cancelled\n• Cancel via iOS Settings → [Your Name] → Subscriptions / Google Play → Subscriptions\n• Cancel at least 24 hours before renewal date\n• Refunds handled by Apple / Google per their respective policies'}
+            </Text>
+            <View style={{ flexDirection: 'row', justifyContent: 'center', marginTop: 10, gap: 16 }}>
+              <Pressable onPress={() => Linking.openURL('https://yuwathanont1234.github.io/Kritsada/legal/terms.html').catch(()=>{})}>
+                <Text style={{ color: colors.amber, fontSize: 11, textDecorationLine: 'underline' }}>
+                  {lang === 'th' ? 'ข้อกำหนดการใช้งาน' : 'Terms of Service'}
+                </Text>
+              </Pressable>
+              <Pressable onPress={() => Linking.openURL('https://yuwathanont1234.github.io/Kritsada/legal/privacy.html').catch(()=>{})}>
+                <Text style={{ color: colors.amber, fontSize: 11, textDecorationLine: 'underline' }}>
+                  {lang === 'th' ? 'นโยบายความเป็นส่วนตัว' : 'Privacy Policy'}
+                </Text>
+              </Pressable>
+            </View>
+          </View>
+
+          {/* Trademark disclaimer */}
+          <Text style={{ color: 'rgba(255, 255, 255, 0.4)', fontSize: 10, lineHeight: 15, textAlign: 'center', marginTop: 16, marginHorizontal: 24, marginBottom: 24 }}>
+            {lang === 'th'
+              ? 'Luxury Authenticator เป็นแอป AI วินิจฉัยอิสระ ไม่สังกัดและไม่ได้รับการแต่งตั้งจากผู้ผลิตนาฬิกาหรือตัวแทนจำหน่ายอย่างเป็นทางการ เครื่องหมายการค้าทั้งหมดเป็นทรัพย์สินของเจ้าของที่เกี่ยวข้อง'
+              : 'Luxury Authenticator is an independent AI diagnostic app, not affiliated with or authorized by any watch manufacturer or authorized dealer. All trademarks are the property of their respective owners.'}
+          </Text>
 
         </SafeAreaView>
       </ScrollView>

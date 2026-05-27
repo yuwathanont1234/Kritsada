@@ -625,7 +625,7 @@ function LandmarkCardsSection({
   return (
     <View style={{ marginTop: 8 }}>
       <Text style={{ color: '#E8DCC0', fontSize: 13, fontWeight: '800', letterSpacing: 1, marginBottom: 8 }}>
-        {lang === 'th' ? 'จุดสำคัญสำหรับการตรวจสอบ (AI Landmarks)' : 'AUTHENTICATION LANDMARKS'}
+        {lang === 'th' ? 'จุดตรวจสอบ Hallmark' : 'HALLMARK INSPECTION POINTS'}
       </Text>
 
       {overridden && (

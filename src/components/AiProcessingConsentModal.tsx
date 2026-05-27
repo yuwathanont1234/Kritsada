@@ -80,7 +80,7 @@ export function AiProcessingConsentModal({ visible, onDecided }: Props) {
             <Section title="🎯 Intended Use & AI Diagnostics">
               <Bullet text="Optical analysis of timepiece brand, reference, and production era" />
               <Bullet text="Deep-learning evaluation of optical hallmarks and micro-anomalies" />
-              <Bullet text="Generation of visual RAG landmark heatmaps (Premium feature)" />
+              <Bullet text="Generation of the Hallmark Diagnostic Map — brand-specific landmark analysis (Premium feature)" />
             </Section>
  
             {/* What's protected */}
@@ -103,7 +103,7 @@ export function AiProcessingConsentModal({ visible, onDecided }: Props) {
             {/* Privacy policy link */}
             <Pressable
               onPress={() =>
-                Linking.openURL('https://luxauth.img.co/privacy').catch(() => {})
+                Linking.openURL('https://yuwathanont1234.github.io/Kritsada/legal/privacy.html').catch(() => {})
               }
               style={s.policyLink}
             >

@@ -15,9 +15,11 @@ document.addEventListener('DOMContentLoaded', () => {
     // Navigation
     '.nav-links a[href="#features"]': { en: 'Features', th: 'คุณสมบัติ' },
     '.nav-links a[href="#simulator"]': { en: 'AI Simulator', th: 'ระบบจำลอง AI' },
+    '.nav-links a[href="photography-guide.html"]': { en: 'Photo Guide', th: 'คู่มือถ่ายภาพ' },
     '.nav-links a[href="#pricing"]': { en: 'Pricing', th: 'ราคาและแพ็กเกจ' },
     '.nav-links a[href="#faq"]': { en: 'FAQ', th: 'คำถามที่พบบ่อย' },
     '.btn-primary-sm': { en: 'Launch App', th: 'เปิดใช้งานแอป' },
+    '.links-group a[href="photography-guide.html"]': { en: 'Photo Guide', th: 'คู่มือถ่ายภาพ' },
     
     // Hero
     '.hero-badge': { en: 'Independent AI Utility', th: 'เครื่องมือ AI อิสระ' },
@@ -230,8 +232,8 @@ document.addEventListener('DOMContentLoaded', () => {
       th: '<strong>ข้อปฏิเสธความรับผิดชอบทางกฎหมาย:</strong> Luxury Authenticator เป็นเครื่องมืออำนวยความสะดวกในการตรวจวิเคราะห์ลักษณะทางสายตาที่เป็นอิสระอย่างสิ้นเชิง เราไม่ใช่ตัวแทนจำหน่ายอย่างเป็นทางการ พันธมิตร หรือผู้แทนของ Rolex, Patek Philippe, Audemars Piguet, Omega, Cartier หรือผู้ผลิตรายใด ชื่อสินค้า โลโก้ และเครื่องหมายการค้าทั้งหมดที่ปรากฏบนเว็บไซต์นี้เป็นสิทธิ์ของเจ้าของแบรนด์เหล่านั้น ใช้เพียงเพื่อเป็นข้อมูลอธิบายอ้างอิงเท่านั้น ผลลัพธ์จากการสแกน AI เป็นเพียงข้อมูลนำเสนอในระดับประเมินความสอดคล้องทางกายภาพเบื้องต้น ไม่เทียบเท่าใบรับรองมาตรฐานเป็นทางการ'
     },
     '.copyright': {
-      en: '&copy; 2026 Luxury Authenticator. Developed by Kritsada Yuwathanont. All rights reserved.',
-      th: '&copy; 2026 Luxury Authenticator. พัฒนาโดย กฤษฎา ยุวถาวรนันท์. สงวนลิขสิทธิ์ทั้งหมด.'
+      en: '&copy; 2026 Luxury Authenticator. All rights reserved.',
+      th: '&copy; 2026 Luxury Authenticator. สงวนลิขสิทธิ์ทั้งหมด.'
     }
   };
 

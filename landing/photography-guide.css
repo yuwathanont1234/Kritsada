@@ -1,0 +1,680 @@
+/* ==========================================================================
+   Luxury Authenticator — Interactive Photography Guide Stylesheets
+   Aesthetic Dark Gold Theme w/ Glassmorphism & Micro-animations
+   ========================================================================== */
+
+/* Reuse & Inherit Core Tokens */
+:root {
+  --color-bg-darker: #060503;
+  --color-accent-gold: #ECC87A;
+  --color-gold-solid: #D4AF37;
+  --color-green-glow: #27AE60;
+  --color-red-danger: #EB5757;
+  
+  --shadow-gold-heavy: 0 15px 45px rgba(236, 200, 122, 0.12);
+  --transition-cinematic: all 0.5s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* Page Specific Reset */
+.guide-body {
+  background-color: var(--color-bg-darker);
+  color: var(--color-text-primary);
+  font-family: var(--font-sans);
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  padding-top: 100px;
+}
+
+/* Section Header Styling */
+.guide-header-section {
+  padding: 60px 0 30px 0;
+  text-align: center;
+  position: relative;
+  z-index: 1;
+}
+
+.guide-badge {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 2.5px;
+  color: var(--color-accent-gold);
+  border: 1px solid rgba(236, 200, 122, 0.25);
+  padding: 6px 14px;
+  border-radius: var(--radius-full);
+  display: inline-block;
+  background-color: rgba(236, 200, 122, 0.04);
+  margin-bottom: 16px;
+  text-transform: uppercase;
+}
+
+.guide-title {
+  font-family: var(--font-serif);
+  font-size: 48px;
+  font-weight: 300;
+  line-height: 1.2;
+  letter-spacing: -0.5px;
+  margin-bottom: 16px;
+}
+
+.guide-desc {
+  font-size: 16px;
+  color: var(--color-text-secondary);
+  max-width: 650px;
+  margin: 0 auto;
+}
+
+/* ==========================================================================
+   Cinematic Player Interface (16:9 Dashboard)
+   ========================================================================== */
+.player-outer-container {
+  max-width: 1100px;
+  margin: 20px auto 60px auto;
+  width: 100%;
+  padding: 0 20px;
+}
+
+.cinema-player-dashboard {
+  background-color: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-premium), var(--shadow-gold-heavy);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  position: relative;
+}
+
+/* Video Screen Viewport */
+.cinema-viewport {
+  aspect-ratio: 16 / 9;
+  width: 100%;
+  position: relative;
+  background-color: #000;
+  overflow: hidden;
+}
+
+/* Chapter Slides & Active State */
+.chapter-slides-wrapper {
+  width: 100%;
+  height: 100%;
+  position: relative;
+}
+
+.chapter-slide {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.6s ease-in-out, visibility 0.6s ease-in-out;
+  display: grid;
+  grid-template-columns: 55% 45%;
+  align-items: stretch;
+}
+
+.chapter-slide.active {
+  opacity: 1;
+  visibility: visible;
+  z-index: 10;
+}
+
+/* Left Visual Stage */
+.visual-stage {
+  position: relative;
+  background-color: #0d0b08;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.visual-stage img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+/* Right Content panel */
+.details-stage {
+  padding: 40px;
+  background: linear-gradient(135deg, rgba(19, 16, 12, 0.95) 0%, rgba(10, 8, 5, 0.98) 100%);
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  border-left: 1px solid var(--color-border);
+  position: relative;
+}
+
+.chapter-number {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 2px;
+  color: var(--color-accent-gold);
+  text-transform: uppercase;
+  margin-bottom: 12px;
+  display: block;
+}
+
+.chapter-heading {
+  font-family: var(--font-serif);
+  font-size: 32px;
+  font-weight: 400;
+  color: var(--color-text-primary);
+  margin-bottom: 20px;
+  line-height: 1.25;
+}
+
+.chapter-body-text {
+  font-size: 14px;
+  color: var(--color-text-secondary);
+  line-height: 1.7;
+  margin-bottom: 30px;
+}
+
+/* Step Badges / Checklist */
+.tips-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.tip-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  font-size: 13.5px;
+  color: var(--color-text-primary);
+}
+
+.tip-bullet {
+  color: var(--color-accent-gold);
+  font-weight: 700;
+}
+
+/* ==========================================================================
+   Interactive Overlays & Interactive Widgets
+   ========================================================================== */
+
+/* BEFORE/AFTER SLIDER (Chapter 3) */
+.comparison-slider-container {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+}
+
+.slider-img {
+  position: absolute;
+  top: 0;
+  left: 0;
+  pointer-events: none;
+}
+
+.slider-img.img-before {
+  width: 200%;
+  height: 100%;
+  object-fit: cover;
+  object-position: left;
+  z-index: 1;
+}
+
+.slider-img.img-after {
+  z-index: 2;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  clip-path: polygon(0 0, 50% 0, 50% 100%, 0 100%);
+  pointer-events: none;
+}
+
+.slider-img.img-after img {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 200%;
+  height: 100%;
+  object-fit: cover;
+  object-position: right;
+  pointer-events: none;
+}
+
+/* Slider Handle Bar */
+.slider-handle-bar {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  /* Left controlled by JS drag */
+  left: 50%; 
+  width: 4px;
+  background-color: var(--color-accent-gold);
+  z-index: 3;
+  cursor: ew-resize;
+  transform: translateX(-50%);
+  box-shadow: 0 0 10px rgba(236, 200, 122, 0.5);
+}
+
+.slider-button {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background-color: #13100c;
+  border: 2px solid var(--color-accent-gold);
+  transform: translate(-50%, -50%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--color-accent-gold);
+  font-size: 14px;
+  font-weight: 700;
+  box-shadow: var(--shadow-premium), 0 0 8px rgba(236, 200, 122, 0.3);
+  pointer-events: none;
+  user-select: none;
+}
+
+/* Slider Labels */
+.slider-label {
+  position: absolute;
+  top: 20px;
+  padding: 6px 12px;
+  background-color: rgba(0, 0, 0, 0.75);
+  backdrop-filter: blur(5px);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: var(--radius-sm);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 1px;
+  z-index: 4;
+  text-transform: uppercase;
+}
+
+.label-before {
+  right: 20px;
+  color: var(--color-red-danger);
+  border-color: rgba(235, 87, 87, 0.3);
+}
+
+.label-after {
+  left: 20px;
+  color: var(--color-green-glow);
+  border-color: rgba(39, 174, 96, 0.3);
+}
+
+/* SHUTTER SCAN GRID (Chapter 4) */
+.camera-overlay-viewport {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 5;
+  pointer-events: none;
+  box-shadow: inset 0 0 60px rgba(0, 0, 0, 0.5);
+}
+
+/* Camera Target reticle */
+.camera-target-reticle {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 140px;
+  height: 140px;
+  border: 1px dashed rgba(236, 200, 122, 0.4);
+  border-radius: 50%;
+  transform: translate(-50%, -50%);
+  animation: pulseReticle 3s infinite ease-in-out;
+}
+
+.camera-target-reticle::before {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 14px;
+  height: 14px;
+  border-top: 2px solid var(--color-accent-gold);
+  border-left: 2px solid var(--color-accent-gold);
+  transform: translate(-50%, -50%) translate(-20px, -20px);
+}
+
+.camera-target-reticle::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 14px;
+  height: 14px;
+  border-bottom: 2px solid var(--color-accent-gold);
+  border-right: 2px solid var(--color-accent-gold);
+  transform: translate(-50%, -50%) translate(20px, 20px);
+}
+
+@keyframes pulseReticle {
+  0%, 100% { transform: translate(-50%, -50%) scale(1); opacity: 0.5; }
+  50% { transform: translate(-50%, -50%) scale(1.08); opacity: 0.9; }
+}
+
+/* Grid Lines overlay */
+.grid-lines-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  grid-template-rows: repeat(3, 1fr);
+}
+
+.grid-cell {
+  border: 0.5px solid rgba(255, 255, 255, 0.08);
+}
+
+/* Indicator alerts */
+.cam-indicator {
+  position: absolute;
+  background-color: rgba(10, 8, 5, 0.85);
+  border: 1px solid var(--color-accent-gold);
+  padding: 6px 12px;
+  border-radius: var(--radius-sm);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 1px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.cam-indicator.indicator-focus {
+  top: 20px;
+  left: 20px;
+  color: var(--color-green-glow);
+  border-color: var(--color-green-glow);
+}
+
+.cam-indicator.indicator-zoom {
+  bottom: 20px;
+  left: 20px;
+  color: var(--color-accent-gold);
+}
+
+.indicator-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background-color: currentColor;
+  animation: pulseDot 1s infinite alternate;
+}
+
+@keyframes pulseDot {
+  from { opacity: 0.3; }
+  to { opacity: 1; }
+}
+
+/* ==========================================================================
+   Video Player Dashboard Control Bar
+   ========================================================================== */
+.player-control-panel {
+  background-color: rgba(10, 8, 5, 0.9);
+  border-top: 1px solid var(--color-border);
+  padding: 16px 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  backdrop-filter: blur(10px);
+}
+
+/* Scrubber / Progress timeline bar */
+.player-scrubber-wrapper {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  width: 100%;
+}
+
+.playback-time {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--color-text-muted);
+  min-width: 35px;
+}
+
+.progress-timeline-bar {
+  flex: 1;
+  height: 6px;
+  background-color: rgba(255, 255, 255, 0.08);
+  border-radius: var(--radius-full);
+  position: relative;
+  cursor: pointer;
+  transition: height 0.2s ease;
+}
+
+.progress-timeline-bar:hover {
+  height: 8px;
+}
+
+.timeline-progress-filled {
+  height: 100%;
+  width: 20%; /* Controlled dynamically by JS */
+  background: linear-gradient(90deg, var(--color-gold-solid) 0%, var(--color-accent-gold) 100%);
+  border-radius: var(--radius-full);
+  position: relative;
+  transition: width 0.2s linear;
+}
+
+/* Drag dot knob */
+.timeline-drag-knob {
+  position: absolute;
+  right: -6px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background-color: var(--color-text-primary);
+  border: 2px solid var(--color-accent-gold);
+  box-shadow: 0 0 6px var(--color-accent-gold);
+  opacity: 0;
+  transition: opacity 0.2s ease;
+}
+
+.progress-timeline-bar:hover .timeline-drag-knob {
+  opacity: 1;
+}
+
+/* Control actions & buttons */
+.player-control-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.left-controls-group {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+}
+
+.player-action-btn {
+  color: var(--color-text-secondary);
+  font-size: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background-color: rgba(255, 255, 255, 0.02);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  transition: var(--transition-smooth);
+}
+
+.player-action-btn:hover {
+  color: var(--color-accent-gold);
+  border-color: var(--color-accent-gold);
+  background-color: rgba(236, 200, 122, 0.05);
+}
+
+.player-action-btn.btn-play-pause {
+  width: 46px;
+  height: 46px;
+  background-color: var(--color-accent-gold);
+  color: #000;
+  font-size: 18px;
+  border: none;
+  box-shadow: 0 4px 15px rgba(236, 200, 122, 0.25);
+}
+
+.player-action-btn.btn-play-pause:hover {
+  background-color: var(--color-gold-solid);
+  color: #000;
+  transform: scale(1.05);
+}
+
+/* Chapter Timeline indicators */
+.chapter-steps-indicator {
+  display: flex;
+  gap: 8px;
+}
+
+.step-marker {
+  padding: 6px 12px;
+  border-radius: var(--radius-sm);
+  background-color: rgba(255, 255, 255, 0.02);
+  border: 1px solid var(--color-border);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  color: var(--color-text-muted);
+  cursor: pointer;
+  transition: var(--transition-smooth);
+  text-transform: uppercase;
+}
+
+.step-marker.active {
+  border-color: var(--color-accent-gold);
+  background-color: rgba(236, 200, 122, 0.05);
+  color: var(--color-accent-gold);
+}
+
+.right-controls-group {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+/* Voiceover Script Box / Teleprompter */
+.guide-teleprompter-card {
+  max-width: 1100px;
+  margin: 0 auto 80px auto;
+  padding: 0 20px;
+  width: 100%;
+}
+
+.teleprompter-box {
+  background: linear-gradient(180deg, rgba(19, 16, 12, 0.8) 0%, rgba(10, 8, 5, 0.95) 100%);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  padding: 30px;
+  display: flex;
+  gap: 20px;
+  align-items: flex-start;
+  box-shadow: var(--shadow-premium);
+}
+
+.voice-icon-glow {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background-color: rgba(236, 200, 122, 0.05);
+  border: 1px solid rgba(236, 200, 122, 0.2);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--color-accent-gold);
+  font-size: 16px;
+  flex-shrink: 0;
+  box-shadow: 0 0 10px rgba(236, 200, 122, 0.1);
+  animation: voicePulse 1.5s infinite alternate;
+}
+
+@keyframes voicePulse {
+  from { box-shadow: 0 0 5px rgba(236, 200, 122, 0.1); transform: scale(1); }
+  to { box-shadow: 0 0 15px rgba(236, 200, 122, 0.3); transform: scale(1.05); }
+}
+
+.teleprompter-content-side {
+  flex: 1;
+}
+
+.voiceover-title {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 2px;
+  color: var(--color-text-muted);
+  text-transform: uppercase;
+  margin-bottom: 8px;
+}
+
+.voiceover-text-line {
+  font-family: var(--font-serif);
+  font-size: 20px;
+  font-weight: 300;
+  line-height: 1.6;
+  color: var(--color-text-secondary);
+  transition: var(--transition-cinematic);
+}
+
+/* ==========================================================================
+   Responsive Adaptation Layouts
+   ========================================================================== */
+@media (max-width: 900px) {
+  .chapter-slide {
+    grid-template-columns: 1fr;
+    grid-template-rows: 50% 50%;
+  }
+  
+  .cinema-viewport {
+    aspect-ratio: 16 / 18; /* Squarish ratio for mobile stacks */
+  }
+  
+  .details-stage {
+    padding: 30px;
+    border-left: none;
+    border-top: 1px solid var(--color-border);
+  }
+  
+  .chapter-heading {
+    font-size: 26px;
+  }
+  
+  .step-marker {
+    padding: 5px 8px;
+    font-size: 9px;
+  }
+}
+
+@media (max-width: 600px) {
+  .guide-title {
+    font-size: 34px;
+  }
+  
+  .player-control-row {
+    flex-direction: column;
+    gap: 16px;
+    align-items: center;
+  }
+  
+  .chapter-steps-indicator {
+    overflow-x: auto;
+    width: 100%;
+    justify-content: center;
+    padding-bottom: 8px;
+  }
+}

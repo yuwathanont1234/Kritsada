@@ -1,10 +1,18 @@
 # macOS
 .DS_Store
 
-# Env
-.env
-.env.local
-.env.*.local
+# Env — broad wildcard catches .env, .env.bak, .env.local, etc.
+# Anything matching .env* is ignored EXCEPT the public .env.example
+# (the `!` exception lets the public template stay tracked).
+.env*
+!.env.example
+
+# Session / scratch notes that may contain plaintext secrets,
+# debug snapshots, or in-flight design docs. Keep local only.
+SESSION_STATE.md
+SESSION_STATE.*.md
+SESSION_LOG_*.md
+scratch/
 
 # Expo
 .expo/

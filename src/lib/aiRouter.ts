@@ -378,6 +378,14 @@ export async function analyzeWatchByTier(
   // Phase 1B: pgvector Database / Expert Certificate visual cross-validation
   let dbValidated = false;
   let certValidated = false;
+  // Light-touch corroboration — visual top hit agrees with Gemini on
+  // brand AND model substring but at moderate similarity (0.65-0.95).
+  // Skips the expensive grounded retry without claiming strong DB
+  // validation. Catches the common "Gemini says 'Tudor Black Bay'
+  // without ref, visual hits a Tudor Black Bay with sim=0.85" case
+  // that previously triggered a ฿2.20 Pro grounded call for no
+  // accuracy gain.
+  let visualBrandCorroborated = false;
   let certMatchHit: any = null;
 
   if (enableVisualRag && identified.identified) {
@@ -397,13 +405,39 @@ export async function analyzeWatchByTier(
         ]);
 
         const top = similar.candidates[0];
-        if (top && top.similarity > 0.95) {
-          const matchedName = identified.name.toLowerCase();
-          const matchesModel = top.name.toLowerCase().includes(matchedName) || matchedName.includes(top.name.toLowerCase());
-          if (matchesModel) {
+        if (top) {
+          const matchedName = identified.name.toLowerCase().trim();
+          const topName = (top.name || '').toLowerCase().trim();
+          const matchesModel =
+            !!matchedName && !!topName &&
+            (topName.includes(matchedName) || matchedName.includes(topName));
+
+          // Brand-substring match (handles "Officine Panerai" ↔ "Panerai",
+          // "Audemars Piguet" ↔ "AP" alias variants in the DB metadata).
+          const identBrand = (identified.brand || '').toLowerCase().trim();
+          const topBrand = (top.brand || '').toLowerCase().trim();
+          const matchesBrand =
+            !!identBrand && !!topBrand &&
+            (topBrand.includes(identBrand) || identBrand.includes(topBrand));
+
+          if (top.similarity > 0.95 && matchesModel) {
+            // Strong DB validation — same logic as before.
             dbValidated = true;
             console.log(
               `[aiRouter] DB-validated ✓ AI + DINOv3 agree: "${identified.name}" vs top visual "${top.name}" (sim=${top.similarity.toFixed(3)})`
+            );
+          } else if (
+            top.similarity >= 0.65 &&
+            matchesBrand &&
+            matchesModel
+          ) {
+            // Light corroboration — moderate sim but brand+model agree.
+            // Enough to skip the Pro-grounded retry without claiming
+            // full DB-validated status (which downstream auth signals
+            // gate on). Cost saver, accuracy-neutral.
+            visualBrandCorroborated = true;
+            console.log(
+              `[aiRouter] Visual-corroborated ✓ AI + DINOv3 agree (light): "${identified.brand} ${identified.name}" vs top visual "${top.brand} ${top.name}" (sim=${top.similarity.toFixed(3)}) — will skip grounded retry`
             );
           }
         }
@@ -463,7 +497,8 @@ export async function analyzeWatchByTier(
   if (
     identified.confidence < groundedRetryThreshold &&
     !dbValidated &&
-    !certValidated
+    !certValidated &&
+    !visualBrandCorroborated
   ) {
     console.log(
       `[aiRouter] Low confidence (${identified.confidence} < ${groundedRetryThreshold}) and no visual match validation. Running grounded search fallback...`

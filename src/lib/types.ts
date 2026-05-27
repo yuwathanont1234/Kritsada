@@ -46,6 +46,35 @@ export type ScanResult = {
   authenticityVerdict?: 'likely-authentic' | 'uncertain' | 'likely-reproduction' | 'cannot-assess';
   authenticityReasoning?: string;   // Reason for the verdict
 
+  // Set by the macro-coverage gate in aiRouter when the scan had
+  // fewer than 4 photos and the raw verdict would otherwise have
+  // claimed > 70% confidence. ResultScreen renders a "Limited
+  // photo coverage" banner + add-macro-photos CTA when this is
+  // true. Not persisted to DB — derived per-scan.
+  macroCoverageWarning?: boolean;
+
+  // AI-Data Fusion: weight-discrepancy signal. Populated by aiRouter
+  // when the user provided a measured weight AND a spec exists for
+  // the identified reference. Drives a red "🚩 น้ำหนักไม่ตรงสเปก"
+  // banner on ResultScreen when grade === 'mismatch'.
+  weightCheck?: {
+    userWeightG: number;
+    nominalG: number;
+    minG: number;
+    maxG: number;
+    material: string;
+    grade: 'match' | 'slight' | 'mismatch';
+    deltaG: number;
+    // Bilingual override message — populated only when grade ===
+    // 'mismatch' and a verdict override fired. UI renders the lang-
+    // appropriate version. Keeping these structured (rather than
+    // prepending raw English to authenticityReasoning) lets the
+    // localisation system handle them correctly and keeps the
+    // Gemini-authored reasoning untouched for downstream consumers
+    // (e.g. PDF export).
+    overrideMessage?: { th: string; en: string };
+  };
+
   // Reproduction/fake price bands
   reproductionPrice?: ReproductionPrice;
 

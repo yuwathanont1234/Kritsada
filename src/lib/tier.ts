@@ -80,6 +80,14 @@ export type TierCapabilities = {
   //   Pro         = 3 (front dial + caseback + side profile)
   //   Premium     = 4 (front dial + caseback + 2 side profile/details)
   templatePhotoCount: 1 | 2 | 3 | 4;
+
+  // AI-Data Fusion: weight-discrepancy check (Premium only).
+  // The fusion engine catches the "real warranty card + counterfeit
+  // case" fraud pattern by cross-referencing the user's measured
+  // weight against the manufacturer-spec range for the identified
+  // reference. Gated to Premium because it's a defensible
+  // upgrade-driver — same tier that gets the AI heatmap overlay.
+  weightFusion: boolean;
 };
 
 // Free tier — 5 scans within a 30-DAY WINDOW. After the window elapses,
@@ -112,6 +120,7 @@ const FREE_CAPS: TierCapabilities = {
   heatmapPerMonth: 0,
   deepSearchPerMonth: 0,
   templatePhotoCount: 1,          // front dial only
+  weightFusion: false,
 };
 
 // Standard Package — monthly scan limit: 50
@@ -143,6 +152,7 @@ const STANDARD_CAPS: TierCapabilities = {
   heatmapPerMonth: 0,
   deepSearchPerMonth: 0,
   templatePhotoCount: 2,          // front dial + caseback
+  weightFusion: false,
 };
 
 // Pro Package — monthly scan limit: 100
@@ -174,6 +184,7 @@ const PRO_CAPS: TierCapabilities = {
   heatmapPerMonth: 0,
   deepSearchPerMonth: 0,
   templatePhotoCount: 3,          // front + back + side profile
+  weightFusion: false,
 };
 
 // Premium Package — monthly scan limit: 200
@@ -205,6 +216,7 @@ const PREMIUM_CAPS: TierCapabilities = {
   heatmapPerMonth: 50,
   deepSearchPerMonth: 0,
   templatePhotoCount: 4,          // full 4-angle capture
+  weightFusion: true,             // 🏋️ AI-Data Fusion: material-density verification
 };
 
 export function tierCaps(tier: MembershipTier): TierCapabilities {

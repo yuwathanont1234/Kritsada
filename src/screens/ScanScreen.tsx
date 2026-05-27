@@ -834,7 +834,13 @@ export function ScanScreen({ navigation }: Props) {
             )}
             {caps.templatePhotoCount === 4 && (
               <Preview
-                label={lang === 'th' ? 'สายนาฬิกา' : 'Bracelet'}
+                // Slot 4 is the highest-value macro shot for counterfeit
+                // detection — rehaut engraving (Rolex post-2008), bezel
+                // ceramic insert close-up, or movement through display
+                // back. Label kept generic ("Macro") so user can shoot
+                // whichever micro-detail is most informative for their
+                // watch.
+                label={lang === 'th' ? 'รายละเอียด' : 'Macro'}
                 uri={bottomUri}
                 onPress={() => reset('bottom')}
                 optional

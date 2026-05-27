@@ -42,6 +42,91 @@ export function triggerTierUpdate(tier: MembershipTier) {
   }
 }
 
+/**
+ * BrandTier — single tier card in the Supported Brands list.
+ *
+ * Each tier represents a horology-trade convention level (Apex / Established
+ * / Independent / Accessible) and lists its constituent brand names as a
+ * single dot-separated paragraph. The compact paragraph format communicates
+ * "curated set" rather than the old checklist style that read as a parts
+ * catalog. Accent color descends from cream (top) to bronze (accessible),
+ * reinforcing hierarchy without numeric rankings.
+ *
+ * Moved out of HomeScreen so the daily-use feed isn't dominated by reference
+ * material — this block now lives in Settings beside FAQ/Terms/Privacy.
+ */
+function BrandTier({
+  accent,
+  accentBorder,
+  tag,
+  title,
+  subtitle,
+  brands,
+}: {
+  accent: string;
+  accentBorder: string;
+  tag: string;
+  title: string;
+  subtitle: string;
+  brands: string[];
+}) {
+  return (
+    <View
+      style={{
+        borderRadius: 12,
+        borderWidth: 1,
+        borderColor: accentBorder,
+        marginBottom: 12,
+        overflow: 'hidden',
+      }}
+    >
+      <LinearGradient
+        colors={['rgba(30, 24, 20, 0.85)', 'rgba(12, 10, 8, 0.96)']}
+        style={StyleSheet.absoluteFillObject}
+      />
+      <View style={{ padding: 14 }}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8 }}>
+          <View
+            style={{
+              paddingHorizontal: 8,
+              paddingVertical: 3,
+              borderRadius: 6,
+              borderWidth: 1,
+              borderColor: accentBorder,
+              marginRight: 10,
+            }}
+          >
+            <Text style={{ color: accent, fontSize: 9, fontWeight: '800', letterSpacing: 1.2 }}>
+              {tag}
+            </Text>
+          </View>
+          <View style={{ flex: 1 }}>
+            <Text style={{ color: accent, fontSize: 14, fontWeight: '700', letterSpacing: 0.3 }}>
+              {title}
+            </Text>
+            <Text style={{ color: '#8A8278', fontSize: 11, marginTop: 1 }} numberOfLines={1}>
+              {subtitle}
+            </Text>
+          </View>
+          <Text style={{ color: '#666', fontSize: 11, fontWeight: '600' }}>
+            {brands.length}
+          </Text>
+        </View>
+        <Text
+          style={{
+            color: '#D0C8B5',
+            fontSize: 12.5,
+            lineHeight: 19,
+            letterSpacing: 0.2,
+          }}
+        >
+          {brands.join('  ·  ')}
+        </Text>
+      </View>
+    </View>
+  );
+}
+
 export default function SettingsScreen({ navigation }: any) {
   const { t, lang, setLang } = useLanguage();
   const [user, setUser] = useState<AuthUser | null>(null);
@@ -169,6 +254,12 @@ export default function SettingsScreen({ navigation }: any) {
         text: t('settings.wipeConfirmTitle'),
         style: 'destructive',
         onPress: async () => {
+          try {
+            const { eraseMyData } = await import('../lib/dataConsent');
+            await eraseMyData();
+          } catch (err) {
+            console.warn('[SettingsScreen] eraseMyData failed during account deletion:', err);
+          }
           await AsyncStorage.clear();
           await load();
           if (globalUpdateAppTier) globalUpdateAppTier('free');
@@ -364,7 +455,175 @@ export default function SettingsScreen({ navigation }: any) {
               <Feather name="chevron-right" size={16} color={colors.textMuted} />
             </Pressable>
           </View>
- 
+
+          {/* ─────────────────────────────────────────────────────────
+              Authentication Coverage — Tiered Brand Catalog
+              ─────────────────────────────────────────────────────────
+              Moved here from HomeScreen so daily-use surfaces stay focused
+              on Scan → Recent → Portfolio. This block is reference material
+              that users read once (when deciding whether the app supports
+              their watch) and rarely revisit, which is exactly the role
+              Settings is meant for.
+
+                • Coverage banner: ~94% of Thai luxury watch sales volume.
+                • 4 horology tiers (apex/established/independent/accessible)
+                  ordered by craft level, not alphabetically.
+                • Q3/Q4 2026 roadmap to 100% — signals active expansion. */}
+          <View style={{ marginTop: spacing.md, marginBottom: spacing.md }}>
+            {/* Coverage banner */}
+            <View style={{
+              borderRadius: 14,
+              borderWidth: 1,
+              borderColor: 'rgba(236, 200, 122, 0.4)',
+              padding: spacing.md,
+              marginBottom: spacing.md,
+              overflow: 'hidden',
+            }}>
+              <LinearGradient
+                colors={['rgba(236, 200, 122, 0.14)', 'rgba(236, 200, 122, 0.03)']}
+                style={StyleSheet.absoluteFillObject}
+              />
+              <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+                <View style={{ flex: 1, paddingRight: spacing.sm }}>
+                  <Text style={{ color: colors.textMuted, fontSize: 10, letterSpacing: 1.5, fontWeight: '700' }}>
+                    {lang === 'th' ? 'มาตรฐานการตรวจสอบ' : 'AUTHENTICATION COVERAGE'}
+                  </Text>
+                  <Text style={{ color: '#F5E9CC', fontSize: 14, fontWeight: '600', marginTop: 4 }}>
+                    {lang === 'th'
+                      ? 'ครอบคลุมตลาดนาฬิกาหรูในประเทศไทย'
+                      : 'Of luxury watch sales volume in Thailand'}
+                  </Text>
+                </View>
+                <View style={{ alignItems: 'flex-end' }}>
+                  <Text style={{
+                    color: colors.amber,
+                    fontSize: 32,
+                    fontWeight: '900',
+                    letterSpacing: -1,
+                    lineHeight: 36,
+                  }}>
+                    94%
+                  </Text>
+                  <Text style={{ color: colors.textMuted, fontSize: 9, letterSpacing: 1 }}>
+                    31 BRANDS
+                  </Text>
+                </View>
+              </View>
+            </View>
+
+            {/* Section heading */}
+            <Text style={[styles.subSectionHeader, { marginBottom: spacing.sm }]}>
+              {lang === 'th' ? 'แบรนด์ที่รองรับ — แบ่งตามระดับชั้น' : 'SUPPORTED BRANDS — BY TIER'}
+            </Text>
+
+            {/* TIER 1 — Apex Manufactures */}
+            <BrandTier
+              accent="#F5E9CC"
+              accentBorder="rgba(245, 233, 204, 0.55)"
+              tag={lang === 'th' ? 'ขั้นสูงสุด' : 'TIER I'}
+              title={lang === 'th' ? 'Apex Manufactures' : 'Apex Manufactures'}
+              subtitle={lang === 'th' ? 'งานหัตถศิลป์ระดับ Haute Horlogerie' : 'Haute Horlogerie · top-tier ateliers'}
+              brands={[
+                'Patek Philippe',
+                'Audemars Piguet',
+                'Vacheron Constantin',
+                'A. Lange & Söhne',
+                'Richard Mille',
+                'F.P. Journe',
+              ]}
+            />
+
+            {/* TIER 2 — Established Luxury */}
+            <BrandTier
+              accent="#ECC87A"
+              accentBorder="rgba(236, 200, 122, 0.45)"
+              tag={lang === 'th' ? 'ระดับหรู' : 'TIER II'}
+              title={lang === 'th' ? 'Established Luxury' : 'Established Luxury'}
+              subtitle={lang === 'th' ? 'แบรนด์สวิสและฝรั่งเศสกระแสหลัก' : 'Mainstream Swiss & French maisons'}
+              brands={[
+                'Rolex',
+                'Tudor',
+                'Omega',
+                'IWC',
+                'Jaeger-LeCoultre',
+                'Cartier',
+                'Hublot',
+                'Panerai',
+                'Breitling',
+                'TAG Heuer',
+                'Zenith',
+                'Chopard',
+                'Bvlgari',
+                'Franck Muller',
+                'Girard-Perregaux',
+              ]}
+            />
+
+            {/* TIER 3 — Independent & Niche */}
+            <BrandTier
+              accent="#C59A45"
+              accentBorder="rgba(197, 154, 69, 0.45)"
+              tag={lang === 'th' ? 'อิสระ' : 'TIER III'}
+              title={lang === 'th' ? 'Independent & Niche' : 'Independent & Niche'}
+              subtitle={lang === 'th' ? 'ผู้ผลิตอิสระและงานสะสมหายาก' : 'Independent ateliers · low-volume collectors'}
+              brands={[
+                'MB&F',
+                'URWERK',
+                'Bovet',
+                'Grand Seiko',
+                'Ulysse Nardin',
+                'Parmigiani Fleurier',
+              ]}
+            />
+
+            {/* TIER 4 — Accessible Luxury */}
+            <BrandTier
+              accent="#9A7326"
+              accentBorder="rgba(154, 115, 38, 0.5)"
+              tag={lang === 'th' ? 'เข้าถึงได้' : 'TIER IV'}
+              title={lang === 'th' ? 'Accessible Luxury' : 'Accessible Luxury'}
+              subtitle={lang === 'th' ? 'แบรนด์สวิสและญี่ปุ่นราคาเป็นมิตร' : 'Approachable Swiss & Japanese'}
+              brands={['Tissot', 'Longines', 'Frédérique Constant', 'Seiko']}
+            />
+
+            {/* Roadmap card */}
+            <View style={{
+              marginTop: spacing.sm,
+              borderRadius: 12,
+              borderWidth: 1,
+              borderColor: 'rgba(120, 120, 130, 0.25)',
+              padding: spacing.md,
+              overflow: 'hidden',
+              backgroundColor: 'rgba(20, 18, 16, 0.55)',
+            }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: spacing.sm }}>
+                <Feather name="compass" size={14} color={colors.amber} style={{ marginRight: 6 }} />
+                <Text style={{ color: colors.amber, fontSize: 11, fontWeight: '700', letterSpacing: 1.2 }}>
+                  {lang === 'th' ? 'แผนพัฒนา 2026' : 'COVERAGE ROADMAP 2026'}
+                </Text>
+              </View>
+              <View style={{ flexDirection: 'row', marginBottom: spacing.xs }}>
+                <Text style={{ color: colors.textSecondary, fontSize: 11, fontWeight: '700', width: 64 }}>Q3 →</Text>
+                <Text style={{ color: '#D0D0D0', fontSize: 11, flex: 1, lineHeight: 16 }}>
+                  Hermès · Piaget · Glashütte Original · Oris · Hamilton
+                  <Text style={{ color: colors.amber, fontWeight: '700' }}> → 98%</Text>
+                </Text>
+              </View>
+              <View style={{ flexDirection: 'row' }}>
+                <Text style={{ color: colors.textSecondary, fontSize: 11, fontWeight: '700', width: 64 }}>Q4 →</Text>
+                <Text style={{ color: '#D0D0D0', fontSize: 11, flex: 1, lineHeight: 16 }}>
+                  Citizen · Mido · Maurice Lacroix · boutique independents
+                  <Text style={{ color: colors.amber, fontWeight: '700' }}> → 100%</Text>
+                </Text>
+              </View>
+              <Text style={{ color: colors.textMuted, fontSize: 10, marginTop: spacing.sm, fontStyle: 'italic' }}>
+                {lang === 'th'
+                  ? 'ฐานข้อมูลอ้างอิงเติบโตขึ้นทุกเดือนจากการสะสมของผู้ใช้และพันธมิตรอย่างเป็นทางการ'
+                  : 'Reference vault grows monthly via user submissions & authorized partners'}
+              </Text>
+            </View>
+          </View>
+
         {/* Logout Button */}
         <Pressable style={styles.logoutBtn} onPress={handleLogout}>
           <Feather name="log-out" size={18} color="#fff" />

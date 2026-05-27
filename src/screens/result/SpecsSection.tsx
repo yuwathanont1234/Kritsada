@@ -80,6 +80,39 @@ export default function SpecsSection({
         {/* Gated Authenticity Reasoning based on Subscription capabilities */}
         {caps.showAuthenticitySignals ? (
           <View style={styles.authReasonBox}>
+            {/* When the verdict was overridden by Weight Fusion, surface
+                the structured bilingual override message FIRST so the
+                user reads it before the (now-stale) Gemini reasoning.
+                Without this the reasoning area shows only Gemini's
+                pre-override paragraph (e.g. "the watch shows authentic
+                features…") which contradicts the Likely Reproduction
+                verdict above and reads as a system bug. */}
+            {result.weightCheck?.overrideMessage && (
+              <View
+                style={{
+                  borderRadius: 10,
+                  borderWidth: 1,
+                  borderColor: 'rgba(239, 68, 68, 0.50)',
+                  backgroundColor: 'rgba(239, 68, 68, 0.10)',
+                  padding: 12,
+                  marginBottom: 12,
+                }}
+              >
+                <Text
+                  style={{
+                    color: '#FCA5A5',
+                    fontSize: 13,
+                    fontWeight: '700',
+                    lineHeight: 19,
+                  }}
+                >
+                  {lang === 'th'
+                    ? result.weightCheck.overrideMessage.th
+                    : result.weightCheck.overrideMessage.en}
+                </Text>
+              </View>
+            )}
+
             <Text style={styles.authReasonTitle}>{lang === 'th' ? 'การวิเคราะห์การตกแต่งและโครงสร้างตัวเรือน' : 'CASE MICRO-FINISHING ANALYSIS'}</Text>
             <Text style={styles.authReasonBody}>
               {result.authenticityReasoning || (lang === 'th' ? 'ตัวบ่งชี้การวิเคราะห์เกณฑ์มาตรฐานครบถ้วนแล้ว' : 'Standard inspection check-markers analyzed.')}
@@ -87,14 +120,66 @@ export default function SpecsSection({
 
             {result.authenticitySignals && result.authenticitySignals.length > 0 && (
               <View style={styles.signalsList}>
-                <Text style={styles.signalsTitle}>{lang === 'th' ? 'สัญญาณบ่งชี้คุณภาพของชิ้นส่วน (AI Signals)' : 'Imaged Quality Signifiers (Signals)'}</Text>
+                {/* When weight override fired, Gemini's visual signals are
+                    stale (they reflect the pre-override "likely-authentic"
+                    read). Don't hide them — they're still useful evidence
+                    for the dial typography and bezel finishing claims —
+                    but flag them as superseded so the user understands
+                    why ✓ signals can co-exist with a reproduction verdict. */}
+                <Text style={styles.signalsTitle}>
+                  {lang === 'th' ? 'สัญญาณบ่งชี้คุณภาพของชิ้นส่วน (AI Signals)' : 'Imaged Quality Signifiers (Signals)'}
+                </Text>
+                {result.weightCheck?.grade === 'mismatch' && (
+                  <View
+                    style={{
+                      flexDirection: 'row',
+                      alignItems: 'center',
+                      paddingHorizontal: 8,
+                      paddingVertical: 6,
+                      borderRadius: 6,
+                      backgroundColor: 'rgba(120, 120, 130, 0.18)',
+                      marginBottom: 8,
+                    }}
+                  >
+                    <Feather name="info" size={12} color="#A89E8A" style={{ marginRight: 6 }} />
+                    <Text
+                      style={{
+                        color: '#A89E8A',
+                        fontSize: 11,
+                        flex: 1,
+                        lineHeight: 16,
+                        fontStyle: 'italic',
+                      }}
+                    >
+                      {lang === 'th'
+                        ? 'สัญญาณภาพด้านล่างมาจากการตรวจของ Gemini ก่อนตรวจ Weight Fusion (ถูกแทนที่โดยคำตัดสินด้านบน)'
+                        : 'Visual signals below are from pre-Weight-Fusion Gemini analysis (superseded by the verdict above).'}
+                    </Text>
+                  </View>
+                )}
                 {result.authenticitySignals.map((s, idx) => {
-                  const iconColor = s.weight === 'positive' ? colors.success : s.weight === 'negative' ? colors.danger : colors.textSecondary;
+                  // Mute the icon colors when override fired so green
+                  // checks don't visually contradict the red verdict.
+                  const overridden = result.weightCheck?.grade === 'mismatch';
+                  const iconColor = overridden
+                    ? colors.textMuted
+                    : s.weight === 'positive'
+                    ? colors.success
+                    : s.weight === 'negative'
+                    ? colors.danger
+                    : colors.textSecondary;
                   const iconName = s.weight === 'positive' ? 'check-circle' : s.weight === 'negative' ? 'alert-triangle' : 'info';
                   return (
                     <View key={idx} style={styles.signalRow}>
                       <Feather name={iconName} size={14} color={iconColor} style={{ marginTop: 2 }} />
-                      <Text style={styles.signalText}>{s.signal}</Text>
+                      <Text
+                        style={[
+                          styles.signalText,
+                          overridden && { color: '#8A8278' },
+                        ]}
+                      >
+                        {s.signal}
+                      </Text>
                     </View>
                   );
                 })}

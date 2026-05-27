@@ -6,11 +6,13 @@ import {
   ActivityIndicator,
   Alert,
   Image,
+  Modal,
   Pressable,
   ScrollView,
   Share,
   StyleSheet,
   Text,
+  TextInput,
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -20,7 +22,7 @@ import {
   saveWatch,
   deleteWatch,
 } from '../lib/collection';
-import { fetchPricesByTier } from '../lib/aiRouter';
+import { fetchPricesByTier, applyWeightFusion } from '../lib/aiRouter';
 import { getAuthColorMeta, AuthColor } from '../lib/authVerdictColor';
 import { getMembership, MembershipStatus } from '../lib/auth';
 import { getExchangeRate } from '../lib/currency';
@@ -147,6 +149,14 @@ export function ResultScreen({ route, navigation }: Props) {
 
   const [refreshingPrices, setRefreshingPrices] = useState(false);
   const [generatingPDF, setGeneratingPDF] = useState(false);
+
+  // Weight-fusion modal state. The "Add weight to verify" CTA opens a
+  // small modal where the user enters the watch's measured weight (in
+  // grams, from a kitchen scale). On submit we run applyWeightFusion
+  // locally — no Gemini re-call needed — and the updated verdict /
+  // discrepancy banner re-render via setResult.
+  const [weightModalOpen, setWeightModalOpen] = useState(false);
+  const [weightInput, setWeightInput] = useState<string>('');
 
   // Fetch membership & exchange rate on mount for all tiers
   useEffect(() => {
@@ -406,6 +416,336 @@ export function ResultScreen({ route, navigation }: Props) {
           t={t}
         />
 
+        {/* ─────────────────────────────────────────────────────────
+            Macro photo coverage warning.
+            ─────────────────────────────────────────────────────────
+            Fired by aiRouter when the scan had < 4 photos AND the raw
+            verdict would have claimed > 70% confidence. Tells the user
+            why the score is capped and how to unlock higher confidence
+            (add macro shots of crown / rehaut / caseback / lume). The
+            "Add macro photos" CTA navigates back to ScanScreen with
+            the existing photos preserved. */}
+        {result.macroCoverageWarning && (
+          <View
+            style={{
+              marginHorizontal: 16,
+              marginBottom: 12,
+              borderRadius: 12,
+              borderWidth: 1,
+              borderColor: 'rgba(236, 200, 122, 0.40)',
+              backgroundColor: 'rgba(236, 200, 122, 0.08)',
+              padding: 14,
+              flexDirection: 'row',
+              alignItems: 'flex-start',
+            }}
+          >
+            <Feather
+              name="zoom-in"
+              size={18}
+              color="#ECC87A"
+              style={{ marginRight: 10, marginTop: 1 }}
+            />
+            <View style={{ flex: 1 }}>
+              <Text
+                style={{
+                  color: '#ECC87A',
+                  fontSize: 12,
+                  fontWeight: '800',
+                  letterSpacing: 1,
+                  marginBottom: 4,
+                }}
+              >
+                {lang === 'th' ? 'การตรวจสอบจำกัด' : 'LIMITED PHOTO COVERAGE'}
+              </Text>
+              <Text style={{ color: '#E8DCC0', fontSize: 13, lineHeight: 19 }}>
+                {lang === 'th'
+                  ? 'ความเชื่อมั่นถูกจำกัดที่ 70% เนื่องจากภาพไม่เพียงพอ เพิ่มภาพ macro ของเม็ดมะยม, รอบ rehaut, ฝาหลัง และพรายน้ำ เพื่อปลดล็อกการตรวจสอบความเชื่อมั่นสูงขึ้น'
+                  : 'Confidence capped at 70% due to limited photos. Add macro shots of the crown, rehaut engraving, caseback finishing, and lume to unlock higher-confidence authentication.'}
+              </Text>
+            </View>
+          </View>
+        )}
+
+        {/* ─────────────────────────────────────────────────────────
+            AI-Data Fusion: Weight discrepancy banner.
+            ─────────────────────────────────────────────────────────
+            Renders only when applyWeightFusion has populated
+            result.weightCheck. Three states:
+              • mismatch (>15% off nominal) → RED critical banner —
+                this is the "real card + fake case" detector. Verdict
+                has already been overridden to likely-reproduction
+                by the fusion engine.
+              • match (in tolerance range) → GREEN confirmation —
+                weight corroborates material claim, confidence boosted.
+              • slight (just outside band) → AMBER soft warning —
+                could be aftermarket strap or removed links. */}
+        {result.weightCheck && result.weightCheck.material !== 'unknown' && (
+          <View
+            style={{
+              marginHorizontal: 16,
+              marginBottom: 12,
+              borderRadius: 12,
+              borderWidth: 1.5,
+              borderColor:
+                result.weightCheck.grade === 'mismatch'
+                  ? 'rgba(239, 68, 68, 0.70)'
+                  : result.weightCheck.grade === 'match'
+                  ? 'rgba(46, 204, 113, 0.55)'
+                  : 'rgba(236, 200, 122, 0.45)',
+              backgroundColor:
+                result.weightCheck.grade === 'mismatch'
+                  ? 'rgba(239, 68, 68, 0.10)'
+                  : result.weightCheck.grade === 'match'
+                  ? 'rgba(46, 204, 113, 0.08)'
+                  : 'rgba(236, 200, 122, 0.06)',
+              padding: 14,
+              flexDirection: 'row',
+              alignItems: 'flex-start',
+            }}
+          >
+            <Feather
+              name={
+                result.weightCheck.grade === 'mismatch'
+                  ? 'alert-triangle'
+                  : result.weightCheck.grade === 'match'
+                  ? 'check-circle'
+                  : 'info'
+              }
+              size={20}
+              color={
+                result.weightCheck.grade === 'mismatch'
+                  ? '#EF4444'
+                  : result.weightCheck.grade === 'match'
+                  ? '#2ECC71'
+                  : '#ECC87A'
+              }
+              style={{ marginRight: 10, marginTop: 1 }}
+            />
+            <View style={{ flex: 1 }}>
+              <Text
+                style={{
+                  color:
+                    result.weightCheck.grade === 'mismatch'
+                      ? '#EF4444'
+                      : result.weightCheck.grade === 'match'
+                      ? '#2ECC71'
+                      : '#ECC87A',
+                  fontSize: 12,
+                  fontWeight: '800',
+                  letterSpacing: 1,
+                  marginBottom: 4,
+                }}
+              >
+                {result.weightCheck.grade === 'mismatch'
+                  ? (lang === 'th'
+                      ? '🚩 น้ำหนักไม่ตรงสเปก — เสี่ยงตัวเรือนปลอม'
+                      : '🚩 WEIGHT MISMATCH — POSSIBLE COUNTERFEIT CASE')
+                  : result.weightCheck.grade === 'match'
+                  ? (lang === 'th'
+                      ? '✓ น้ำหนักผ่านเกณฑ์ความหนาแน่นวัสดุ'
+                      : '✓ WEIGHT MATCHES MATERIAL DENSITY')
+                  : (lang === 'th'
+                      ? 'น้ำหนักใกล้เคียงสเปก'
+                      : 'WEIGHT CLOSE TO SPEC')}
+              </Text>
+              <Text style={{ color: '#E8DCC0', fontSize: 13, lineHeight: 19, marginBottom: 4 }}>
+                {lang === 'th'
+                  ? `วัดได้ ${result.weightCheck.userWeightG}g · มาตรฐาน ${result.weightCheck.minG}-${result.weightCheck.maxG}g (${result.weightCheck.material}, nominal ${result.weightCheck.nominalG}g)`
+                  : `Measured ${result.weightCheck.userWeightG}g · Spec ${result.weightCheck.minG}-${result.weightCheck.maxG}g (${result.weightCheck.material}, nominal ${result.weightCheck.nominalG}g)`}
+              </Text>
+              {result.weightCheck.grade === 'mismatch' && (
+                <Text style={{ color: '#FCA5A5', fontSize: 12.5, lineHeight: 18 }}>
+                  {lang === 'th'
+                    ? 'น้ำหนักที่วัดได้ผิดเพี้ยนจากความหนาแน่นที่ควรเป็นของวัสดุที่ระบุ รูปแบบนี้พบในกรณี "การ์ดรับประกันแท้ + ตัวเรือนปลอม" ที่ตลาดมือสองสากล ระวังการซื้อขาย'
+                    : 'Measured weight is inconsistent with the expected density of the claimed material. Pattern matches "authentic warranty card + counterfeit case" fraud common on secondary markets. Exercise caution before purchase.'}
+                </Text>
+              )}
+            </View>
+          </View>
+        )}
+
+        {/* "Add weight to verify" CTA — Premium-only feature.
+            ─────────────────────────────────────────────────────
+            • Premium tier (or trial): renders the unlocked CTA that
+              opens the weight-input modal.
+            • Free / Standard / Pro: renders a locked CTA that opens
+              the upgrade modal instead. We keep the visual real-estate
+              consistent so non-premium users SEE that the feature
+              exists (good for conversion) rather than the row simply
+              disappearing.
+            Existing weightCheck banners above ignore tier — if a
+            user previously had Premium and downgraded, they keep
+            seeing past results they already paid for. */}
+        {!result.weightCheck && result.identified && (
+          caps.weightFusion ? (
+            <Pressable
+              onPress={() => {
+                setWeightInput('');
+                setWeightModalOpen(true);
+              }}
+              style={{
+                marginHorizontal: 16,
+                marginBottom: 12,
+                borderRadius: 12,
+                borderWidth: 1,
+                borderColor: 'rgba(236, 200, 122, 0.35)',
+                backgroundColor: 'rgba(236, 200, 122, 0.06)',
+                padding: 14,
+                flexDirection: 'row',
+                alignItems: 'center',
+              }}
+            >
+              <View
+                style={{
+                  width: 36,
+                  height: 36,
+                  borderRadius: 18,
+                  borderWidth: 1,
+                  borderColor: 'rgba(236, 200, 122, 0.40)',
+                  backgroundColor: 'rgba(28, 22, 17, 0.7)',
+                  justifyContent: 'center',
+                  alignItems: 'center',
+                  marginRight: 12,
+                }}
+              >
+                <Feather name="bar-chart-2" size={18} color="#ECC87A" />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={{ color: '#F5E9CC', fontSize: 14, fontWeight: '700', marginBottom: 2 }}>
+                  {lang === 'th'
+                    ? 'เพิ่มน้ำหนักเพื่อยืนยันความแท้'
+                    : 'Add weight to verify authenticity'}
+                </Text>
+                <Text style={{ color: '#A89E8A', fontSize: 11.5, lineHeight: 16 }}>
+                  {lang === 'th'
+                    ? 'ตรวจสอบความหนาแน่นวัสดุ — ดักของปลอมที่ใช้เคสกลวงหรือชุบทอง'
+                    : 'Material-density check — detects hollow cases & gold-plated fakes'}
+                </Text>
+              </View>
+              <Feather name="chevron-right" size={18} color="#ECC87A" />
+            </Pressable>
+          ) : (
+            <Pressable
+              onPress={() => {
+                setUpgradeType('auth');
+                setUpgradeReason(undefined);
+                setUpgradeModalVisible(true);
+              }}
+              style={{
+                marginHorizontal: 16,
+                marginBottom: 12,
+                borderRadius: 12,
+                borderWidth: 1,
+                borderColor: 'rgba(236, 200, 122, 0.20)',
+                backgroundColor: 'rgba(28, 22, 17, 0.55)',
+                padding: 14,
+                flexDirection: 'row',
+                alignItems: 'center',
+              }}
+            >
+              <View
+                style={{
+                  width: 36,
+                  height: 36,
+                  borderRadius: 18,
+                  borderWidth: 1,
+                  borderColor: 'rgba(236, 200, 122, 0.25)',
+                  backgroundColor: 'rgba(18, 14, 10, 0.85)',
+                  justifyContent: 'center',
+                  alignItems: 'center',
+                  marginRight: 12,
+                }}
+              >
+                <Feather name="lock" size={16} color="#ECC87A" />
+              </View>
+              <View style={{ flex: 1 }}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 2 }}>
+                  <Text style={{ color: '#F5E9CC', fontSize: 14, fontWeight: '700', marginRight: 8 }}>
+                    {lang === 'th'
+                      ? 'AI-Data Fusion: ตรวจสอบน้ำหนัก'
+                      : 'AI-Data Fusion: Weight Check'}
+                  </Text>
+                  <View
+                    style={{
+                      paddingHorizontal: 6,
+                      paddingVertical: 2,
+                      borderRadius: 4,
+                      backgroundColor: '#ECC87A',
+                    }}
+                  >
+                    <Text style={{ color: '#1A130C', fontSize: 9, fontWeight: '900', letterSpacing: 0.5 }}>
+                      PREMIUM
+                    </Text>
+                  </View>
+                </View>
+                <Text style={{ color: '#A89E8A', fontSize: 11.5, lineHeight: 16 }}>
+                  {lang === 'th'
+                    ? 'ดักของปลอมประเภทเคสกลวง / ชุบทอง — แตะเพื่ออัปเกรด'
+                    : 'Catches hollow-case / gold-plated counterfeits — tap to upgrade'}
+                </Text>
+              </View>
+              <Feather name="chevron-right" size={18} color="#ECC87A" />
+            </Pressable>
+          )
+        )}
+
+        {/* ─────────────────────────────────────────────────────────
+            High-value AI-limits banner.
+            ─────────────────────────────────────────────────────────
+            For watches with estimated market value ≥ ฿500k (~USD 14k),
+            be explicit that AI screening alone isn't enough — recommend
+            physical verification at an authorised dealer. This protects
+            users from anchoring on a 90% AI verdict for a transaction
+            where the stakes are high enough that grade-A super-clones
+            become commercially worthwhile to produce. */}
+        {(() => {
+          const marketUSD = result.marketPrice || 0;
+          const marketTHB = marketUSD * (exchangeRate ?? 36.5);
+          if (marketTHB < 500_000) return null;
+          return (
+            <View
+              style={{
+                marginHorizontal: 16,
+                marginBottom: 12,
+                borderRadius: 12,
+                borderWidth: 1,
+                borderColor: 'rgba(255, 165, 0, 0.45)',
+                backgroundColor: 'rgba(255, 165, 0, 0.06)',
+                padding: 14,
+                flexDirection: 'row',
+                alignItems: 'flex-start',
+              }}
+            >
+              <Feather
+                name="shield"
+                size={18}
+                color="#FFA500"
+                style={{ marginRight: 10, marginTop: 1 }}
+              />
+              <View style={{ flex: 1 }}>
+                <Text
+                  style={{
+                    color: '#FFA500',
+                    fontSize: 12,
+                    fontWeight: '800',
+                    letterSpacing: 1,
+                    marginBottom: 4,
+                  }}
+                >
+                  {lang === 'th'
+                    ? 'ธุรกรรมมูลค่าสูง — แนะนำให้ตรวจสอบเพิ่ม'
+                    : 'HIGH-VALUE TRANSACTION — VERIFY IN PERSON'}
+                </Text>
+                <Text style={{ color: '#E8DCC0', fontSize: 13, lineHeight: 19 }}>
+                  {lang === 'th'
+                    ? 'AI screening ผ่านรูปอย่างเดียว ≠ การรับประกันความแท้ 100% ของปลอม Grade A ในปัจจุบันสามารถทำเลียนแบบ cyclops, etched crown, และตัวอักษรบนหน้าปัดได้แนบเนียน สำหรับมูลค่าระดับนี้ แนะนำตรวจสอบเพิ่มที่ Authorized Dealer (RSC สำหรับ Rolex, ศูนย์ Tudor / Patek / AP) หรือผู้เชี่ยวชาญอิสระที่ได้รับการรับรอง'
+                    : 'AI photo-only screening ≠ 100% authenticity guarantee. Modern grade-A super-clones can reproduce cyclops, etched crowns, and dial typography convincingly. For transactions at this value, additional verification by an Authorised Dealer (RSC for Rolex, Tudor/Patek/AP service centres) or a certified independent watchmaker is strongly recommended.'}
+                </Text>
+              </View>
+            </View>
+          );
+        })()}
+
         {/* 2. Glassmorphic Action Bar for Share and Premium PDF Export */}
         <View style={styles.actionContainer}>
           <Pressable
@@ -553,6 +893,149 @@ export function ResultScreen({ route, navigation }: Props) {
         }}
         onClose={() => setConsentModalVisible(false)}
       />
+
+      {/* ─────────────────────────────────────────────────────────
+          Weight-input modal (AI-Data Fusion entry point).
+          User types in the watch's measured weight in grams from a
+          kitchen scale; submit runs applyWeightFusion locally and
+          updates `result` so the banner re-renders. No Gemini call.
+          ───────────────────────────────────────────────────────── */}
+      <Modal
+        animationType="fade"
+        transparent
+        visible={weightModalOpen}
+        onRequestClose={() => setWeightModalOpen(false)}
+      >
+        <View
+          style={{
+            flex: 1,
+            backgroundColor: 'rgba(0, 0, 0, 0.85)',
+            justifyContent: 'center',
+            alignItems: 'center',
+            padding: 16,
+          }}
+        >
+          <View
+            style={{
+              width: '100%',
+              maxWidth: 380,
+              backgroundColor: '#0F0B06',
+              borderColor: colors.amber,
+              borderWidth: 1.5,
+              borderRadius: 16,
+              padding: 22,
+              overflow: 'hidden',
+            }}
+          >
+            <LinearGradient
+              colors={['#1F160E', '#0A0805']}
+              style={StyleSheet.absoluteFillObject}
+            />
+
+            <View style={{ alignItems: 'center', marginBottom: 14 }}>
+              <View
+                style={{
+                  width: 48,
+                  height: 48,
+                  borderRadius: 24,
+                  backgroundColor: 'rgba(236, 200, 122, 0.10)',
+                  borderWidth: 1,
+                  borderColor: 'rgba(236, 200, 122, 0.35)',
+                  justifyContent: 'center',
+                  alignItems: 'center',
+                  marginBottom: 10,
+                }}
+              >
+                <Feather name="bar-chart-2" size={22} color={colors.amber} />
+              </View>
+              <Text style={{ color: '#F5E9CC', fontSize: 18, fontWeight: '800', textAlign: 'center' }}>
+                {lang === 'th' ? 'น้ำหนักจากเครื่องชั่ง' : 'Measured Weight'}
+              </Text>
+              <Text style={{ color: '#A89E8A', fontSize: 12, marginTop: 4, textAlign: 'center', lineHeight: 17 }}>
+                {lang === 'th'
+                  ? 'ชั่งนาฬิกาทั้งเรือนพร้อมสาย/แขนรัด (กรอกเป็นกรัม)'
+                  : 'Weigh the full watch including bracelet/strap (enter grams)'}
+              </Text>
+            </View>
+
+            <TextInput
+              style={{
+                backgroundColor: 'rgba(0,0,0,0.55)',
+                borderColor: colors.amber,
+                borderWidth: 1.5,
+                borderRadius: 10,
+                color: '#fff',
+                padding: 16,
+                fontSize: 28,
+                fontWeight: '800',
+                letterSpacing: 1,
+                textAlign: 'center',
+                marginBottom: 8,
+              }}
+              placeholder="0"
+              placeholderTextColor="rgba(255,255,255,0.2)"
+              keyboardType="decimal-pad"
+              maxLength={6}
+              value={weightInput}
+              onChangeText={setWeightInput}
+              autoFocus
+            />
+            <Text style={{ color: '#A89E8A', fontSize: 11, textAlign: 'center', marginBottom: 18 }}>
+              {lang === 'th' ? 'หน่วย: กรัม (g)' : 'unit: grams (g)'}
+            </Text>
+
+            <Pressable
+              onPress={() => {
+                const n = parseFloat(weightInput.replace(',', '.'));
+                if (!isFinite(n) || n <= 0 || n > 2000) {
+                  Alert.alert(
+                    lang === 'th' ? 'น้ำหนักไม่ถูกต้อง' : 'Invalid weight',
+                    lang === 'th'
+                      ? 'กรุณากรอกตัวเลขระหว่าง 1-2000 กรัม'
+                      : 'Please enter a number between 1 and 2000 grams.'
+                  );
+                  return;
+                }
+                setResult((prev) => {
+                  // Clone to ensure React picks up the change (applyWeightFusion
+                  // mutates in place by design but the same reference back).
+                  const next = { ...prev };
+                  return applyWeightFusion(next, n);
+                });
+                setWeightModalOpen(false);
+              }}
+              style={({ pressed }) => ({
+                backgroundColor: colors.amber,
+                borderRadius: 10,
+                padding: 14,
+                alignItems: 'center',
+                marginBottom: 10,
+                opacity: pressed ? 0.8 : 1,
+              })}
+            >
+              <Text style={{ color: '#1A130C', fontWeight: '800', fontSize: 14, letterSpacing: 0.5 }}>
+                {lang === 'th' ? 'ยืนยันและตรวจสอบ' : 'VERIFY WEIGHT'}
+              </Text>
+            </Pressable>
+
+            <Pressable
+              onPress={() => setWeightModalOpen(false)}
+              style={({ pressed }) => ({
+                borderColor: 'rgba(255,255,255,0.2)',
+                borderWidth: 1,
+                borderRadius: 10,
+                padding: 12,
+                alignItems: 'center',
+                opacity: pressed ? 0.7 : 1,
+              })}
+            >
+              <Text style={{ color: colors.textSecondary, fontSize: 12.5 }}>
+                {lang === 'th' ? 'ยกเลิก' : 'CANCEL'}
+              </Text>
+            </Pressable>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }

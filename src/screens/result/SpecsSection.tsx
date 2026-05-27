@@ -8,6 +8,10 @@ import { ScanResult } from '../../lib/types';
 import { TierCapabilities } from '../../lib/tier';
 import { useLanguage } from '../../lib/localization';
 import { usePriceFallback } from './usePriceFallback';
+import {
+  getLandmarksForBrand,
+  matchSignalToLandmark,
+} from '../../lib/data/watchLandmarks';
 
 interface SpecsSectionProps {
   authColor: AuthColor;
@@ -118,73 +122,20 @@ export default function SpecsSection({
               {result.authenticityReasoning || (lang === 'th' ? 'ตัวบ่งชี้การวิเคราะห์เกณฑ์มาตรฐานครบถ้วนแล้ว' : 'Standard inspection check-markers analyzed.')}
             </Text>
 
-            {result.authenticitySignals && result.authenticitySignals.length > 0 && (
-              <View style={styles.signalsList}>
-                {/* When weight override fired, Gemini's visual signals are
-                    stale (they reflect the pre-override "likely-authentic"
-                    read). Don't hide them — they're still useful evidence
-                    for the dial typography and bezel finishing claims —
-                    but flag them as superseded so the user understands
-                    why ✓ signals can co-exist with a reproduction verdict. */}
-                <Text style={styles.signalsTitle}>
-                  {lang === 'th' ? 'สัญญาณบ่งชี้คุณภาพของชิ้นส่วน (AI Signals)' : 'Imaged Quality Signifiers (Signals)'}
-                </Text>
-                {result.weightCheck?.grade === 'mismatch' && (
-                  <View
-                    style={{
-                      flexDirection: 'row',
-                      alignItems: 'center',
-                      paddingHorizontal: 8,
-                      paddingVertical: 6,
-                      borderRadius: 6,
-                      backgroundColor: 'rgba(120, 120, 130, 0.18)',
-                      marginBottom: 8,
-                    }}
-                  >
-                    <Feather name="info" size={12} color="#A89E8A" style={{ marginRight: 6 }} />
-                    <Text
-                      style={{
-                        color: '#A89E8A',
-                        fontSize: 11,
-                        flex: 1,
-                        lineHeight: 16,
-                        fontStyle: 'italic',
-                      }}
-                    >
-                      {lang === 'th'
-                        ? 'สัญญาณภาพด้านล่างมาจากการตรวจของ Gemini ก่อนตรวจ Weight Fusion (ถูกแทนที่โดยคำตัดสินด้านบน)'
-                        : 'Visual signals below are from pre-Weight-Fusion Gemini analysis (superseded by the verdict above).'}
-                    </Text>
-                  </View>
-                )}
-                {result.authenticitySignals.map((s, idx) => {
-                  // Mute the icon colors when override fired so green
-                  // checks don't visually contradict the red verdict.
-                  const overridden = result.weightCheck?.grade === 'mismatch';
-                  const iconColor = overridden
-                    ? colors.textMuted
-                    : s.weight === 'positive'
-                    ? colors.success
-                    : s.weight === 'negative'
-                    ? colors.danger
-                    : colors.textSecondary;
-                  const iconName = s.weight === 'positive' ? 'check-circle' : s.weight === 'negative' ? 'alert-triangle' : 'info';
-                  return (
-                    <View key={idx} style={styles.signalRow}>
-                      <Feather name={iconName} size={14} color={iconColor} style={{ marginTop: 2 }} />
-                      <Text
-                        style={[
-                          styles.signalText,
-                          overridden && { color: '#8A8278' },
-                        ]}
-                      >
-                        {s.signal}
-                      </Text>
-                    </View>
-                  );
-                })}
-              </View>
-            )}
+            {/* ── Numbered Landmark Cards ──
+                Replace flat signals list with brand-specific landmark
+                analysis. Each card has the same number as the pin on
+                the watch image above, so users can cross-reference
+                "where is #3 → that's the rehaut engraving area".
+                Pin colour ↔ card status colour by design. */}
+            <LandmarkCardsSection result={result} lang={lang} />
+
+            {/* ── AI Metrics Summary Panel ──
+                Compact numeric ratio bar — same data Songphra shows
+                ("Heatmap Green Ratio 80%, Initial Scan Confidence 85%")
+                that turns the abstract verdict into a defensible
+                number a buyer can quote. */}
+            <AiMetricsPanel result={result} lang={lang} />
           </View>
         ) : (
           <View style={styles.lockedBox}>
@@ -633,3 +584,432 @@ const styles = StyleSheet.create({
     lineHeight: 17,
   },
 });
+
+// ════════════════════════════════════════════════════════════════════
+// LandmarkCardsSection
+// ════════════════════════════════════════════════════════════════════
+// Replaces the old flat signals bullet list. Each card maps 1-to-1 with
+// the numbered pin on the watch image above (rendered by VerdictHeader).
+// Cards are collapsed by default; tap to expand and read what AI saw
+// at that specific anatomical landmark. Status colour:
+//   ✅ green  — landmark passed (Gemini positive signal matched)
+//   ⚠️ amber  — landmark neutral signal (mention but no clear pass/fail)
+//   ❌ red    — landmark failed (negative signal)
+//   ⚪ gray   — no Gemini signal mentioned this landmark
+// ════════════════════════════════════════════════════════════════════
+function LandmarkCardsSection({
+  result,
+  lang,
+}: {
+  result: ScanResult;
+  lang: 'th' | 'en';
+}) {
+  const [expandedId, setExpandedId] = React.useState<string | null>(null);
+  const landmarks = React.useMemo(
+    () => getLandmarksForBrand(result.brand),
+    [result.brand]
+  );
+  const signals = result.authenticitySignals ?? [];
+  const overridden = result.weightCheck?.grade === 'mismatch';
+
+  // Pre-compute matches so we don't re-run the regex on every render.
+  const cards = React.useMemo(
+    () =>
+      landmarks.map((lm) => ({
+        landmark: lm,
+        match: matchSignalToLandmark(lm, signals),
+      })),
+    [landmarks, signals]
+  );
+
+  return (
+    <View style={{ marginTop: 8 }}>
+      <Text style={{ color: '#E8DCC0', fontSize: 13, fontWeight: '800', letterSpacing: 1, marginBottom: 8 }}>
+        {lang === 'th' ? 'จุดสำคัญสำหรับการตรวจสอบ (AI Landmarks)' : 'AUTHENTICATION LANDMARKS'}
+      </Text>
+
+      {overridden && (
+        <View
+          style={{
+            flexDirection: 'row',
+            alignItems: 'center',
+            paddingHorizontal: 10,
+            paddingVertical: 8,
+            borderRadius: 8,
+            backgroundColor: 'rgba(120, 120, 130, 0.18)',
+            marginBottom: 10,
+          }}
+        >
+          <Feather name="info" size={12} color="#A89E8A" style={{ marginRight: 6 }} />
+          <Text
+            style={{
+              color: '#A89E8A',
+              fontSize: 11,
+              flex: 1,
+              lineHeight: 16,
+              fontStyle: 'italic',
+            }}
+          >
+            {lang === 'th'
+              ? 'การวิเคราะห์ด้านล่างมาจาก Gemini ก่อนตรวจ Weight Fusion (คำตัดสินด้านบนแทนที่แล้ว)'
+              : 'Pre-Weight-Fusion Gemini analysis below (superseded by the verdict above).'}
+          </Text>
+        </View>
+      )}
+
+      {cards.map(({ landmark, match }, idx) => {
+        const expanded = expandedId === landmark.id;
+        const weight = match?.weight;
+        const isMuted = overridden || !match;
+
+        const statusColor = isMuted
+          ? '#94A3B8'
+          : weight === 'positive'
+          ? '#22C55E'
+          : weight === 'negative'
+          ? '#EF4444'
+          : '#F59E0B';
+
+        const statusIcon: any = !match
+          ? 'circle'
+          : weight === 'positive'
+          ? 'check-circle'
+          : weight === 'negative'
+          ? 'alert-triangle'
+          : 'info';
+
+        return (
+          <Pressable
+            key={landmark.id}
+            onPress={() => setExpandedId(expanded ? null : landmark.id)}
+            style={{
+              flexDirection: 'row',
+              alignItems: 'flex-start',
+              paddingVertical: 10,
+              paddingHorizontal: 10,
+              borderRadius: 10,
+              borderWidth: 1,
+              borderColor: expanded
+                ? 'rgba(236, 200, 122, 0.40)'
+                : 'rgba(236, 200, 122, 0.12)',
+              backgroundColor: expanded
+                ? 'rgba(236, 200, 122, 0.06)'
+                : 'rgba(18, 14, 10, 0.4)',
+              marginBottom: 6,
+            }}
+          >
+            {/* Numbered badge — must match the pin number on the image */}
+            <View
+              style={{
+                width: 24,
+                height: 24,
+                borderRadius: 12,
+                backgroundColor: statusColor,
+                borderWidth: 1.5,
+                borderColor: 'rgba(255,255,255,0.85)',
+                justifyContent: 'center',
+                alignItems: 'center',
+                marginRight: 10,
+                marginTop: 1,
+              }}
+            >
+              <Text style={{ color: '#0A0805', fontSize: 11, fontWeight: '900' }}>
+                {idx + 1}
+              </Text>
+            </View>
+
+            <View style={{ flex: 1 }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+                <Text
+                  style={{
+                    color: isMuted ? '#A89E8A' : '#F5E9CC',
+                    fontSize: 13,
+                    fontWeight: '700',
+                    letterSpacing: 0.2,
+                    flex: 1,
+                    paddingRight: 8,
+                  }}
+                >
+                  {lang === 'th' ? landmark.labelTh : landmark.labelEn}
+                </Text>
+                <Feather
+                  name={statusIcon}
+                  size={14}
+                  color={statusColor}
+                  style={{ marginRight: 4 }}
+                />
+                <Feather
+                  name={expanded ? 'chevron-up' : 'chevron-down'}
+                  size={14}
+                  color="#A89E8A"
+                />
+              </View>
+
+              {/* Always-visible 1-line preview when not expanded */}
+              {!expanded && match && (
+                <Text
+                  numberOfLines={1}
+                  style={{ color: '#C0B4A0', fontSize: 11.5, marginTop: 2, lineHeight: 16 }}
+                >
+                  {match.signal}
+                </Text>
+              )}
+              {!expanded && !match && (
+                <Text style={{ color: '#6B6258', fontSize: 11, marginTop: 2, fontStyle: 'italic' }}>
+                  {lang === 'th' ? 'ไม่มีข้อสังเกตจาก AI' : 'No AI observation'}
+                </Text>
+              )}
+
+              {/* Expanded — Gemini signal text + landmark guide */}
+              {expanded && (
+                <View style={{ marginTop: 8 }}>
+                  {match ? (
+                    <View
+                      style={{
+                        borderLeftWidth: 2,
+                        borderLeftColor: statusColor,
+                        paddingLeft: 10,
+                        marginBottom: 8,
+                      }}
+                    >
+                      <Text
+                        style={{
+                          color: '#8A8278',
+                          fontSize: 9.5,
+                          fontWeight: '700',
+                          letterSpacing: 1,
+                          marginBottom: 2,
+                        }}
+                      >
+                        {lang === 'th' ? 'การสังเกตของ AI' : 'AI OBSERVATION'}
+                      </Text>
+                      <Text style={{ color: '#E8DCC0', fontSize: 12.5, lineHeight: 18 }}>
+                        {match.signal}
+                      </Text>
+                    </View>
+                  ) : null}
+
+                  <Text
+                    style={{
+                      color: '#8A8278',
+                      fontSize: 9.5,
+                      fontWeight: '700',
+                      letterSpacing: 1,
+                      marginBottom: 2,
+                    }}
+                  >
+                    {lang === 'th' ? 'สิ่งที่ผู้เชี่ยวชาญตรวจ' : 'WHAT EXPERTS LOOK FOR'}
+                  </Text>
+                  <Text style={{ color: '#C0B4A0', fontSize: 12, lineHeight: 17 }}>
+                    {lang === 'th' ? landmark.descriptionTh : landmark.descriptionEn}
+                  </Text>
+                </View>
+              )}
+            </View>
+          </Pressable>
+        );
+      })}
+    </View>
+  );
+}
+
+// ════════════════════════════════════════════════════════════════════
+// AiMetricsPanel  — Songphra-style summary metrics
+// ════════════════════════════════════════════════════════════════════
+// Compact panel that summarises all the "system signals" the user
+// usually wants in one glance:
+//   • Heatmap Green Ratio  — green landmarks / total
+//   • Initial Scan Confidence — Gemini's pre-cap confidence
+//   • Weight Match  — Pass / Mismatch / Not provided
+//   • DB Reference Match — found / not found
+// These match the "ข้อมูลจาก AI สัญญาณที่ AI สังเกต" panel that gives the
+// Songphra report its data-driven trustworthy feel.
+// ════════════════════════════════════════════════════════════════════
+function AiMetricsPanel({
+  result,
+  lang,
+}: {
+  result: ScanResult;
+  lang: 'th' | 'en';
+}) {
+  const landmarks = React.useMemo(
+    () => getLandmarksForBrand(result.brand),
+    [result.brand]
+  );
+  const signals = result.authenticitySignals ?? [];
+  const totals = React.useMemo(() => {
+    let green = 0;
+    let red = 0;
+    let amber = 0;
+    let unmatched = 0;
+    for (const lm of landmarks) {
+      const m = matchSignalToLandmark(lm, signals);
+      if (!m) {
+        unmatched++;
+        continue;
+      }
+      if (m.weight === 'positive') green++;
+      else if (m.weight === 'negative') red++;
+      else amber++;
+    }
+    const total = landmarks.length;
+    const greenRatio = total > 0 ? Math.round((green / total) * 100) : 0;
+    return { green, red, amber, unmatched, total, greenRatio };
+  }, [landmarks, signals]);
+
+  // Weight check pretty-printer.
+  const weightLabel = result.weightCheck
+    ? result.weightCheck.material === 'unknown'
+      ? lang === 'th'
+        ? 'ไม่มีค่ามาตรฐาน'
+        : 'No spec'
+      : result.weightCheck.grade === 'match'
+      ? lang === 'th'
+        ? '✓ ผ่าน'
+        : '✓ Pass'
+      : result.weightCheck.grade === 'mismatch'
+      ? lang === 'th'
+        ? '🚩 ไม่ผ่าน'
+        : '🚩 Mismatch'
+      : lang === 'th'
+      ? 'ใกล้เคียง'
+      : 'Close'
+    : lang === 'th'
+    ? 'ยังไม่กรอก'
+    : 'Not provided';
+
+  const weightColor = result.weightCheck
+    ? result.weightCheck.grade === 'match'
+      ? '#22C55E'
+      : result.weightCheck.grade === 'mismatch'
+      ? '#EF4444'
+      : '#F59E0B'
+    : '#94A3B8';
+
+  return (
+    <View
+      style={{
+        marginTop: 14,
+        borderRadius: 12,
+        borderWidth: 1,
+        borderColor: 'rgba(236, 200, 122, 0.20)',
+        backgroundColor: 'rgba(18, 14, 10, 0.6)',
+        padding: 14,
+      }}
+    >
+      <Text
+        style={{
+          color: '#ECC87A',
+          fontSize: 11,
+          fontWeight: '800',
+          letterSpacing: 1.4,
+          marginBottom: 12,
+        }}
+      >
+        {lang === 'th' ? 'สัญญาณที่ AI สังเกต' : 'AI SIGNALS SUMMARY'}
+      </Text>
+
+      {/* Heatmap Green Ratio — most prominent row */}
+      <View style={{ marginBottom: 10 }}>
+        <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 4 }}>
+          <Text style={{ color: '#C0B4A0', fontSize: 12 }}>
+            {lang === 'th' ? 'อัตราส่วนจุดเขียว (Green Ratio)' : 'Heatmap Green Ratio'}
+          </Text>
+          <Text style={{ color: '#F5E9CC', fontSize: 13, fontWeight: '800' }}>
+            {totals.greenRatio}% · {totals.green}/{totals.total}
+          </Text>
+        </View>
+        {/* Visual bar */}
+        <View
+          style={{
+            height: 8,
+            borderRadius: 4,
+            backgroundColor: 'rgba(255,255,255,0.06)',
+            flexDirection: 'row',
+            overflow: 'hidden',
+          }}
+        >
+          <View
+            style={{
+              flex: totals.green,
+              backgroundColor: '#22C55E',
+            }}
+          />
+          <View
+            style={{
+              flex: totals.amber,
+              backgroundColor: '#F59E0B',
+            }}
+          />
+          <View
+            style={{
+              flex: totals.red,
+              backgroundColor: '#EF4444',
+            }}
+          />
+          <View
+            style={{
+              flex: totals.unmatched,
+              backgroundColor: 'rgba(148, 163, 184, 0.3)',
+            }}
+          />
+        </View>
+      </View>
+
+      {/* Initial Scan Confidence */}
+      <MetricRow
+        label={lang === 'th' ? 'ความเชื่อมั่นการระบุ' : 'Identify Confidence'}
+        value={`${result.confidence ?? 0}%`}
+        valueColor="#F5E9CC"
+      />
+
+      {/* Weight Match */}
+      <MetricRow
+        label={lang === 'th' ? 'ความหนาแน่นวัสดุ (Weight)' : 'Material Density (Weight)'}
+        value={weightLabel}
+        valueColor={weightColor}
+      />
+
+      {/* DB Reference Match */}
+      <MetricRow
+        label={lang === 'th' ? 'อ้างอิงจากฐานข้อมูล' : 'Reference DB Match'}
+        value={
+          result.expertCertMatch
+            ? lang === 'th'
+              ? '✓ พบ Cert match'
+              : '✓ Cert matched'
+            : lang === 'th'
+            ? 'ไม่พบ'
+            : 'Not found'
+        }
+        valueColor={result.expertCertMatch ? '#22C55E' : '#94A3B8'}
+      />
+    </View>
+  );
+}
+
+function MetricRow({
+  label,
+  value,
+  valueColor,
+}: {
+  label: string;
+  value: string;
+  valueColor: string;
+}) {
+  return (
+    <View
+      style={{
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        paddingVertical: 6,
+        borderTopWidth: 1,
+        borderTopColor: 'rgba(255,255,255,0.04)',
+      }}
+    >
+      <Text style={{ color: '#C0B4A0', fontSize: 12 }}>{label}</Text>
+      <Text style={{ color: valueColor, fontSize: 12.5, fontWeight: '700' }}>{value}</Text>
+    </View>
+  );
+}

@@ -5,7 +5,11 @@ import { colors, radius, spacing } from '../../lib/theme';
 import { AuthColor } from '../../lib/authVerdictColor';
 import { ScanResult } from '../../lib/types';
 import { useLanguage } from '../../lib/localization';
-import Svg, { Rect, Circle, G, Path } from 'react-native-svg';
+import {
+  getLandmarksForBrand,
+  matchSignalToLandmark,
+  LandmarkPoint,
+} from '../../lib/data/watchLandmarks';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
@@ -33,6 +37,26 @@ export default function VerdictHeader({
   const { lang } = useLanguage();
   const [activeImageIdx, setActiveImageIdx] = useState(0);
   const [showHeatmap, setShowHeatmap] = useState(false);
+
+  // ── Brand-aware landmark resolution + signal matching ──
+  // Pull 5-7 landmark coordinates for this watch's brand (or generic
+  // fallback). Match each landmark against Gemini's auth signals so
+  // pins inherit the correct colour. `greenCount` powers the pass-
+  // ratio header text ("6/7 PASS").
+  const landmarks: LandmarkPoint[] = React.useMemo(
+    () => getLandmarksForBrand(result.brand),
+    [result.brand]
+  );
+  const signals = result.authenticitySignals ?? [];
+  const greenCount = React.useMemo(() => {
+    let c = 0;
+    for (const lm of landmarks) {
+      const m = matchSignalToLandmark(lm, signals);
+      if (m && m.weight === 'positive') c++;
+    }
+    return c;
+  }, [landmarks, signals]);
+  const landmarkBrandLabel = (result.brand || (lang === 'th' ? 'ทั่วไป' : 'GENERIC')).toUpperCase();
 
   const getVerdictBorderColor = (color: AuthColor) => {
     switch (color) {
@@ -68,37 +92,70 @@ export default function VerdictHeader({
                   resizeMode="cover"
                 />
                 
-                {/* Visual Heatmap Overlay */}
+                {/* Numbered AI landmark pins — only on the front photo
+                    (idx 0). Each pin is positioned by % so it works for
+                    any image aspect ratio. Colour reflects the matched
+                    Gemini signal weight (positive→green, negative→red,
+                    neutral→amber, no match→neutral gray). Numbered so
+                    users can cross-reference against the cards below. */}
                 {showHeatmap && activeImageIdx === 0 && (
-                  <View style={StyleSheet.absoluteFillObject}>
-                    <Svg width="100%" height="100%" viewBox="0 0 300 300" style={styles.heatmapOverlay}>
-                      {/* Grid representation */}
-                      <G opacity={0.3} stroke="#ECC87A" strokeWidth={0.5}>
-                        <Line x1="75" y1="0" x2="75" y2="300" />
-                        <Line x1="150" y1="0" x2="150" y2="300" />
-                        <Line x1="225" y1="0" x2="225" y2="300" />
-                        <Line x1="0" y1="75" x2="300" y2="75" />
-                        <Line x1="0" y1="150" x2="300" y2="150" />
-                        <Line x1="0" y1="225" x2="300" y2="225" />
-                      </G>
-
-                      {/* Hotspots for watch authentication (Gold/Green aura points) */}
-                      {/* Logo Area */}
-                      <Circle cx="150" cy="90" r="28" fill="rgba(46, 204, 113, 0.45)" stroke="#2ECC71" strokeWidth={1} />
-                      <Circle cx="150" cy="90" r="14" fill="rgba(46, 204, 113, 0.6)" />
-                      {/* Dial Center Pin */}
-                      <Circle cx="150" cy="150" r="20" fill="rgba(241, 196, 15, 0.45)" stroke="#F1C40F" strokeWidth={1} />
-                      <Circle cx="150" cy="150" r="8" fill="rgba(241, 196, 15, 0.6)" />
-                      {/* Chrono / Subdial 9 */}
-                      <Circle cx="100" cy="150" r="18" fill="rgba(46, 204, 113, 0.35)" stroke="#2ECC71" strokeWidth={0.8} />
-                      {/* Chrono / Subdial 3 */}
-                      <Circle cx="200" cy="150" r="18" fill="rgba(46, 204, 113, 0.35)" stroke="#2ECC71" strokeWidth={0.8} />
-                      {/* Date Window at 6 */}
-                      <Circle cx="150" cy="210" r="22" fill="rgba(231, 76, 60, 0.3)" stroke="#E74C3C" strokeWidth={1} />
-                      <Circle cx="150" cy="210" r="10" fill="rgba(231, 76, 60, 0.5)" />
-                    </Svg>
+                  <View style={StyleSheet.absoluteFillObject} pointerEvents="none">
+                    {landmarks.map((lm, idx) => {
+                      const match = matchSignalToLandmark(lm, signals);
+                      const colorPalette = match
+                        ? match.weight === 'positive'
+                          ? { bg: '#22C55E', shadow: '#22C55E' }
+                          : match.weight === 'negative'
+                          ? { bg: '#EF4444', shadow: '#EF4444' }
+                          : { bg: '#F59E0B', shadow: '#F59E0B' }
+                        : { bg: '#94A3B8', shadow: '#64748B' };
+                      return (
+                        <View
+                          key={lm.id}
+                          style={{
+                            position: 'absolute',
+                            left: `${lm.xPct}%`,
+                            top: `${lm.yPct}%`,
+                            transform: [{ translateX: -14 }, { translateY: -14 }],
+                          }}
+                        >
+                          <View
+                            style={{
+                              width: 28,
+                              height: 28,
+                              borderRadius: 14,
+                              backgroundColor: colorPalette.bg,
+                              borderWidth: 2,
+                              borderColor: 'rgba(255,255,255,0.9)',
+                              justifyContent: 'center',
+                              alignItems: 'center',
+                              shadowColor: colorPalette.shadow,
+                              shadowOffset: { width: 0, height: 2 },
+                              shadowOpacity: 0.6,
+                              shadowRadius: 4,
+                              elevation: 5,
+                            }}
+                          >
+                            <Text
+                              style={{
+                                color: '#0A0805',
+                                fontSize: 13,
+                                fontWeight: '900',
+                                letterSpacing: 0,
+                              }}
+                            >
+                              {idx + 1}
+                            </Text>
+                          </View>
+                        </View>
+                      );
+                    })}
                     <View style={styles.heatmapLabelContainer}>
-                      <Text style={styles.heatmapLabel}>AI LANDMARK Reticulated Heatmap ACTIVE</Text>
+                      <Text style={styles.heatmapLabel}>
+                        {lang === 'th'
+                          ? `${greenCount}/${landmarks.length} ผ่าน • ${landmarkBrandLabel}`
+                          : `${greenCount}/${landmarks.length} PASS • ${landmarkBrandLabel}`}
+                      </Text>
                     </View>
                   </View>
                 )}
@@ -167,11 +224,6 @@ export default function VerdictHeader({
       </View>
     </View>
   );
-}
-
-// Reusable SVG helper line component
-function Line({ x1, y1, x2, y2, ...props }: any) {
-  return <Path d={`M${x1} ${y1} L${x2} ${y2}`} {...props} />;
 }
 
 const styles = StyleSheet.create({

@@ -112,7 +112,16 @@ jobs:
           # "starting" / "processing" / "queued" — this means Replicate is
           # cold-starting. The whole point of this ping is to *trigger* that
           # warm-up. Treat as success.
-          if [ "$HTTP_CODE" = "500" ] && grep -qE '"(starting|processing|queued|booting)"' /tmp/resp.txt 2>/dev/null; then
+          #
+          # Match the keyword ANYWHERE in the body, case-insensitive,
+          # without quote delimiters. Replicate surfaces the status both
+          # as a JSON field ("status":"starting") AND embedded in error
+          # messages ("Embedding prediction did not succeed: starting").
+          # The earlier regex required quote delimiters around the
+          # keyword, which missed the error-message variant and caused
+          # 2/3 of recent "failure" runs to actually be cold-start
+          # triggers misclassified as hard failures.
+          if [ "$HTTP_CODE" = "500" ] && grep -qiE '(starting|processing|queued|booting|cold)' /tmp/resp.txt 2>/dev/null; then
             echo "::notice::Replicate cold-start in progress (status=starting/processing) — warm-up triggered. Next ping will land hot."
             exit 0
           fi

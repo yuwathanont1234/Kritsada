@@ -154,7 +154,14 @@ export async function exportWatchPDF({
     const dialImg = base64Images[0] || 'https://via.placeholder.com/300';
     const casebackImg = base64Images[1] || base64Images[0] || 'https://via.placeholder.com/300';
 
-    // Compile beautiful, bilingual inline portrait HTML content
+    // Compile A4 LANDSCAPE diagnostic report. Wider canvas (297mm)
+    // lets the verdict, watch details, and scans share a single
+    // top row so the eye flows left-to-right like a reading order,
+    // and the 6 diagnostic metrics sit in one elegant row below
+    // instead of a 2×3 grid that felt cramped on portrait.
+    // Typography: Playfair Display (display serif) for headings +
+    // Cormorant Garamond for the verdict %, Inter for body — same
+    // pairing used by Sotheby's / Phillips auction catalogues.
     const htmlContent = `
 <!DOCTYPE html>
 <html lang="en">
@@ -162,10 +169,10 @@ export async function exportWatchPDF({
   <meta charset="UTF-8">
   <title>Authenticity Diagnostic Report</title>
   <style>
-    @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;800&family=Playfair+Display:wght@600;800&display=swap');
+    @import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;500;700&family=Inter:wght@300;400;500;600;700;800&family=Playfair+Display:wght@500;600;700;800;900&display=swap');
 
     @page {
-      size: A4 portrait;
+      size: A4 landscape;
       margin: 0;
     }
 
@@ -176,12 +183,12 @@ export async function exportWatchPDF({
     }
 
     body {
-      width: 210mm;
-      height: 297mm;
+      width: 297mm;
+      height: 210mm;
       background-color: #0A0805;
       color: #FFFFFF;
-      font-family: 'Outfit', sans-serif;
-      padding: 10mm;
+      font-family: 'Inter', sans-serif;
+      padding: 8mm;
       display: flex;
       justify-content: center;
       align-items: center;
@@ -191,119 +198,265 @@ export async function exportWatchPDF({
       width: 100%;
       height: 100%;
       border: 1.5px solid #ECC87A;
-      border-radius: 8px;
-      padding: 8mm 6mm;
-      background: radial-gradient(circle at center, #13100E 0%, #0A0805 100%);
+      border-radius: 6px;
+      padding: 7mm 8mm 6mm 8mm;
+      background:
+        radial-gradient(ellipse at top left, rgba(236, 200, 122, 0.05) 0%, transparent 60%),
+        radial-gradient(ellipse at bottom right, rgba(236, 200, 122, 0.04) 0%, transparent 60%),
+        linear-gradient(180deg, #131008 0%, #0A0805 100%);
       display: flex;
       flex-direction: column;
-      justify-content: space-between;
+      gap: 5mm;
       position: relative;
     }
 
-    /* 1. Header */
+    /* Decorative gold corner brackets — luxury watch catalogue cue */
+    .report-container::before,
+    .report-container::after {
+      content: '';
+      position: absolute;
+      width: 12mm;
+      height: 12mm;
+      border-color: #ECC87A;
+      border-style: solid;
+      border-width: 0;
+    }
+    .report-container::before {
+      top: 3mm; left: 3mm;
+      border-top-width: 1px;
+      border-left-width: 1px;
+    }
+    .report-container::after {
+      bottom: 3mm; right: 3mm;
+      border-bottom-width: 1px;
+      border-right-width: 1px;
+    }
+
+    /* ──────────────────────────────────────────────────────
+       1. Header — minimal serif title with logo + ref code
+       ────────────────────────────────────────────────────── */
     .header {
-      display: flex;
-      justify-content: space-between;
+      display: grid;
+      grid-template-columns: 1fr auto 1fr;
       align-items: center;
-      border-bottom: 1.5px solid rgba(236, 200, 122, 0.25);
+      gap: 6mm;
       padding-bottom: 4mm;
-      margin-bottom: 4mm;
-      position: relative;
+      border-bottom: 1px solid rgba(236, 200, 122, 0.30);
     }
 
     .header-logo-box {
+      justify-self: start;
       border: 1px solid #ECC87A;
       padding: 4px 10px;
-      display: flex;
-      justify-content: center;
+      background: rgba(26, 22, 18, 0.6);
+      display: inline-flex;
       align-items: center;
-      background: rgba(26, 22, 18, 0.4);
+      gap: 4px;
     }
 
     .header-logo-text {
       font-family: 'Playfair Display', serif;
-      font-weight: 800;
-      font-size: 16px;
+      font-weight: 900;
+      font-size: 14px;
       color: #ECC87A;
-      letter-spacing: 2px;
+      letter-spacing: 4px;
     }
 
     .header-title {
       font-family: 'Playfair Display', serif;
-      font-size: 20px;
-      font-weight: 800;
+      font-size: 22px;
+      font-weight: 700;
+      color: #F5E9CC;
+      letter-spacing: 6px;
+      text-transform: uppercase;
+      text-align: center;
+      line-height: 1.1;
+    }
+
+    .header-subtitle {
+      font-size: 8.5px;
+      color: #B5AFA5;
+      letter-spacing: 3px;
+      text-align: center;
+      text-transform: uppercase;
+      margin-top: 2px;
+    }
+
+    .header-ref-badge {
+      justify-self: end;
+      font-family: 'Inter', sans-serif;
+      font-size: 8.5px;
+      color: #B5AFA5;
+      letter-spacing: 1px;
+      text-align: right;
+      text-transform: uppercase;
+      line-height: 1.4;
+    }
+
+    .header-ref-badge strong {
+      display: block;
+      color: #F5E9CC;
+      font-weight: 700;
+      letter-spacing: 0.5px;
+      text-transform: none;
+      font-size: 9.5px;
+      margin-top: 1px;
+    }
+
+    /* ──────────────────────────────────────────────────────
+       2. Top row — Verdict | Watch Details | Scans
+          (3 columns, fixed proportions for visual rhythm)
+       ────────────────────────────────────────────────────── */
+    .top-row {
+      display: grid;
+      grid-template-columns: 0.95fr 1.4fr 1.15fr;
+      gap: 5mm;
+      flex-shrink: 0;
+    }
+
+    .panel {
+      border: 1px solid rgba(236, 200, 122, 0.22);
+      border-radius: 6px;
+      background:
+        linear-gradient(180deg, rgba(26, 22, 18, 0.55) 0%, rgba(15, 12, 9, 0.55) 100%);
+      padding: 5mm 5mm;
+      position: relative;
+    }
+
+    .panel-title {
+      font-family: 'Inter', sans-serif;
+      font-size: 8px;
+      font-weight: 700;
       color: #ECC87A;
       letter-spacing: 3px;
       text-transform: uppercase;
-      flex-grow: 1;
-      text-align: center;
-      padding-right: 40px; /* Offset the logo width to center the title perfectly */
+      margin-bottom: 3.5mm;
+      padding-bottom: 2mm;
+      border-bottom: 1px solid rgba(236, 200, 122, 0.15);
     }
 
-    /* 2. Top Columns: Verdict & Scans */
-    .top-row {
-      display: flex;
-      justify-content: space-between;
-      gap: 4mm;
-      margin-bottom: 4mm;
-    }
-
+    /* ── Verdict card ── */
     .verdict-card {
-      flex: 1;
-      border: 1px solid rgba(236, 200, 122, 0.25);
-      border-radius: 8px;
-      background-color: rgba(26, 22, 18, 0.4);
       display: flex;
       flex-direction: column;
       justify-content: center;
       align-items: center;
-      padding: 4mm;
       text-align: center;
+      padding: 4mm;
+    }
+
+    .verdict-number {
+      font-family: 'Cormorant Garamond', serif;
+      font-size: 56px;
+      font-weight: 500;
+      color: #ECC87A;
+      line-height: 1;
+      letter-spacing: -2px;
+      margin-bottom: 2mm;
+    }
+
+    .verdict-ring-wrapper {
+      position: relative;
+      width: 64mm;
+      height: 64mm;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      margin-bottom: 3mm;
+    }
+
+    .verdict-ring-svg {
+      position: absolute;
+      top: 0; left: 0;
+      width: 100%;
+      height: 100%;
+    }
+
+    .verdict-ring-inner {
+      text-align: center;
+      z-index: 1;
     }
 
     .verdict-status-title {
       font-family: 'Playfair Display', serif;
-      font-size: 18px;
-      font-weight: 800;
-      color: #ECC87A;
-      letter-spacing: 1px;
+      font-size: 15px;
+      font-weight: 700;
+      color: #F5E9CC;
+      letter-spacing: 2px;
       text-transform: uppercase;
-      margin-top: 4mm;
+      margin-top: 1mm;
+      line-height: 1.2;
     }
 
     .verdict-status-sub {
-      font-size: 8px;
-      color: #B5AFA5;
-      letter-spacing: 0.5px;
+      font-size: 7.5px;
+      color: #8A8278;
+      letter-spacing: 2px;
       text-transform: uppercase;
-      margin-top: 1mm;
+      margin-top: 2mm;
+      max-width: 50mm;
+      line-height: 1.4;
     }
 
-    .scans-card {
-      flex: 1.1;
-      border: 1px solid rgba(236, 200, 122, 0.25);
-      border-radius: 8px;
-      background-color: rgba(26, 22, 18, 0.4);
+    /* ── Watch Details (key-value spec sheet) ── */
+    .details-list {
       display: flex;
-      gap: 3mm;
-      justify-content: center;
-      align-items: center;
-      padding: 4mm;
+      flex-direction: column;
+      gap: 2.2mm;
+    }
+
+    .details-row {
+      display: grid;
+      grid-template-columns: 28mm 1fr;
+      align-items: baseline;
+      padding-bottom: 1.5mm;
+      border-bottom: 1px dotted rgba(236, 200, 122, 0.10);
+    }
+
+    .details-row:last-child {
+      border-bottom: none;
+      padding-bottom: 0;
+    }
+
+    .detail-label {
+      font-size: 7.5px;
+      font-weight: 700;
+      color: #8A8278;
+      letter-spacing: 1.8px;
+      text-transform: uppercase;
+    }
+
+    .detail-value {
+      font-family: 'Playfair Display', serif;
+      font-size: 11px;
+      font-weight: 600;
+      color: #F5E9CC;
+      letter-spacing: 0.5px;
+      line-height: 1.2;
+    }
+
+    /* ── Scan images (dial + caseback) ── */
+    .scans-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 4mm;
+      height: 100%;
     }
 
     .scan-box {
-      flex: 1;
       display: flex;
       flex-direction: column;
     }
 
     .scan-image {
       width: 100%;
-      height: 120px;
-      border-top-left-radius: 8px;
-      border-top-right-radius: 8px;
-      border: 1.5px solid #ECC87A;
+      flex: 1;
+      min-height: 70mm;
+      border-top-left-radius: 4px;
+      border-top-right-radius: 4px;
+      border: 1px solid #ECC87A;
       border-bottom: none;
+      background-color: #1A130C;
       background-size: cover;
       background-position: center;
       position: relative;
@@ -311,147 +464,123 @@ export async function exportWatchPDF({
 
     .scan-pass-badge {
       position: absolute;
-      top: 6px;
-      right: 6px;
+      top: 5px;
+      right: 5px;
       color: #0A0805;
-      font-size: 7px;
+      font-size: 7.5px;
       font-weight: 800;
-      padding: 1px 6px;
-      border-radius: 8px;
-      letter-spacing: 0.5px;
+      padding: 2px 8px;
+      border-radius: 4px;
+      letter-spacing: 1.5px;
       text-transform: uppercase;
     }
 
     .scan-label-tab {
       width: 100%;
-      background: linear-gradient(135deg, #ECC87A 0%, #C5A880 100%);
+      background: linear-gradient(135deg, #ECC87A 0%, #B58F4A 100%);
       color: #0A0805;
-      font-size: 8px;
+      font-size: 8.5px;
       font-weight: 800;
-      letter-spacing: 0.5px;
+      letter-spacing: 2px;
       text-align: center;
-      padding: 5px 0;
-      border-bottom-left-radius: 8px;
-      border-bottom-right-radius: 8px;
-      border: 1.5px solid #ECC87A;
+      padding: 4px 0;
+      border-bottom-left-radius: 4px;
+      border-bottom-right-radius: 4px;
+      border: 1px solid #ECC87A;
       border-top: none;
       text-transform: uppercase;
     }
 
-    /* 3. Section Titles */
-    .section-title {
-      font-size: 11px;
-      font-weight: 800;
-      color: #ECC87A;
-      letter-spacing: 1.5px;
-      text-transform: uppercase;
-      margin-bottom: 2mm;
-      border-left: 2px solid #ECC87A;
-      padding-left: 6px;
-    }
-
-    /* 4. Watch Details Panel */
-    .details-panel {
-      display: flex;
-      justify-content: space-between;
-      align-items: stretch;
-      border: 1px solid rgba(236, 200, 122, 0.2);
-      border-radius: 8px;
-      background-color: rgba(26, 22, 18, 0.4);
-      padding: 3mm;
-      margin-bottom: 4mm;
-    }
-
-    .details-column {
+    /* ──────────────────────────────────────────────────────
+       3. Diagnostic Metrics — single row of 6 cards
+       ────────────────────────────────────────────────────── */
+    .metrics-section {
       flex: 1;
       display: flex;
       flex-direction: column;
-      justify-content: center;
-      align-items: center;
-      text-align: center;
-      padding: 0 1px;
+      min-height: 0;
     }
 
-    .detail-label {
-      font-size: 7px;
-      font-weight: 800;
-      color: #7A736A;
-      letter-spacing: 0.5px;
-      margin-bottom: 2px;
-      text-transform: uppercase;
-    }
-
-    .detail-value {
-      font-size: 8.5px;
+    .metrics-section-title {
+      font-family: 'Inter', sans-serif;
+      font-size: 8px;
       font-weight: 700;
-      color: #FFFFFF;
+      color: #ECC87A;
+      letter-spacing: 3px;
       text-transform: uppercase;
-      word-break: break-word;
+      margin-bottom: 3mm;
+      padding-bottom: 2mm;
+      border-bottom: 1px solid rgba(236, 200, 122, 0.30);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
     }
 
-    .details-divider {
-      width: 1px;
-      background-color: rgba(236, 200, 122, 0.25);
-      margin: 0 1px;
-    }
-
-    /* 5. Diagnostic Metrics Grid */
-    .metrics-container {
-      margin-bottom: 4mm;
+    .metrics-section-subtitle {
+      font-family: 'Inter', sans-serif;
+      font-size: 7px;
+      font-weight: 400;
+      color: #8A8278;
+      letter-spacing: 1.2px;
+      text-transform: none;
     }
 
     .metrics-grid {
       display: grid;
-      grid-template-columns: repeat(3, 1fr);
+      grid-template-columns: repeat(6, 1fr);
       gap: 3mm;
+      flex: 1;
     }
 
     .metric-card {
-      background-color: rgba(26, 22, 18, 0.3);
-      border: 1px solid rgba(236, 200, 122, 0.15);
-      border-radius: 8px;
-      padding: 3mm;
+      background:
+        linear-gradient(180deg, rgba(26, 22, 18, 0.55) 0%, rgba(15, 12, 9, 0.55) 100%);
+      border: 1px solid rgba(236, 200, 122, 0.18);
+      border-radius: 6px;
+      padding: 3mm 3mm;
       display: flex;
       flex-direction: column;
-      justify-content: flex-start;
-      box-sizing: border-box;
     }
 
-    .metric-header {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      margin-bottom: 2.5mm;
+    .metric-card-number {
+      font-family: 'Cormorant Garamond', serif;
+      font-size: 20px;
+      font-weight: 500;
+      color: rgba(236, 200, 122, 0.5);
+      line-height: 1;
+      margin-bottom: 1mm;
     }
 
     .metric-name {
-      font-size: 9px;
-      font-weight: 800;
-      color: #FFFFFF;
-      letter-spacing: 0.5px;
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
-      max-width: 70%;
+      font-family: 'Playfair Display', serif;
+      font-size: 11px;
+      font-weight: 700;
+      color: #F5E9CC;
+      letter-spacing: 0.3px;
+      line-height: 1.15;
+      margin-bottom: 2mm;
     }
 
     .metric-badge {
+      align-self: flex-start;
       font-size: 7px;
       font-weight: 800;
-      padding: 1.5px 5px;
-      border-radius: 8px;
+      padding: 2.5px 7px;
+      border-radius: 10px;
       text-transform: uppercase;
       white-space: nowrap;
+      letter-spacing: 1.2px;
+      margin-bottom: 2.5mm;
     }
 
     .metric-item {
       display: flex;
       align-items: flex-start;
-      gap: 5px;
+      gap: 4px;
       margin-bottom: 1.5mm;
-      font-size: 8px;
+      font-size: 7.5px;
       color: #B5AFA5;
-      line-height: 1.3;
+      line-height: 1.35;
     }
 
     .metric-item:last-child {
@@ -467,43 +596,54 @@ export async function exportWatchPDF({
       flex-shrink: 0;
     }
 
-    /* 6. Footer Security Block */
+    /* ──────────────────────────────────────────────────────
+       4. Footer — security hash + disclaimer + QR
+       ────────────────────────────────────────────────────── */
     .footer {
-      border-top: 1.5px solid rgba(236, 200, 122, 0.25);
-      padding-top: 4mm;
-      display: flex;
-      justify-content: space-between;
+      border-top: 1px solid rgba(236, 200, 122, 0.30);
+      padding-top: 3.5mm;
+      display: grid;
+      grid-template-columns: 1.8fr 1fr auto;
+      gap: 6mm;
       align-items: center;
     }
 
-    .footer-left {
+    .footer-cell {
       display: flex;
       flex-direction: column;
-      gap: 2px;
+      gap: 1px;
     }
 
     .footer-title {
-      font-size: 8px;
-      font-weight: 800;
+      font-size: 7px;
+      font-weight: 700;
       color: #ECC87A;
-      letter-spacing: 1.5px;
+      letter-spacing: 2.5px;
       text-transform: uppercase;
     }
 
     .footer-hash {
-      font-family: monospace;
+      font-family: 'Courier New', monospace;
       font-size: 7.5px;
-      color: #7A736A;
+      color: #C0B4A0;
       word-break: break-all;
-      max-width: 145mm;
+      line-height: 1.3;
+      margin-top: 1px;
+    }
+
+    .footer-disclaimer {
+      font-size: 6.5px;
+      color: #6B6258;
+      line-height: 1.35;
+      font-style: italic;
     }
 
     .footer-qr {
-      width: 15mm;
-      height: 15mm;
+      width: 16mm;
+      height: 16mm;
       background-color: #FFFFFF;
       padding: 1mm;
-      border-radius: 2px;
+      border-radius: 3px;
       display: flex;
       justify-content: center;
       align-items: center;
@@ -518,239 +658,152 @@ export async function exportWatchPDF({
 <body>
 
   <div class="report-container">
-    
-    <!-- 1. Header -->
+
+    <!-- 1. Header — logo • title • reference badge -->
     <div class="header">
       <div class="header-logo-box">
         <span class="header-logo-text">LWA</span>
       </div>
-      <h1 class="header-title">AUTHENTICITY DIAGNOSTIC REPORT</h1>
+      <div>
+        <h1 class="header-title">Authenticity Diagnostic Report</h1>
+        <div class="header-subtitle">AI Horological Analytics · Forensic-Grade Examination</div>
+      </div>
+      <div class="header-ref-badge">
+        Report Reference
+        <strong>${randomSig.substring(0, 12).toUpperCase()}</strong>
+      </div>
     </div>
 
-    <!-- 2. Top Columns (Verdict & Scans) -->
+    <!-- 2. Top row — Verdict | Watch Details | Scans -->
     <div class="top-row">
-      <!-- Left: Verdict Progress SVG Ring -->
-      <div class="verdict-card">
-        <svg width="110" height="110" viewBox="0 0 120 120">
-          <circle cx="60" cy="60" r="50" fill="none" stroke="rgba(236, 200, 122, 0.1)" stroke-width="8"></circle>
-          <circle cx="60" cy="60" r="50" fill="none" stroke="url(#goldGradient)" stroke-width="8"
-                  stroke-dasharray="314.16" stroke-dashoffset="${314.16 - (314.16 * probability) / 100}"
-                  stroke-linecap="round" transform="rotate(-90 60 60)"></circle>
-          <text x="60" y="55" text-anchor="middle" fill="#ECC87A" font-size="20" font-weight="800" font-family="'Outfit', sans-serif">${probability}%</text>
-          <text x="60" y="74" text-anchor="middle" fill="#FFFFFF" font-size="8.5" font-weight="800" font-family="'Outfit', sans-serif" letter-spacing="1">VERDICT</text>
-          <defs>
-            <linearGradient id="goldGradient" x1="0%" y1="0%" x2="100%" y2="100%">
-              <stop offset="0%" stop-color="#ECC87A" />
-              <stop offset="100%" stop-color="#C5A880" />
-            </linearGradient>
-          </defs>
-        </svg>
+
+      <!-- Verdict ring -->
+      <div class="panel verdict-card">
+        <div class="verdict-ring-wrapper">
+          <svg class="verdict-ring-svg" viewBox="0 0 120 120">
+            <defs>
+              <linearGradient id="goldGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                <stop offset="0%" stop-color="#F5E9CC" />
+                <stop offset="60%" stop-color="#ECC87A" />
+                <stop offset="100%" stop-color="#A37C2F" />
+              </linearGradient>
+            </defs>
+            <circle cx="60" cy="60" r="52" fill="none" stroke="rgba(236, 200, 122, 0.10)" stroke-width="4"></circle>
+            <circle cx="60" cy="60" r="52" fill="none" stroke="url(#goldGradient)" stroke-width="4"
+                    stroke-dasharray="326.73" stroke-dashoffset="${326.73 - (326.73 * probability) / 100}"
+                    stroke-linecap="round" transform="rotate(-90 60 60)"></circle>
+          </svg>
+          <div class="verdict-ring-inner">
+            <div class="verdict-number">${probability}<span style="font-size: 28px;">%</span></div>
+            <div style="font-size: 7px; color: #8A8278; letter-spacing: 3px; text-transform: uppercase; margin-top: -2mm;">Verdict</div>
+          </div>
+        </div>
         <div class="verdict-status-title">${verdictTitleEn}</div>
         <div class="verdict-status-sub">AI Horological Analytics Consensus</div>
       </div>
 
-      <!-- Right: DIAL & CASEBACK Scans -->
-      <div class="scans-card">
-        <div class="scan-box">
-          <div class="scan-image" style="background-image: url('${dialImg}');">
-            <span class="scan-pass-badge" style="background-color: ${verdictPillColor};">${verdictPillTextEn}</span>
+      <!-- Watch Details key-value sheet -->
+      <div class="panel">
+        <div class="panel-title">Watch Details</div>
+        <div class="details-list">
+          <div class="details-row">
+            <span class="detail-label">Brand</span>
+            <span class="detail-value">${brand}</span>
           </div>
-          <div class="scan-label-tab">DIAL SCAN</div>
+          <div class="details-row">
+            <span class="detail-label">Model</span>
+            <span class="detail-value">${name}</span>
+          </div>
+          <div class="details-row">
+            <span class="detail-label">Reference</span>
+            <span class="detail-value">${reference}</span>
+          </div>
+          <div class="details-row">
+            <span class="detail-label">Serial</span>
+            <span class="detail-value">${serial}</span>
+          </div>
+          <div class="details-row">
+            <span class="detail-label">Case Material</span>
+            <span class="detail-value">${caseMaterial}</span>
+          </div>
+          <div class="details-row">
+            <span class="detail-label">Caliber</span>
+            <span class="detail-value">${caliber}</span>
+          </div>
         </div>
-        <div class="scan-box">
-          <div class="scan-image" style="background-image: url('${casebackImg}');">
-            <span class="scan-pass-badge" style="background-color: ${verdictPillColor};">${verdictPillTextEn}</span>
+      </div>
+
+      <!-- Scan images -->
+      <div class="panel">
+        <div class="panel-title">Photographic Evidence</div>
+        <div class="scans-grid">
+          <div class="scan-box">
+            <div class="scan-image" style="background-image: url('${dialImg}');">
+              <span class="scan-pass-badge" style="background-color: ${verdictPillColor};">${verdictPillTextEn}</span>
+            </div>
+            <div class="scan-label-tab">Dial Scan</div>
           </div>
-          <div class="scan-label-tab">CASEBACK SCAN</div>
+          <div class="scan-box">
+            <div class="scan-image" style="background-image: url('${casebackImg}');">
+              <span class="scan-pass-badge" style="background-color: ${verdictPillColor};">${verdictPillTextEn}</span>
+            </div>
+            <div class="scan-label-tab">Caseback Scan</div>
+          </div>
         </div>
       </div>
     </div>
 
-    <!-- 3. Watch Details -->
-    <div>
-      <div class="section-title">Watch Details</div>
-      <div class="details-panel">
-        <div class="details-column">
-          <span class="detail-label">BRAND</span>
-          <span class="detail-value">${brand}</span>
-        </div>
-        <div class="details-divider"></div>
-        <div class="details-column">
-          <span class="detail-label">MODEL</span>
-          <span class="detail-value">${name}</span>
-        </div>
-        <div class="details-divider"></div>
-        <div class="details-column">
-          <span class="detail-label">REFERENCE</span>
-          <span class="detail-value">${reference}</span>
-        </div>
-        <div class="details-divider"></div>
-        <div class="details-column">
-          <span class="detail-label">SERIAL</span>
-          <span class="detail-value">${serial}</span>
-        </div>
-        <div class="details-divider"></div>
-        <div class="details-column">
-          <span class="detail-label">CASE</span>
-          <span class="detail-value">${caseMaterial}</span>
-        </div>
-        <div class="details-divider"></div>
-        <div class="details-column">
-          <span class="detail-label">CALIBER</span>
-          <span class="detail-value">${caliber}</span>
-        </div>
+    <!-- 3. Diagnostic Metrics — 6 cards in one row -->
+    <div class="metrics-section">
+      <div class="metrics-section-title">
+        <span>Hallmark Diagnostic Metrics · 6 Inspection Points</span>
+        <span class="metrics-section-subtitle">Numbered cross-reference to AI landmark map</span>
       </div>
-    </div>
-
-    <!-- 4. Diagnostic Metrics -->
-    <div class="metrics-container">
-      <div class="section-title">Diagnostic Metrics</div>
       <div class="metrics-grid">
-        
-        <!-- Box 1 -->
-        <div class="metric-card">
-          <div class="metric-header">
-            <span class="metric-name">Dial Markings</span>
-            <span class="metric-badge" style="color: ${b1PillColor}; background-color: ${b1PillBg}; border: 1px solid ${b1PillColor};">${b1Pill}</span>
+        ${[
+          { n: '01', name: 'Dial Markings', pill: b1Pill, pillColor: b1PillColor, pillBg: b1PillBg, t1: b1Text1, t2: b1Text2 },
+          { n: '02', name: 'Text Printing', pill: b2Pill, pillColor: b2PillColor, pillBg: b2PillBg, t1: b2Text1, t2: b2Text2 },
+          { n: '03', name: 'Bezel Engraving', pill: b3Pill, pillColor: b3PillColor, pillBg: b3PillBg, t1: b3Text1, t2: b3Text2 },
+          { n: '04', name: 'Caseback Serial', pill: b4Pill, pillColor: b4PillColor, pillBg: b4PillBg, t1: b4Text1, t2: b4Text2 },
+          { n: '05', name: 'Lume Application', pill: b5Pill, pillColor: b5PillColor, pillBg: b5PillBg, t1: b5Text1, t2: b5Text2 },
+          { n: '06', name: 'Sapphire Crystal', pill: b6Pill, pillColor: b6PillColor, pillBg: b6PillBg, t1: b6Text1, t2: b6Text2 },
+        ].map((m) => `
+          <div class="metric-card">
+            <div class="metric-card-number">${m.n}</div>
+            <div class="metric-name">${m.name}</div>
+            <div class="metric-badge" style="color: ${m.pillColor}; background-color: ${m.pillBg}; border: 1px solid ${m.pillColor};">${m.pill}</div>
+            <div class="metric-item">
+              <svg class="check-svg" width="9" height="9" viewBox="0 0 12 12">
+                <rect x="1" y="1" width="10" height="10" rx="2" fill="none" stroke="${m.pillColor}" stroke-width="1.2"></rect>
+                <path d="M3 6L5 8L9 4" fill="none" stroke="${m.pillColor}" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"></path>
+              </svg>
+              <span>${m.t1}</span>
+            </div>
+            <div class="metric-item">
+              <svg class="check-svg" width="9" height="9" viewBox="0 0 12 12">
+                <rect x="1" y="1" width="10" height="10" rx="2" fill="none" stroke="${m.pillColor}" stroke-width="1.2"></rect>
+                <path d="M3 6L5 8L9 4" fill="none" stroke="${m.pillColor}" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"></path>
+              </svg>
+              <span>${m.t2}</span>
+            </div>
           </div>
-          <div class="metric-item">
-            <svg class="check-svg" width="10" height="10" viewBox="0 0 12 12">
-              <rect x="1" y="1" width="10" height="10" rx="2" fill="none" stroke="${b1PillColor}" stroke-width="1.2"></rect>
-              <path d="M3 6L5 8L9 4" fill="none" stroke="${b1PillColor}" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"></path>
-            </svg>
-            <span>${b1Text1}</span>
-          </div>
-          <div class="metric-item">
-            <svg class="check-svg" width="10" height="10" viewBox="0 0 12 12">
-              <rect x="1" y="1" width="10" height="10" rx="2" fill="none" stroke="${b1PillColor}" stroke-width="1.2"></rect>
-              <path d="M3 6L5 8L9 4" fill="none" stroke="${b1PillColor}" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"></path>
-            </svg>
-            <span>${b1Text2}</span>
-          </div>
-        </div>
-
-        <!-- Box 2 -->
-        <div class="metric-card">
-          <div class="metric-header">
-            <span class="metric-name">Text Printing</span>
-            <span class="metric-badge" style="color: ${b2PillColor}; background-color: ${b2PillBg}; border: 1px solid ${b2PillColor};">${b2Pill}</span>
-          </div>
-          <div class="metric-item">
-            <svg class="check-svg" width="10" height="10" viewBox="0 0 12 12">
-              <rect x="1" y="1" width="10" height="10" rx="2" fill="none" stroke="${b2PillColor}" stroke-width="1.2"></rect>
-              <path d="M3 6L5 8L9 4" fill="none" stroke="${b2PillColor}" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"></path>
-            </svg>
-            <span>${b2Text1}</span>
-          </div>
-          <div class="metric-item">
-            <svg class="check-svg" width="10" height="10" viewBox="0 0 12 12">
-              <rect x="1" y="1" width="10" height="10" rx="2" fill="none" stroke="${b2PillColor}" stroke-width="1.2"></rect>
-              <path d="M3 6L5 8L9 4" fill="none" stroke="${b2PillColor}" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"></path>
-            </svg>
-            <span>${b2Text2}</span>
-          </div>
-        </div>
-
-        <!-- Box 3 -->
-        <div class="metric-card">
-          <div class="metric-header">
-            <span class="metric-name">Bezel</span>
-            <span class="metric-badge" style="color: ${b3PillColor}; background-color: ${b3PillBg}; border: 1px solid ${b3PillColor};">${b3Pill}</span>
-          </div>
-          <div class="metric-item">
-            <svg class="check-svg" width="10" height="10" viewBox="0 0 12 12">
-              <rect x="1" y="1" width="10" height="10" rx="2" fill="none" stroke="${b3PillColor}" stroke-width="1.2"></rect>
-              <path d="M3 6L5 8L9 4" fill="none" stroke="${b3PillColor}" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"></path>
-            </svg>
-            <span>${b3Text1}</span>
-          </div>
-          <div class="metric-item">
-            <svg class="check-svg" width="10" height="10" viewBox="0 0 12 12">
-              <rect x="1" y="1" width="10" height="10" rx="2" fill="none" stroke="${b3PillColor}" stroke-width="1.2"></rect>
-              <path d="M3 6L5 8L9 4" fill="none" stroke="${b3PillColor}" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"></path>
-            </svg>
-            <span>${b3Text2}</span>
-          </div>
-        </div>
-
-        <!-- Box 4 -->
-        <div class="metric-card">
-          <div class="metric-header">
-            <span class="metric-name">Caseback</span>
-            <span class="metric-badge" style="color: ${b4PillColor}; background-color: ${b4PillBg}; border: 1px solid ${b4PillColor};">${b4Pill}</span>
-          </div>
-          <div class="metric-item">
-            <svg class="check-svg" width="10" height="10" viewBox="0 0 12 12">
-              <rect x="1" y="1" width="10" height="10" rx="2" fill="none" stroke="${b4PillColor}" stroke-width="1.2"></rect>
-              <path d="M3 6L5 8L9 4" fill="none" stroke="${b4PillColor}" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"></path>
-            </svg>
-            <span>${b4Text1}</span>
-          </div>
-          <div class="metric-item">
-            <svg class="check-svg" width="10" height="10" viewBox="0 0 12 12">
-              <rect x="1" y="1" width="10" height="10" rx="2" fill="none" stroke="${b4PillColor}" stroke-width="1.2"></rect>
-              <path d="M3 6L5 8L9 4" fill="none" stroke="${b4PillColor}" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"></path>
-            </svg>
-            <span>${b4Text2}</span>
-          </div>
-        </div>
-
-        <!-- Box 5 -->
-        <div class="metric-card">
-          <div class="metric-header">
-            <span class="metric-name">Lume</span>
-            <span class="metric-badge" style="color: ${b5PillColor}; background-color: ${b5PillBg}; border: 1px solid ${b5PillColor};">${b5Pill}</span>
-          </div>
-          <div class="metric-item">
-            <svg class="check-svg" width="10" height="10" viewBox="0 0 12 12">
-              <rect x="1" y="1" width="10" height="10" rx="2" fill="none" stroke="${b5PillColor}" stroke-width="1.2"></rect>
-              <path d="M3 6L5 8L9 4" fill="none" stroke="${b5PillColor}" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"></path>
-            </svg>
-            <span>${b5Text1}</span>
-          </div>
-          <div class="metric-item">
-            <svg class="check-svg" width="10" height="10" viewBox="0 0 12 12">
-              <rect x="1" y="1" width="10" height="10" rx="2" fill="none" stroke="${b5PillColor}" stroke-width="1.2"></rect>
-              <path d="M3 6L5 8L9 4" fill="none" stroke="${b5PillColor}" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"></path>
-            </svg>
-            <span>${b5Text2}</span>
-          </div>
-        </div>
-
-        <!-- Box 6 -->
-        <div class="metric-card">
-          <div class="metric-header">
-            <span class="metric-name">Sapphire</span>
-            <span class="metric-badge" style="color: ${b6PillColor}; background-color: ${b6PillBg}; border: 1px solid ${b6PillColor};">${b6Pill}</span>
-          </div>
-          <div class="metric-item">
-            <svg class="check-svg" width="10" height="10" viewBox="0 0 12 12">
-              <rect x="1" y="1" width="10" height="10" rx="2" fill="none" stroke="${b6PillColor}" stroke-width="1.2"></rect>
-              <path d="M3 6L5 8L9 4" fill="none" stroke="${b6PillColor}" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"></path>
-            </svg>
-            <span>${b6Text1}</span>
-          </div>
-          <div class="metric-item">
-            <svg class="check-svg" width="10" height="10" viewBox="0 0 12 12">
-              <rect x="1" y="1" width="10" height="10" rx="2" fill="none" stroke="${b6PillColor}" stroke-width="1.2"></rect>
-              <path d="M3 6L5 8L9 4" fill="none" stroke="${b6PillColor}" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"></path>
-            </svg>
-            <span>${b6Text2}</span>
-          </div>
-        </div>
-
+        `).join('')}
       </div>
     </div>
 
-    <!-- 5. Footer -->
+    <!-- 4. Footer — security hash | disclaimer | QR -->
     <div class="footer">
-      <div class="footer-left">
-        <span class="footer-title">Verification Secure (SHA-256 Hash)</span>
+      <div class="footer-cell">
+        <span class="footer-title">Verification Secure · SHA-256</span>
         <span class="footer-hash">${randomSig}</span>
       </div>
-      
+      <div class="footer-cell">
+        <span class="footer-disclaimer">
+          Luxury Authenticator is an independent AI-driven diagnostic tool, not affiliated with any manufacturer. This report reflects machine-vision analysis only — ultimate verification requires physical inspection by an authorized brand boutique or certified independent watchmaker.
+        </span>
+      </div>
       <div class="footer-qr">
-        <img src="https://api.qrserver.com/v1/create-qr-code/?size=100x100&data=https://luxurywatchauthenticator.com/report/${randomSig.substring(0, 12)}" alt="Secure QR">
+        <img src="https://api.qrserver.com/v1/create-qr-code/?size=100x100&data=https://luxurywatchauthenticator.com/report/${randomSig.substring(0, 12)}" alt="Verification QR">
       </div>
     </div>
 
@@ -760,10 +813,14 @@ export async function exportWatchPDF({
 </html>
       `;
 
-    // 4. Fire printToFileAsync in portrait mode
+    // 4. Fire printToFileAsync in LANDSCAPE A4. The HTML's @page rule
+    // declares the size already, but expo-print's iOS path also reads
+    // the orientation option — set both for cross-platform consistency.
     const { uri } = await Print.printToFileAsync({
       html: htmlContent,
       base64: false,
+      width: 842,   // A4 landscape width in px (297mm @ 72dpi)
+      height: 595,  // A4 landscape height in px (210mm @ 72dpi)
     });
 
     // 5. Rename the temporary PDF file to match the abbreviated watch model name

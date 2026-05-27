@@ -3,6 +3,7 @@ import { Alert } from 'react-native';
 import * as Print from 'expo-print';
 import * as Sharing from 'expo-sharing';
 import * as FileSystem from 'expo-file-system/legacy';
+import { Asset } from 'expo-asset';
 import { ScanResult } from '../../lib/types';
 import { AuthColor } from '../../lib/authVerdictColor';
 import { TierCapabilities } from '../../lib/tier';
@@ -71,6 +72,29 @@ export async function exportWatchPDF({
     // If no images loaded successfully, use a default fallback
     if (base64Images.length === 0) {
       base64Images.push('https://via.placeholder.com/300');
+    }
+
+    // Load the bundled app icon as a base64 data URL so the PDF
+    // header carries the real Luxury Watch Authenticator logo
+    // instead of just the "LWA" text mark. Asset.fromModule + a
+    // downloadAsync forces expo-asset to extract the bundled
+    // png to the cache directory, where FileSystem can read it
+    // as base64. Falls back to text-only if anything fails so
+    // the PDF still renders.
+    let logoDataUrl = '';
+    try {
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
+      const logoModule = require('../../../assets/splash-icon.png');
+      const asset = Asset.fromModule(logoModule);
+      await asset.downloadAsync();
+      if (asset.localUri) {
+        const logoB64 = await FileSystem.readAsStringAsync(asset.localUri, {
+          encoding: FileSystem.EncodingType.Base64,
+        });
+        logoDataUrl = `data:image/png;base64,${logoB64}`;
+      }
+    } catch (err) {
+      console.warn('[PdfExporter] failed to load logo asset:', err);
     }
 
     const brand = result.brand || 'TAG HEUER';
@@ -199,15 +223,22 @@ export async function exportWatchPDF({
       height: 100%;
       border: 1.5px solid #ECC87A;
       border-radius: 6px;
-      padding: 7mm 8mm 6mm 8mm;
+      padding: 6mm 7mm;
       background:
         radial-gradient(ellipse at top left, rgba(236, 200, 122, 0.05) 0%, transparent 60%),
         radial-gradient(ellipse at bottom right, rgba(236, 200, 122, 0.04) 0%, transparent 60%),
         linear-gradient(180deg, #131008 0%, #0A0805 100%);
-      display: flex;
-      flex-direction: column;
-      gap: 5mm;
+      /* Explicit grid layout with fixed row heights — flex+gap
+         was causing the metrics row to overflow and bleed into
+         the footer area on dense content. Grid lets us pin
+         header (16mm) + top row (78mm) + metrics (~70mm) +
+         footer (18mm) = ~182mm total, leaving 14mm for paddings
+         and gaps within the 196mm interior of A4 landscape. */
+      display: grid;
+      grid-template-rows: auto 78mm 1fr 18mm;
+      gap: 4mm;
       position: relative;
+      overflow: hidden;
     }
 
     /* Decorative gold corner brackets — luxury watch catalogue cue */
@@ -246,20 +277,44 @@ export async function exportWatchPDF({
 
     .header-logo-box {
       justify-self: start;
-      border: 1px solid #ECC87A;
-      padding: 4px 10px;
-      background: rgba(26, 22, 18, 0.6);
       display: inline-flex;
       align-items: center;
-      gap: 4px;
+      gap: 8px;
+    }
+
+    .header-logo-img {
+      width: 38px;
+      height: 38px;
+      border-radius: 50%;
+      border: 1.5px solid #ECC87A;
+      background-color: rgba(18, 14, 10, 0.7);
+      object-fit: cover;
+      padding: 1px;
+      box-sizing: border-box;
+    }
+
+    .header-logo-text-wrap {
+      display: flex;
+      flex-direction: column;
+      line-height: 1;
     }
 
     .header-logo-text {
       font-family: 'Playfair Display', serif;
       font-weight: 900;
-      font-size: 14px;
+      font-size: 13px;
       color: #ECC87A;
       letter-spacing: 4px;
+    }
+
+    .header-logo-sub {
+      font-family: 'Inter', sans-serif;
+      font-weight: 600;
+      font-size: 6.5px;
+      color: #8A8278;
+      letter-spacing: 1.5px;
+      text-transform: uppercase;
+      margin-top: 2px;
     }
 
     .header-title {
@@ -495,9 +550,13 @@ export async function exportWatchPDF({
        3. Diagnostic Metrics — single row of 6 cards
        ────────────────────────────────────────────────────── */
     .metrics-section {
-      flex: 1;
-      display: flex;
-      flex-direction: column;
+      /* Lives inside the grid 1fr row — own grid template keeps
+         the title fixed-height (auto) and the card row fills
+         the rest. Without min-height:0 the grid track overflows
+         because the children have implicit min sizes. */
+      display: grid;
+      grid-template-rows: auto 1fr;
+      gap: 3mm;
       min-height: 0;
     }
 
@@ -508,7 +567,6 @@ export async function exportWatchPDF({
       color: #ECC87A;
       letter-spacing: 3px;
       text-transform: uppercase;
-      margin-bottom: 3mm;
       padding-bottom: 2mm;
       border-bottom: 1px solid rgba(236, 200, 122, 0.30);
       display: flex;
@@ -529,7 +587,7 @@ export async function exportWatchPDF({
       display: grid;
       grid-template-columns: repeat(6, 1fr);
       gap: 3mm;
-      flex: 1;
+      min-height: 0;
     }
 
     .metric-card {
@@ -540,47 +598,48 @@ export async function exportWatchPDF({
       padding: 3mm 3mm;
       display: flex;
       flex-direction: column;
+      overflow: hidden;
     }
 
     .metric-card-number {
       font-family: 'Cormorant Garamond', serif;
-      font-size: 20px;
+      font-size: 17px;
       font-weight: 500;
-      color: rgba(236, 200, 122, 0.5);
+      color: rgba(236, 200, 122, 0.55);
       line-height: 1;
       margin-bottom: 1mm;
     }
 
     .metric-name {
       font-family: 'Playfair Display', serif;
-      font-size: 11px;
+      font-size: 10px;
       font-weight: 700;
       color: #F5E9CC;
-      letter-spacing: 0.3px;
+      letter-spacing: 0.2px;
       line-height: 1.15;
-      margin-bottom: 2mm;
+      margin-bottom: 1.5mm;
     }
 
     .metric-badge {
       align-self: flex-start;
-      font-size: 7px;
+      font-size: 6.5px;
       font-weight: 800;
-      padding: 2.5px 7px;
-      border-radius: 10px;
+      padding: 2px 6px;
+      border-radius: 8px;
       text-transform: uppercase;
       white-space: nowrap;
-      letter-spacing: 1.2px;
-      margin-bottom: 2.5mm;
+      letter-spacing: 1px;
+      margin-bottom: 2mm;
     }
 
     .metric-item {
       display: flex;
       align-items: flex-start;
       gap: 4px;
-      margin-bottom: 1.5mm;
-      font-size: 7.5px;
+      margin-bottom: 1mm;
+      font-size: 7px;
       color: #B5AFA5;
-      line-height: 1.35;
+      line-height: 1.3;
     }
 
     .metric-item:last-child {
@@ -598,33 +657,38 @@ export async function exportWatchPDF({
 
     /* ──────────────────────────────────────────────────────
        4. Footer — security hash + disclaimer + QR
+       Pinned to the grid's last 18mm row; overflow:hidden on
+       container clips any long-text bleed into the metrics row.
        ────────────────────────────────────────────────────── */
     .footer {
       border-top: 1px solid rgba(236, 200, 122, 0.30);
-      padding-top: 3.5mm;
+      padding-top: 2.5mm;
       display: grid;
-      grid-template-columns: 1.8fr 1fr auto;
-      gap: 6mm;
+      grid-template-columns: 1.8fr 1.4fr auto;
+      gap: 5mm;
       align-items: center;
+      overflow: hidden;
     }
 
     .footer-cell {
       display: flex;
       flex-direction: column;
       gap: 1px;
+      min-width: 0;
+      overflow: hidden;
     }
 
     .footer-title {
-      font-size: 7px;
+      font-size: 6.5px;
       font-weight: 700;
       color: #ECC87A;
-      letter-spacing: 2.5px;
+      letter-spacing: 2px;
       text-transform: uppercase;
     }
 
     .footer-hash {
       font-family: 'Courier New', monospace;
-      font-size: 7.5px;
+      font-size: 7px;
       color: #C0B4A0;
       word-break: break-all;
       line-height: 1.3;
@@ -632,18 +696,24 @@ export async function exportWatchPDF({
     }
 
     .footer-disclaimer {
-      font-size: 6.5px;
+      font-size: 6px;
       color: #6B6258;
-      line-height: 1.35;
+      line-height: 1.3;
       font-style: italic;
+      /* Cap to ~3 lines max — any longer disclaimer gets
+         truncated with ellipsis rather than spilling upward. */
+      display: -webkit-box;
+      -webkit-line-clamp: 4;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
     }
 
     .footer-qr {
-      width: 16mm;
-      height: 16mm;
+      width: 14mm;
+      height: 14mm;
       background-color: #FFFFFF;
-      padding: 1mm;
-      border-radius: 3px;
+      padding: 0.5mm;
+      border-radius: 2px;
       display: flex;
       justify-content: center;
       align-items: center;
@@ -662,7 +732,13 @@ export async function exportWatchPDF({
     <!-- 1. Header — logo • title • reference badge -->
     <div class="header">
       <div class="header-logo-box">
-        <span class="header-logo-text">LWA</span>
+        ${logoDataUrl
+          ? `<img class="header-logo-img" src="${logoDataUrl}" alt="LWA logo">`
+          : ''}
+        <div class="header-logo-text-wrap">
+          <span class="header-logo-text">LWA</span>
+          <span class="header-logo-sub">Luxury Watch Auth</span>
+        </div>
       </div>
       <div>
         <h1 class="header-title">Authenticity Diagnostic Report</h1>

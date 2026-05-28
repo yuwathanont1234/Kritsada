@@ -24,6 +24,12 @@ import { requestPhoneOtp, verifyPhoneOtp } from '../lib/simRegistry';
 import { getExchangeRate } from '../lib/currency';
 import { useLanguage } from '../lib/localization';
 import { styles } from './AppStyles';
+import {
+  getPushPermissionStatus,
+  registerForPushNotifications,
+  disablePushNotifications,
+} from '../lib/pushNotifications';
+import { Linking } from 'react-native';
 
 // Developer Event Listener for tier remounting
 let globalUpdateAppTier: ((tier: MembershipTier) => void) | null = null;
@@ -141,6 +147,46 @@ export default function SettingsScreen({ navigation }: any) {
   const [otpError, setOtpError] = useState('');
   const [otpMessage, setOtpMessage] = useState('');
   const [simulatedOtpCode, setSimulatedOtpCode] = useState('');
+
+  // --- Push Notification toggle state ---
+  // Reads the system permission status on mount; ToggleEnabled is
+  // computed from it. Tapping the row either requests permission
+  // (if undetermined) or opens system Settings (if previously denied,
+  // because iOS/Android only allow a single in-app request per
+  // install — after denial we can't re-prompt).
+  const [pushStatus, setPushStatus] = useState<'granted' | 'denied' | 'undetermined'>('undetermined');
+  const [pushBusy, setPushBusy] = useState(false);
+
+  useEffect(() => {
+    getPushPermissionStatus().then(setPushStatus).catch(() => {});
+  }, []);
+
+  const handleTogglePush = async () => {
+    if (pushBusy) return;
+    setPushBusy(true);
+    try {
+      if (pushStatus === 'granted') {
+        // Currently on → user wants to opt out
+        await disablePushNotifications();
+        // Note: this only clears OUR token. System permission stays
+        // granted (user has to go to system Settings to fully revoke).
+        // For our purposes — no token = no re-engagement — that's
+        // enough.
+        setPushStatus('undetermined'); // visual hint that we'll re-ask
+      } else if (pushStatus === 'undetermined') {
+        // Never asked → trigger the OS prompt
+        const token = await registerForPushNotifications();
+        if (token) {
+          setPushStatus('granted');
+        }
+      } else {
+        // Previously denied — can't re-prompt; deep link to Settings
+        await Linking.openSettings();
+      }
+    } finally {
+      setPushBusy(false);
+    }
+  };
 
   const load = async () => {
     const u = await getAuthUser();
@@ -385,12 +431,12 @@ export default function SettingsScreen({ navigation }: any) {
                 : membership?.tier === 'free'
                   ? (lang === 'th' ? 'ยังไม่ได้เปิดสิทธิ์ทดลองใช้ — กรุณาผูกบัตรเครดิตเพื่อเริ่มสิทธิ์ทดลองใช้ Premium ฟรี 7 วัน (สูงสุด 5 สแกน)' : 'Trial not active — Bind credit card to start 7-Day Premium Trial (max 5 scans)')
                   : membership?.tier === 'standard'
-                    ? (lang === 'th' ? 'ระดับสแตนดาร์ด (Standard) (สูงสุด 50 สแกน/เดือน, ช่องถ่าย 2 มุม)' : 'Standard tier (up to 50 scans/month, 2 photo slots)')
+                    ? (lang === 'th' ? 'ระดับสแตนดาร์ด (Standard) (สูงสุด 20 สแกน/เดือน, ช่องถ่าย 2 มุม)' : 'Standard tier (up to 20 scans/month, 2 photo slots)')
                     : membership?.tier === 'pro'
-                      ? (lang === 'th' ? 'ระดับโปร (Pro) (สูงสุด 100 สแกน/เดือน, รายงาน A5 PDF, ช่องถ่าย 3 มุม)' : 'Pro tier (up to 100 scans/month, A5 PDF reports, 3 photo slots)')
-                      : (lang === 'th' ? 'ระดับพรีเมียม (Premium) (สูงสุด 200 สแกน/เดือน, พอร์ตโฟลิโอสะสมไม่จำกัดความจุ, PDF ไม่มีลายน้ำ)' : 'Premium tier (up to 200 scans/month, unlimited portfolio, watermark-free PDF)')}
+                      ? (lang === 'th' ? 'ระดับโปร (Pro) (สูงสุด 50 สแกน/เดือน, รายงาน A5 PDF, ช่องถ่าย 3 มุม)' : 'Pro tier (up to 50 scans/month, A5 PDF reports, 3 photo slots)')
+                      : (lang === 'th' ? 'ระดับพรีเมียม (Premium) (สูงสุด 100 สแกน/เดือน, พอร์ตโฟลิโอสะสมสูงสุด 100 เรือน, PDF ไม่มีลายน้ำ)' : 'Premium tier (up to 100 scans/month, up to 100-watch portfolio, watermark-free PDF)')}
             </Text>
-            <Pressable style={styles.planUpgradeBtn} onPress={() => navigation.navigate('Membership')}>
+            <Pressable style={styles.planUpgradeBtn} onPress={() => navigation.navigate('Membership', { trigger: 'manual_settings' })}>
               <Text style={styles.planUpgradeText}>{t('settings.manageSub')}</Text>
             </Pressable>
 
@@ -448,7 +494,50 @@ export default function SettingsScreen({ navigation }: any) {
               <Text style={styles.menuItemText}>{t('settings.privacy')}</Text>
               <Feather name="chevron-right" size={16} color={colors.textMuted} />
             </Pressable>
- 
+
+            {/* Push notification opt-in toggle. Three visual states:
+                  granted     → 🔔 bell + "ON" amber pill
+                  denied      → 🔕 bell-off + "OFF" muted pill (tap → system Settings)
+                  undetermined→ 🔔 bell + "OFF" muted pill (tap → request prompt)
+                Re-engagement campaigns only fire when push_token is set,
+                so opting out here disables all server-sent nudges. */}
+            <Pressable style={styles.menuItem} onPress={handleTogglePush} disabled={pushBusy}>
+              <Feather
+                name={pushStatus === 'granted' ? 'bell' : 'bell-off'}
+                size={18}
+                color={colors.amber}
+                style={{ opacity: 0.85 }}
+              />
+              <Text style={styles.menuItemText}>
+                {lang === 'th' ? 'การแจ้งเตือน' : 'Notifications'}
+              </Text>
+              <View
+                style={{
+                  paddingHorizontal: 10,
+                  paddingVertical: 3,
+                  borderRadius: 10,
+                  borderWidth: 1,
+                  borderColor: pushStatus === 'granted' ? '#D4B98C' : 'rgba(160, 151, 138, 0.4)',
+                  backgroundColor: pushStatus === 'granted' ? 'rgba(212, 185, 140, 0.15)' : 'transparent',
+                  marginRight: 4,
+                }}
+              >
+                <Text
+                  style={{
+                    fontSize: 10,
+                    fontWeight: '700',
+                    letterSpacing: 1,
+                    color: pushStatus === 'granted' ? '#D4B98C' : '#A0978A',
+                  }}
+                >
+                  {pushStatus === 'granted'
+                    ? (lang === 'th' ? 'เปิด' : 'ON')
+                    : (lang === 'th' ? 'ปิด' : 'OFF')}
+                </Text>
+              </View>
+              <Feather name="chevron-right" size={16} color={colors.textMuted} />
+            </Pressable>
+
             <Pressable style={styles.menuItem} onPress={handleClearData}>
               <Feather name="trash-2" size={18} color={colors.danger} />
               <Text style={[styles.menuItemText, { color: colors.danger }]}>{t('settings.wipeData')}</Text>

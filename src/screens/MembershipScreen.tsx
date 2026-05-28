@@ -19,11 +19,85 @@ import { useLanguage } from '../lib/localization';
 import { styles } from './AppStyles';
 import { triggerTierUpdate } from './SettingsScreen';
 import { purchaseTier, restorePurchases, isIapConfigured } from '../lib/iap';
+import { logFunnelEvent } from '../lib/funnelEvents';
+import { getUserProfile, type UserRole } from '../lib/userProfile';
 
-export default function MembershipScreen({ navigation }: any) {
+// Tier prices in THB — sourced from MembershipScreen render code (lines
+// 160/217/280). Duplicated here so checkout_started can log the exact
+// price seen at decision time without scraping the render tree.
+const TIER_PRICE_THB: Record<MembershipTier, number> = {
+  free: 0,
+  standard: 990,
+  pro: 1990,
+  premium: 4990,
+};
+
+/**
+ * Segment-aware "Recommended for You" ribbon.
+ *
+ * Rendered ONCE on the paywall above the tier card that best matches
+ * the user's role (from OnboardingScreen). Champagne-gold accent +
+ * star icon make it visually distinct from the generic tier badges
+ * already on the cards (BEST VALUE / PREMIUM 👑), so it reads as a
+ * personalized hint rather than another generic label.
+ */
+function RecommendedRibbon({ lang }: { lang: 'th' | 'en' }) {
+  return (
+    <View
+      style={{
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+        gap: 6,
+        alignSelf: 'center',
+        marginTop: 4,
+        marginBottom: 6,
+        paddingVertical: 5,
+        paddingHorizontal: 14,
+        backgroundColor: 'rgba(212, 185, 140, 0.14)',
+        borderWidth: 1,
+        borderColor: '#D4B98C',
+        borderRadius: 20,
+      }}
+    >
+      <Feather name="star" size={11} color="#D4B98C" />
+      <Text
+        style={{
+          color: '#EDE0BD',
+          fontSize: 10.5,
+          fontWeight: '700',
+          letterSpacing: 1.5,
+          textTransform: 'uppercase',
+        }}
+      >
+        {lang === 'th' ? '— แนะนำสำหรับคุณ —' : '— RECOMMENDED FOR YOU —'}
+      </Text>
+      <Feather name="star" size={11} color="#D4B98C" />
+    </View>
+  );
+}
+
+export default function MembershipScreen({ navigation, route }: any) {
   const { t, lang } = useLanguage();
   const [activeTier, setActiveTier] = useState<MembershipTier>('free');
   const [exchangeRate, setExchangeRate] = useState<number>(36.5);
+
+  // Segment-aware UI — drives tier ordering + copy emphasis on the
+  // paywall. Read from userProfile (populated by OnboardingScreen).
+  // Defaults to 'collector' if onboarding was skipped — the existing
+  // copy was written for collectors, so this preserves prior behavior.
+  const [userRole, setUserRole] = useState<UserRole>('collector');
+
+  // What triggered this paywall view? Set by the caller (ScanScreen
+  // 'quota_hit', SettingsScreen 'manual_settings', ResultScreen
+  // 'pdf_locked', etc.). Falls back to 'unknown' for legacy callers.
+  const triggerSource: string = route?.params?.trigger ?? 'unknown';
+  const mountedAtRef = React.useRef<number>(Date.now());
+  // Track which tiers the user tapped to compare — feeds the
+  // paywall_dismissed event so we know what they were weighing.
+  const tiersComparedRef = React.useRef<Set<MembershipTier>>(new Set());
+  // Flag to suppress paywall_dismissed when the user actually purchased.
+  const completedPurchaseRef = React.useRef<boolean>(false);
 
   useEffect(() => {
     getMembership().then((m) => setActiveTier(m.tier));
@@ -32,7 +106,32 @@ export default function MembershipScreen({ navigation }: any) {
         setExchangeRate(rate);
       }
     });
-  }, []);
+
+    // Load segment data — async, non-blocking. UI re-renders when ready
+    // so the user sees the role-tailored layout. Falls back to default
+    // 'collector' if no profile saved (Onboarding skipped or first run).
+    getUserProfile().then((profile) => {
+      if (profile.role) setUserRole(profile.role);
+    }).catch(() => {});
+
+    // Fire paywall_viewed once on mount. user_role piggybacks here so
+    // PostHog funnels can break down conversion by segment.
+    logFunnelEvent('paywall_viewed', {
+      trigger_source: triggerSource,
+    }).catch(() => {});
+
+    // On unmount (any reason: goBack, navigation away, app close),
+    // fire paywall_dismissed UNLESS the user successfully checked out.
+    return () => {
+      if (completedPurchaseRef.current) return;
+      const ms = Date.now() - mountedAtRef.current;
+      logFunnelEvent('paywall_dismissed', {
+        time_on_screen_ms: ms,
+        tiers_compared: Array.from(tiersComparedRef.current),
+        trigger_source: triggerSource,
+      }).catch(() => {});
+    };
+  }, [triggerSource]);
 
   /**
    * Route the tier selection through the IAP layer.
@@ -44,6 +143,10 @@ export default function MembershipScreen({ navigation }: any) {
    *   testing. Never let mock mode reach the App Store!
    */
   const handleSelectTier = async (tier: MembershipTier) => {
+    // Track that the user actively engaged with this tier card. Used in
+    // paywall_dismissed payload to see which tiers they were comparing.
+    tiersComparedRef.current.add(tier);
+
     // Free tier doesn't go through the store — handled as a downgrade only.
     if (tier === 'free') {
       Alert.alert(
@@ -55,6 +158,15 @@ export default function MembershipScreen({ navigation }: any) {
       );
       return;
     }
+
+    // Fire checkout_started BEFORE the StoreKit sheet opens — this is
+    // the conversion-intent moment. subscription_completed (fired by
+    // iap.ts listenIapChanges) signals actual conversion.
+    logFunnelEvent('checkout_started', {
+      tier_chosen: tier,
+      price_thb: TIER_PRICE_THB[tier] ?? 0,
+      trigger_source: triggerSource,
+    }).catch(() => {});
 
     const result = await purchaseTier(tier);
 
@@ -72,7 +184,12 @@ export default function MembershipScreen({ navigation }: any) {
       return;
     }
 
-    // Success — sync local state + UI.
+    // Success — sync local state + UI. Mark completedPurchase so we
+    // skip the paywall_dismissed event on unmount (the dismissal here
+    // is "won", not "abandoned"). subscription_completed itself is
+    // emitted from iap.ts listenIapChanges to avoid double-counting
+    // across restore-purchases / multi-device.
+    completedPurchaseRef.current = true;
     const finalTier = result.activeTier ?? tier;
     setActiveTier(finalTier);
     triggerTierUpdate(finalTier);
@@ -137,9 +254,29 @@ export default function MembershipScreen({ navigation }: any) {
             <Text style={styles.upgradeTitle}>Upgrade Membership</Text>
             <Text style={styles.upgradeSubtitle}>SELECT MEMBERSHIP PLAN</Text>
             <Text style={[styles.upgradeSubtitle, { fontSize: 12, color: colors.textSecondary, marginTop: 4 }]}>
-              Premium AI Watch Verification & High-End Analytics
+              {/* Segment-aware sub-headline. Role data from Onboarding. */}
+              {userRole === 'dealer'
+                ? (lang === 'th'
+                    ? 'เครื่องมือมืออาชีพสำหรับดีลเลอร์ — PDF Cert + Weight Verification'
+                    : 'Professional Tools for Dealers — PDF Certs + Weight Verification')
+                : userRole === 'first_time'
+                ? (lang === 'th'
+                    ? 'เริ่มต้นง่าย — ตรวจของก่อนซื้ออย่างมั่นใจ'
+                    : 'Start Simple — Verify Before You Buy with Confidence')
+                : (lang === 'th'
+                    ? 'AI ตรวจสอบความแท้ระดับพรีเมียมสำหรับคอลเลกชั่นของคุณ'
+                    : 'Premium AI Watch Verification & High-End Analytics')}
             </Text>
           </View>
+
+          {/* "Recommended for you" ribbons — segment-aware highlighting.
+              Drives conversion by surfacing the most-relevant tier:
+                • first_time → Standard (low commitment, learn the product)
+                • collector  → Pro (best value for high-volume usage)
+                • dealer     → Premium (PDF certs + weight verification) */}
+          {userRole === 'first_time' && (
+            <RecommendedRibbon lang={lang} />
+          )}
 
           {/* Tier 1: Platinum Standard Plan */}
           <View style={[styles.tierOptionCard, { overflow: 'hidden', borderColor: 'rgba(229, 229, 229, 0.45)', borderWidth: 1.5 }]}>
@@ -168,7 +305,7 @@ export default function MembershipScreen({ navigation }: any) {
 
             <View style={styles.featuresList}>
               {[
-                lang === 'th' ? 'ตรวจสอบสิทธิ์ด้วยระบบ AI มาตรฐาน 2 ระบบย่อย (สูงสุด 50 สแกนต่อเดือน)' : 'Standard 2-Engine AI verification (up to 50 scans per month)',
+                lang === 'th' ? 'ตรวจสอบสิทธิ์ด้วยระบบ AI มาตรฐาน 2 ระบบย่อย (สูงสุด 20 สแกนต่อเดือน)' : 'Standard 2-Engine AI verification (up to 20 scans per month)',
                 lang === 'th' ? 'ความแม่นยำการวิเคราะห์ทางแสงระดับมาตรฐาน (Standard 88% Accuracy)' : 'Standard 88% visual optical accuracy rating',
                 lang === 'th' ? 'ความละเอียดภาพสแกน 2 มุมกล้องหลัก (หน้าปัดและฝาหลังความละเอียดสูง)' : 'Standard 2-angle optical resolution (dial face + caseback micro-shots)',
                 lang === 'th' ? 'ปลดล็อกการวิเคราะห์ขอบหน้าปัดและฟอนต์ตัวอักษรเพื่อคัดกรองเบื้องต้น' : 'Unlocks bezel alignment & dial typography proportions screening'
@@ -198,6 +335,10 @@ export default function MembershipScreen({ navigation }: any) {
             </Pressable>
           </View>
 
+          {userRole === 'collector' && (
+            <RecommendedRibbon lang={lang} />
+          )}
+
           {/* Tier 2: Rich Gold Pro Plan (Recommended) */}
           <View style={[styles.tierOptionCard, styles.tierOptionCardBest, { overflow: 'hidden', borderColor: '#ECC87A', borderWidth: 2 }]}>
             <LinearGradient
@@ -225,7 +366,7 @@ export default function MembershipScreen({ navigation }: any) {
 
             <View style={styles.featuresList}>
               {[
-                lang === 'th' ? 'ตรวจสอบสิทธิ์ด้วยระบบ AI ขั้นสูง 4 ระบบย่อย (สูงสุด 100 สแกนต่อเดือน)' : 'Advanced 4-Engine AI verification (up to 100 scans per month)',
+                lang === 'th' ? 'ตรวจสอบสิทธิ์ด้วยระบบ AI ขั้นสูง 4 ระบบย่อย (สูงสุด 50 สแกนต่อเดือน)' : 'Advanced 4-Engine AI verification (up to 50 scans per month)',
                 lang === 'th' ? 'ความแม่นยำประเมินทางทัศนศาสตร์ระดับมืออาชีพ (Professional 94% Accuracy)' : 'Professional 94% visual optical accuracy rating',
                 lang === 'th' ? 'ความละเอียดระดับไมโครสแกน 3 มุมกล้อง (หน้าปัด, ฝาหลัง และขอบเม็ดมะยม)' : 'High-definition 3-angle micro-resolution (adds case side & crown details)',
                 lang === 'th' ? 'แผนภาพตราประจำการตรวจสอบ (Hallmark Diagnostic Map) เฉพาะแบรนด์ + เทียบเคียงใบเซอร์ผู้เชี่ยวชาญ' : 'Brand-specific Hallmark Diagnostic Map with numbered landmarks & expert certificate matches',
@@ -261,6 +402,10 @@ export default function MembershipScreen({ navigation }: any) {
             </Pressable>
           </View>
 
+          {userRole === 'dealer' && (
+            <RecommendedRibbon lang={lang} />
+          )}
+
           {/* Tier 3: Premium Executive Plan */}
           <View style={[styles.tierOptionCard, { overflow: 'hidden', borderColor: '#ECC87A', borderWidth: 2.5, shadowColor: '#ECC87A', shadowOffset: { width: 0, height: 0 }, shadowOpacity: 0.25, shadowRadius: 15 }]}>
             <LinearGradient
@@ -288,11 +433,11 @@ export default function MembershipScreen({ navigation }: any) {
 
             <View style={styles.featuresList}>
               {[
-                lang === 'th' ? 'ตรวจสอบสิทธิ์ด้วยระบบ AI พรีเมียม 8 ระบบย่อย (สูงสุด 200 สแกน, คิวสแกนด่วนพิเศษ)' : 'Premium 8-Engine AI verification (up to 200 scans, highest queue priority)',
+                lang === 'th' ? 'ตรวจสอบสิทธิ์ด้วยระบบ AI พรีเมียม 8 ระบบย่อย (สูงสุด 100 สแกน, คิวสแกนด่วนพิเศษ)' : 'Premium 8-Engine AI verification (up to 100 scans, highest queue priority)',
                 lang === 'th' ? 'ความแม่นยำสูงระดับสุดยอดมาตรฐานสถาบันประมูล (Executive 99.2% Accuracy)' : 'Ultimate high-fidelity auction-grade accuracy (99.2% Executive Accuracy)',
                 lang === 'th' ? 'ความละเอียดระดับกล้องขยายไมโครสโคป 4 มุมกล้อง (วิเคราะห์เนื้อโลหะและกลไกแกนล้อ)' : 'Microscopic 4-angle resolution (adds millimeter caliber finishes & movement gear micro-shots)',
                 lang === 'th' ? 'Hallmark Diagnostic Map ระดับลึก: ตราประทับโลหะจิ๋ว, ตราสลักทองคำ และรหัสขอบเลเซอร์' : 'Deep Hallmark Diagnostic Map: micro-hallmarks, laser etchings & gold stamps',
-                lang === 'th' ? 'ตู้นิรภัยไม่จำกัดขนาด พร้อมส่งออกรายงาน PDF ในนามแบรนด์ตนเองโดยไม่มีลายน้ำ' : 'Unlimited collection vault size & brand-customized PDF reports without watermarks'
+                lang === 'th' ? 'ตู้นิรภัยสะสมสูงสุด 100 เรือน พร้อมส่งออกรายงาน PDF ในนามแบรนด์ตนเองโดยไม่มีลายน้ำ' : 'Up to 100-watch collection vault & brand-customized PDF reports without watermarks'
               ].map((feat, idx) => (
                 <View key={idx} style={styles.featureRow}>
                   <Feather name="check" size={14} color={colors.amber} style={styles.featureIcon} />
@@ -328,7 +473,7 @@ export default function MembershipScreen({ navigation }: any) {
               {t('membership.payPerScan')}
             </Text>
 
-            {/* Credit Pack 1 (40 Scans) */}
+            {/* Credit Pack 1 (20 Scans · ฿990) */}
             <View style={[styles.creditPackCard, { overflow: 'visible', borderColor: 'rgba(236, 200, 122, 0.15)', borderWidth: 1 }]}>
               <LinearGradient
                 colors={['rgba(26, 20, 16, 0.85)', 'rgba(15, 12, 10, 0.92)']}
@@ -345,13 +490,13 @@ export default function MembershipScreen({ navigation }: any) {
               </View>
               <Pressable
                 style={({ pressed }) => [styles.creditActionBtn, pressed && { opacity: 0.8 }]}
-                onPress={() => Alert.alert(t('membership.purchaseSuccess'), t('membership.creditAdded', { count: 40 }))}
+                onPress={() => Alert.alert(t('membership.purchaseSuccess'), t('membership.creditAdded', { count: 20 }))}
               >
                 <Text style={styles.creditActionBtnText}>{t('membership.buyFortyScans')}</Text>
               </Pressable>
             </View>
 
-            {/* Credit Pack 2 (80 Scans) */}
+            {/* Credit Pack 2 (40 Scans · ฿1,890) */}
             <View style={[styles.creditPackCard, styles.creditPackCardBest, { overflow: 'visible', borderColor: '#ECC87A', borderWidth: 1.8 }]}>
               <LinearGradient
                 colors={['#2D2316', '#1E160D', '#0F0B06']}
@@ -375,7 +520,7 @@ export default function MembershipScreen({ navigation }: any) {
                   { backgroundColor: colors.amber, borderColor: colors.amber },
                   pressed && { opacity: 0.8 }
                 ]}
-                onPress={() => Alert.alert(t('membership.purchaseSuccess'), t('membership.creditAdded', { count: 80 }))}
+                onPress={() => Alert.alert(t('membership.purchaseSuccess'), t('membership.creditAdded', { count: 40 }))}
               >
                 <LinearGradient
                   colors={['#ECC87A', '#C59A45', '#9A7326']}

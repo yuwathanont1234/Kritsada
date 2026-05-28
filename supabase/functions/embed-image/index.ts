@@ -13,6 +13,13 @@ serve(async (req) => {
     return new Response('ok', { headers: corsHeaders })
   }
 
+  // Edge-wide budget — keeps total wallclock under Supabase's 60s
+  // hard cap with headroom for response serialization. If we approach
+  // this we bail out with a clean 504 rather than letting the platform
+  // kill the function (which surfaces as a generic 503 to the client).
+  const EDGE_BUDGET_MS = 55000
+  const edgeDeadline = Date.now() + EDGE_BUDGET_MS
+
   try {
     const body = await req.json()
     const image = body?.image
@@ -24,6 +31,20 @@ serve(async (req) => {
       return new Response(
         JSON.stringify({ error: "Missing 'image' in request body" }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      )
+    }
+
+    // Payload size cap — base64 strings above ~8MB would OOM the Deno
+    // isolate without warning. A 384×384 JPEG @ 0.85 quality is ~50KB
+    // (~67KB base64). Anything beyond 5MB base64 (~3.7MB binary) is
+    // suspicious and almost certainly an unscaled photo from the
+    // gallery. Reject early instead of crashing the worker.
+    const MAX_BASE64_BYTES = 5 * 1024 * 1024
+    if (imgLen > MAX_BASE64_BYTES) {
+      console.warn(`[embed-image:${reqId}] REJECT: payload too large (${(imgLen / 1024 / 1024).toFixed(1)}MB > ${MAX_BASE64_BYTES / 1024 / 1024}MB)`)
+      return new Response(
+        JSON.stringify({ error: `Image payload too large (${(imgLen / 1024 / 1024).toFixed(1)}MB). Resize to ≤${MAX_BASE64_BYTES / 1024 / 1024}MB base64 before sending.` }),
+        { status: 413, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       )
     }
 
@@ -40,19 +61,37 @@ serve(async (req) => {
     const version = Deno.env.get("REPLICATE_EMBED_MODEL") || "1dcb6b130ac6ae0574282178705d0e219526ac6d9276c93eda065dfaacae772f"
     console.log(`[embed-image:${reqId}] model version=${version.slice(0, 12)}...`)
 
+    // Replicate POST — bounded by edge budget. AbortSignal.timeout
+    // computes the remaining budget so each fetch can't drag past the
+    // 60s edge cap. `Prefer: wait` makes Replicate return inline once
+    // the prediction succeeds (saves one round-trip on warm path).
     const tPost = Date.now()
-    const response = await fetch("https://api.replicate.com/v1/predictions", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${token}`,
-        "Content-Type": "application/json",
-        Prefer: "wait",
-      },
-      body: JSON.stringify({
-        version,
-        input: { image, inputs: image },
-      }),
-    })
+    let response: Response
+    try {
+      const postBudget = Math.max(1000, edgeDeadline - Date.now())
+      response = await fetch("https://api.replicate.com/v1/predictions", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+          Prefer: "wait",
+        },
+        body: JSON.stringify({
+          version,
+          input: { image, inputs: image },
+        }),
+        signal: AbortSignal.timeout(postBudget),
+      })
+    } catch (e: any) {
+      if (e?.name === 'TimeoutError' || e?.name === 'AbortError') {
+        console.warn(`[embed-image:${reqId}] Replicate POST aborted by edge budget`)
+        return new Response(
+          JSON.stringify({ error: 'Embedding upstream timed out — Replicate cold-start likely. Retry in 30s.', timeout: true }),
+          { status: 504, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        )
+      }
+      throw e
+    }
     console.log(`[embed-image:${reqId}] Replicate POST status=${response.status} in ${Date.now() - tPost}ms`)
 
     if (!response.ok) {
@@ -67,21 +106,52 @@ serve(async (req) => {
     let prediction = await response.json()
     console.log(`[embed-image:${reqId}] initial prediction: id=${prediction.id?.slice(0, 8)} status=${prediction.status}`)
 
-    // Poll until succeeded
+    // Poll until succeeded — bounded by the edge budget rather than a
+    // fixed poll count. Previously: maxPolls=90 × 800ms = 72s which
+    // EXCEEDS the 60s Supabase edge timeout, so a cold-start always
+    // returned 500 instead of a clean 504 (the platform killed the
+    // function mid-poll). Now we stop polling when we have < 1s of
+    // edge budget left, leaving room to emit a meaningful timeout
+    // response that the client can distinguish from a hard failure.
     let polls = 0
-    const maxPolls = 90
     while (
-      (prediction.status === "starting" || prediction.status === "processing") &&
-      polls < maxPolls
+      (prediction.status === "starting" || prediction.status === "processing")
     ) {
+      const remaining = edgeDeadline - Date.now()
+      if (remaining < 1500) {
+        console.warn(`[embed-image:${reqId}] poll budget exhausted (${remaining}ms left, ${polls} polls done) — bailing with cold-start signal`)
+        return new Response(
+          JSON.stringify({
+            error: `Embedding still ${prediction.status} after ${polls} polls. Replicate cold-start — retry in 30s.`,
+            status: prediction.status,
+            timeout: true,
+          }),
+          { status: 504, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        )
+      }
       polls += 1
       await new Promise((r) => setTimeout(r, 800))
-      const pollRes = await fetch(
-        `https://api.replicate.com/v1/predictions/${prediction.id}`,
-        { headers: { Authorization: `Bearer ${token}` } }
-      )
-      prediction = await pollRes.json()
-      console.log(`[embed-image:${reqId}] poll #${polls}/${maxPolls}: status=${prediction.status}`)
+      try {
+        const pollBudget = Math.max(2000, edgeDeadline - Date.now())
+        const pollRes = await fetch(
+          `https://api.replicate.com/v1/predictions/${prediction.id}`,
+          {
+            headers: { Authorization: `Bearer ${token}` },
+            signal: AbortSignal.timeout(pollBudget),
+          }
+        )
+        prediction = await pollRes.json()
+      } catch (e: any) {
+        if (e?.name === 'TimeoutError' || e?.name === 'AbortError') {
+          console.warn(`[embed-image:${reqId}] poll #${polls} aborted by budget`)
+          return new Response(
+            JSON.stringify({ error: 'Embedding poll timed out — Replicate slow to respond. Retry in 30s.', timeout: true }),
+            { status: 504, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          )
+        }
+        throw e
+      }
+      console.log(`[embed-image:${reqId}] poll #${polls}: status=${prediction.status} (budget left ${edgeDeadline - Date.now()}ms)`)
     }
 
     if (prediction.status !== "succeeded") {

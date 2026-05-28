@@ -134,8 +134,23 @@ function denseForward(
   return out;
 }
 
-function relu(x: Float32Array): Float32Array {
-  for (let i = 0; i < x.length; i++) if (x[i] < 0) x[i] = 0;
+// Tanh-approximation of GELU. This MUST match the activation used during
+// training (scripts/train_probe.py uses nn.GELU()) and during DB reproject
+// (scripts/reproject_image_embeddings.py uses the same approximation).
+// Previously this file applied ReLU, which silently degraded accuracy on
+// every probe because the model's middle-layer biases were learned to
+// shift the input distribution into GELU's nonlinear region — applying
+// ReLU at inference clipped the negative tail entirely (~half the
+// hidden-layer signal in expectation). Fixing this is part of probe v4
+// rollout: train (GELU) + reproject (GELU) + mobile (GELU now) all in sync.
+function gelu(x: Float32Array): Float32Array {
+  // GELU(x) ≈ 0.5 * x * (1 + tanh(√(2/π) * (x + 0.044715 * x³)))
+  const c = Math.sqrt(2 / Math.PI);
+  for (let i = 0; i < x.length; i++) {
+    const v = x[i];
+    const inner = c * (v + 0.044715 * v * v * v);
+    x[i] = 0.5 * v * (1 + Math.tanh(inner));
+  }
   return x;
 }
 
@@ -164,7 +179,7 @@ export async function applyLinearProbe(
     w.hiddenDim,
     w.inputDim
   );
-  h = relu(h);
+  h = gelu(h);
   const out = denseForward(
     h,
     w.layer2Weight,

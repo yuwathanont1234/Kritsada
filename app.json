@@ -17,12 +17,7 @@
       "bundleIdentifier": "com.kritsada.luxuryauthenticator",
       "infoPlist": {
         "NSCameraUsageDescription": "This app requires camera access to take high-resolution photos of luxury watches for AI authenticity checks.",
-        "NSPhotoLibraryUsageDescription": "This app requires photo library access to upload watch photos for scanning.",
-        "NSMicrophoneUsageDescription": "Required to ask questions to the AI watchmaker assistant using voice commands.",
-        "NSSpeechRecognitionUsageDescription": "Converts your voice commands into text queries for the AI watchmaker assistant.",
-        "UIBackgroundModes": [
-          "audio"
-        ]
+        "NSPhotoLibraryUsageDescription": "This app requires photo library access to upload watch photos for scanning."
       }
     },
     "android": {
@@ -35,9 +30,11 @@
       "predictiveBackGestureEnabled": false,
       "permissions": [
         "android.permission.CAMERA",
-        "android.permission.READ_EXTERNAL_STORAGE",
-        "android.permission.FOREGROUND_SERVICE",
-        "android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK"
+        "android.permission.READ_EXTERNAL_STORAGE"
+      ],
+      "blockedPermissions": [
+        "android.permission.RECORD_AUDIO",
+        "android.permission.MODIFY_AUDIO_SETTINGS"
       ]
     },
     "web": {
@@ -51,21 +48,39 @@
           "recordAudioAndroid": false
         }
       ],
-      "expo-audio",
+      [
+        "expo-audio",
+        {
+          "microphonePermission": false
+        }
+      ],
       "expo-font",
       "expo-asset",
-      "expo-speech-recognition",
-      "./plugins/withTabletSupport.js"
+      "./plugins/withTabletSupport.js",
+      [
+        "@sentry/react-native",
+        {
+          "url": "https://sentry.io/",
+          "organization": "your-org-slug",
+          "project": "luxury-authenticator"
+        }
+      ],
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/adaptive-icon.png",
+          "color": "#D4B98C",
+          "defaultChannel": "default"
+        }
+      ]
     ],
     "extra": {
       "appName": "Luxury Authenticator",
       "eas": {
-        "projectId": "placeholder-eas-project-id"
+        "projectId": "a694d76a-4616-41b8-a109-a3ab58f666cd"
       }
     },
     "runtimeVersion": "1.0.0",
-    "updates": {
-      "url": "https://u.expo.dev/placeholder-eas-project-id"
-    }
+    "owner": "yuwathanont"
   }
 }

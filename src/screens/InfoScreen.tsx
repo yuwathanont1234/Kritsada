@@ -5,11 +5,17 @@ import {
   Text,
   Pressable,
   StyleSheet,
+  Linking,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { spacing } from '../lib/theme';
+import { spacing, colors } from '../lib/theme';
 import { useLanguage } from '../lib/localization';
 import { styles } from './AppStyles';
+
+// Hosted legal pages (GitHub Pages, free + always-updated).
+// App Store / Google Play submission requires these URLs to be reachable.
+const PRIVACY_URL = 'https://yuwathanont1234.github.io/Kritsada/legal/privacy.html';
+const TERMS_URL = 'https://yuwathanont1234.github.io/Kritsada/legal/terms.html';
 
 export default function InfoScreen({ route, navigation }: any) {
   const { t, lang } = useLanguage();
@@ -158,6 +164,45 @@ export default function InfoScreen({ route, navigation }: any) {
       </Text>
       <ScrollView style={{ flex: 1, marginVertical: spacing.md }} showsVerticalScrollIndicator={false}>
         {renderContent()}
+
+        {/* Trademark disclaimer — required by App Store guideline 5.2.4 when */}
+        {/* using third-party brand names descriptively in marketing/UI surfaces. */}
+        {(kind === 'privacy' || kind === 'terms') && (
+          <View style={[styles.infoContentContainer, { marginTop: spacing.lg, borderTopWidth: 1, borderTopColor: 'rgba(236, 200, 122, 0.15)', paddingTop: spacing.md }]}>
+            <Text style={[styles.infoSectionHeader, { color: colors.amber }]}>
+              {lang === 'th' ? 'ข้อสงวนเครื่องหมายการค้า' : 'Trademark Disclaimer'}
+            </Text>
+            <Text style={[styles.infoBodyText, { fontSize: 13, color: colors.textMuted }]}>
+              {lang === 'th'
+                ? 'Luxury Authenticator เป็นเครื่องมือวินิจฉัย AI อิสระ ไม่ได้สังกัด ไม่ได้รับการแต่งตั้ง และไม่มีความสัมพันธ์ทางการค้ากับผู้ผลิตนาฬิกาหรือตัวแทนจำหน่ายอย่างเป็นทางการของแบรนด์ใดๆ เครื่องหมายการค้า โลโก้ และชื่อรุ่นทั้งหมด (รวมถึง Rolex, Patek Philippe, Audemars Piguet, Omega, Cartier, Tudor และอื่นๆ) เป็นทรัพย์สินของเจ้าของที่เกี่ยวข้อง การอ้างอิงในแอปเป็นการใช้เชิงพรรณนาเพื่อระบุรุ่นนาฬิกาเท่านั้น'
+                : 'Luxury Authenticator is an independent AI diagnostic tool, not affiliated with, authorized by, or endorsed by any watch manufacturer or authorized dealer. All trademarks, logos, and model names referenced (including but not limited to Rolex, Patek Philippe, Audemars Piguet, Omega, Cartier, Tudor and others) are the property of their respective owners. Brand references in the App are descriptive only — used solely to identify the watches users wish to verify.'}
+            </Text>
+          </View>
+        )}
+
+        {/* External link to authoritative hosted policy */}
+        {(kind === 'privacy' || kind === 'terms') && (
+          <Pressable
+            onPress={() => Linking.openURL(kind === 'privacy' ? PRIVACY_URL : TERMS_URL).catch(() => {})}
+            style={{
+              marginTop: spacing.md,
+              padding: spacing.md,
+              backgroundColor: 'rgba(236, 200, 122, 0.08)',
+              borderRadius: 8,
+              borderWidth: 1,
+              borderColor: 'rgba(236, 200, 122, 0.3)',
+            }}
+          >
+            <Text style={{ color: colors.amber, fontSize: 13, textAlign: 'center', fontWeight: '600' }}>
+              {lang === 'th'
+                ? `📖 อ่านฉบับเต็ม (เปิดในเบราว์เซอร์) →`
+                : `📖 Read full version (opens in browser) →`}
+            </Text>
+            <Text style={{ color: colors.textMuted, fontSize: 11, textAlign: 'center', marginTop: 4 }}>
+              {kind === 'privacy' ? PRIVACY_URL : TERMS_URL}
+            </Text>
+          </Pressable>
+        )}
       </ScrollView>
       <Pressable style={styles.stubCloseBtn} onPress={() => navigation.goBack()}>
         <Text style={styles.stubCloseBtnText}>{lang === 'th' ? 'ย้อนกลับ' : 'RETURN'}</Text>

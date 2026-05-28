@@ -18,6 +18,7 @@ import { Feather } from '@expo/vector-icons';
 import { colors, shadow } from '../lib/theme';
 import { loginMock } from '../lib/auth';
 import { useLanguage } from '../lib/localization';
+import { getUserProfile } from '../lib/userProfile';
 import { styles, screenW, screenH } from './AppStyles';
 
 export default function LoginScreen({ navigation }: any) {
@@ -59,7 +60,17 @@ export default function LoginScreen({ navigation }: any) {
     setLoading(true);
     try {
       await loginMock(targetEmail);
-      navigation.replace('Main');
+      // Route to Onboarding for first-time users (anonymous cohort hasn't
+      // completed the role/brand quiz). Returning users skip straight to
+      // Main. The Onboarding screen itself is also skippable, so worst
+      // case we add one screen swipe — acceptable for the segmentation
+      // data we collect (drives paywall personalization in Phase 2).
+      const profile = await getUserProfile();
+      if (!profile.onboardingDone) {
+        navigation.replace('Onboarding');
+      } else {
+        navigation.replace('Main');
+      }
     } catch (e) {
       Alert.alert(
         lang === 'th' ? 'การเข้าถึงถูกปฏิเสธ' : 'Access Denied',
@@ -150,32 +161,37 @@ export default function LoginScreen({ navigation }: any) {
             </Pressable>
           </View>
 
-          <Text style={styles.orText}>
-            {lang === 'th' ? '— หรือเลือกโปรไฟล์ทดสอบระบบ Sandbox —' : '— Or choose a sandbox testing profile —'}
-          </Text>
+          {/* Sandbox testing profiles — DEV builds only. Apple rejects apps
+              that ship test fixtures visible to end users. */}
+          {__DEV__ && (
+            <>
+              <Text style={styles.orText}>
+                {lang === 'th' ? '— หรือเลือกโปรไฟล์ทดสอบระบบ Sandbox —' : '— Or choose a sandbox testing profile —'}
+              </Text>
 
-          {/* Preset cards styled with gold borders */}
-          <View style={styles.presetGrid}>
-            <Pressable style={[styles.presetCard, { overflow: 'hidden', borderColor: 'rgba(236, 200, 122, 0.2)' }]} onPress={() => handleLogin('vip@patek.com')}>
-              <LinearGradient
-                colors={['rgba(30, 24, 20, 0.75)', 'rgba(18, 14, 12, 0.9)']}
-                style={StyleSheet.absoluteFillObject}
-              />
-              <Text style={styles.presetEmoji}>👑</Text>
-              <Text style={styles.presetName}>Patek VIP</Text>
-              <Text style={styles.presetEmail}>vip@patek.com</Text>
-            </Pressable>
+              <View style={styles.presetGrid}>
+                <Pressable style={[styles.presetCard, { overflow: 'hidden', borderColor: 'rgba(236, 200, 122, 0.2)' }]} onPress={() => handleLogin('vip@patek.com')}>
+                  <LinearGradient
+                    colors={['rgba(30, 24, 20, 0.75)', 'rgba(18, 14, 12, 0.9)']}
+                    style={StyleSheet.absoluteFillObject}
+                  />
+                  <Text style={styles.presetEmoji}>👑</Text>
+                  <Text style={styles.presetName}>Patek VIP</Text>
+                  <Text style={styles.presetEmail}>vip@patek.com</Text>
+                </Pressable>
 
-            <Pressable style={[styles.presetCard, { overflow: 'hidden', borderColor: 'rgba(236, 200, 122, 0.2)' }]} onPress={() => handleLogin('collector@rolex.com')}>
-              <LinearGradient
-                colors={['rgba(30, 24, 20, 0.75)', 'rgba(18, 14, 12, 0.9)']}
-                style={StyleSheet.absoluteFillObject}
-              />
-              <Text style={styles.presetEmoji}>⌚</Text>
-              <Text style={styles.presetName}>Rolex Collector</Text>
-              <Text style={styles.presetEmail}>collector@rolex.com</Text>
-            </Pressable>
-          </View>
+                <Pressable style={[styles.presetCard, { overflow: 'hidden', borderColor: 'rgba(236, 200, 122, 0.2)' }]} onPress={() => handleLogin('collector@rolex.com')}>
+                  <LinearGradient
+                    colors={['rgba(30, 24, 20, 0.75)', 'rgba(18, 14, 12, 0.9)']}
+                    style={StyleSheet.absoluteFillObject}
+                  />
+                  <Text style={styles.presetEmoji}>⌚</Text>
+                  <Text style={styles.presetName}>Rolex Collector</Text>
+                  <Text style={styles.presetEmail}>collector@rolex.com</Text>
+                </Pressable>
+              </View>
+            </>
+          )}
         </SafeAreaView>
       </ScrollView>
     </View>

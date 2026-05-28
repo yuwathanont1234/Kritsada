@@ -105,74 +105,168 @@ export async function exportWatchPDF({
     const caliber = result.movementFamily || 'CALIBRE 1887';
     const probability = result.authenticityProbability ?? 85;
 
-    let verdictTitleEn = 'Genuine Verified';
-    let verdictPillTextEn = 'PASS';
+    // Bilingual helper — picks Thai when the app is in TH mode,
+    // English otherwise. Used throughout the report so the entire
+    // document (not just the share-sheet title) localizes.
+    const isTh = lang === 'th';
+    const tt = (en: string, th: string): string => (isTh ? th : en);
+
+    // ── Verdict status (top-line conclusion shown below the gauge)
+    let verdictTitle = tt('Genuine Verified', 'ยืนยันของแท้');
+    let verdictPillText = tt('PASS', 'ผ่าน');
     let verdictPillColor = '#2ECC71';
     let verdictPillBg = 'rgba(46, 204, 113, 0.1)';
 
     if (authColor === 'red') {
-      verdictTitleEn = 'Reproduction Detected';
-      verdictPillTextEn = 'REPLICA';
+      verdictTitle = tt('Reproduction Detected', 'ตรวจพบของลอกเลียน');
+      verdictPillText = tt('REPLICA', 'ปลอม');
       verdictPillColor = '#E74C3C';
       verdictPillBg = 'rgba(231, 76, 60, 0.1)';
     } else if (authColor === 'yellow') {
-      verdictTitleEn = 'Inconclusive Analysis';
-      verdictPillTextEn = 'UNCERTAIN';
+      verdictTitle = tt('Inconclusive Analysis', 'ผลวิเคราะห์ไม่ชัดเจน');
+      verdictPillText = tt('UNCERTAIN', 'ไม่แน่ใจ');
       verdictPillColor = '#F1C40F';
       verdictPillBg = 'rgba(241, 196, 15, 0.1)';
     }
 
-    // Dynamic Checklist Cards representing active RAG AI check-markers (English Only)
-    // Box 1: Dial markings
-    const b1Title = '1. Dial Markings Alignment';
-    const b1Pill = authColor === 'green' ? 'Normal 100%' : authColor === 'red' ? 'Failed 72%' : 'Uncertain 85%';
+    // ── Condition & Authenticity Index — qualifier band derived
+    //    from the same probability score that drives the gauge.
+    //    Mapping mirrors auction-house condition grading vocabulary
+    //    (Excellent / Very Good / Good / Acceptable / Critical) so
+    //    collectors read it the same way they read a Phillips lot
+    //    note. Red verdicts always force Critical regardless of %.
+    let conditionLabel = tt('Excellent', 'ดีเยี่ยม');
+    if (authColor === 'red') {
+      conditionLabel = tt('Critical', 'วิกฤต');
+    } else if (authColor === 'yellow') {
+      conditionLabel = tt('Inconclusive', 'ไม่ชัดเจน');
+    } else if (probability >= 95) {
+      conditionLabel = tt('Exceptional', 'ยอดเยี่ยมเป็นพิเศษ');
+    } else if (probability >= 90) {
+      conditionLabel = tt('Excellent', 'ดีเยี่ยม');
+    } else if (probability >= 80) {
+      conditionLabel = tt('Very Good', 'ดีมาก');
+    } else if (probability >= 70) {
+      conditionLabel = tt('Good', 'ดี');
+    } else if (probability >= 60) {
+      conditionLabel = tt('Acceptable', 'พอใช้');
+    } else {
+      conditionLabel = tt('Critical', 'วิกฤต');
+    }
+
+    // ── Reusable pill phrases (Thai / English) for the 6 metric
+    //    cards below — kept here so we don't repeat the ternary
+    //    six times in the original. Each card picks one of three
+    //    severity labels depending on authColor.
+    const pillNormal = (pct: number) => tt(`Normal ${pct}%`, `ปกติ ${pct}%`);
+    const pillFailed = (pct: number) => tt(`Failed ${pct}%`, `ไม่ผ่าน ${pct}%`);
+    const pillDeviant = (pct: number) => tt(`Deviant ${pct}%`, `ผิดปกติ ${pct}%`);
+    const pillShallow = (pct: number) => tt(`Shallow ${pct}%`, `ตื้น ${pct}%`);
+    const pillWarning = (pct: number) => tt(`Warning ${pct}%`, `เตือน ${pct}%`);
+    const pillUncertain = (pct: number) => tt(`Uncertain ${pct}%`, `ไม่แน่ใจ ${pct}%`);
+
+    // ── Diagnostic Checklist Cards — bilingual copy.
+    //    Each card has: title, pill label (Normal / Failed / etc.),
+    //    pill color tokens, and two short observation lines that
+    //    flip based on whether the verdict is green vs red/yellow.
+    //    Box 1 — Dial Markings
+    const b1Title = tt('1. Dial Markings Alignment', '1. ตำแหน่งเครื่องหมายหน้าปัด');
+    const b1Pill = authColor === 'green' ? pillNormal(100) : authColor === 'red' ? pillFailed(72) : pillUncertain(85);
     const b1PillColor = authColor === 'green' ? '#2ECC71' : authColor === 'red' ? '#E74C3C' : '#F1C40F';
     const b1PillBg = authColor === 'green' ? 'rgba(46, 204, 113, 0.1)' : authColor === 'red' ? 'rgba(231, 76, 60, 0.1)' : 'rgba(241, 196, 15, 0.1)';
-    const b1Text1 = authColor === 'green' ? 'Markers and dial centered' : 'Dial index offset mismatch';
-    const b1Text2 = authColor === 'green' ? 'Crown position at 12 o\'clock aligned' : 'Crown logo alignment deviation';
+    const b1Text1 = authColor === 'green'
+      ? tt('Markers and dial centered', 'ตัวชี้และหน้าปัดอยู่กึ่งกลาง')
+      : tt('Dial index offset mismatch', 'ตัวชี้บนหน้าปัดเหลื่อมไม่ตรง');
+    const b1Text2 = authColor === 'green'
+      ? tt('Crown position at 12 o\'clock aligned', 'ตำแหน่งโลโก้ที่ 12 นาฬิกาตรงแนว')
+      : tt('Crown logo alignment deviation', 'ตำแหน่งโลโก้เบี่ยงเบนจากแนว');
 
-    // Box 2: Text printing
-    const b2Title = '2. Text Printing Accuracy';
-    const b2Pill = authColor === 'green' ? 'Normal 100%' : authColor === 'red' ? 'Deviant 65%' : 'Uncertain 88%';
+    // Box 2 — Text Printing
+    const b2Title = tt('2. Text Printing Accuracy', '2. ความแม่นยำของการพิมพ์ตัวอักษร');
+    const b2Pill = authColor === 'green' ? pillNormal(100) : authColor === 'red' ? pillDeviant(65) : pillUncertain(88);
     const b2PillColor = authColor === 'green' ? '#2ECC71' : authColor === 'red' ? '#E74C3C' : '#F1C40F';
     const b2PillBg = authColor === 'green' ? 'rgba(46, 204, 113, 0.1)' : authColor === 'red' ? 'rgba(231, 76, 60, 0.1)' : 'rgba(241, 196, 15, 0.1)';
-    const b2Text1 = authColor === 'green' ? 'Sharp printing, no color bleeding' : 'Fuzzy letter borders & ink bleed';
-    const b2Text2 = authColor === 'green' ? 'Font and kerning spacing normal' : 'Kerning spacing deviation';
+    const b2Text1 = authColor === 'green'
+      ? tt('Sharp printing, no color bleeding', 'ตัวอักษรพิมพ์คมชัด ไม่มีสีเลอะ')
+      : tt('Fuzzy letter borders & ink bleed', 'ขอบตัวอักษรเบลอและมีสีเลอะ');
+    const b2Text2 = authColor === 'green'
+      ? tt('Font and kerning spacing normal', 'ฟอนต์และระยะห่างเป็นปกติ')
+      : tt('Kerning spacing deviation', 'ระยะห่างตัวอักษรผิดปกติ');
 
-    // Box 3: Bezel engraving
-    const b3Title = '3. Bezel Engraving Depth';
-    const b3Pill = authColor === 'green' ? 'Normal 99%' : authColor === 'red' ? 'Shallow 58%' : 'Uncertain 90%';
+    // Box 3 — Bezel Engraving
+    const b3Title = tt('3. Bezel Engraving Depth', '3. ความลึกของการแกะสลักขอบ');
+    const b3Pill = authColor === 'green' ? pillNormal(99) : authColor === 'red' ? pillShallow(58) : pillUncertain(90);
     const b3PillColor = authColor === 'green' ? '#2ECC71' : authColor === 'red' ? '#E74C3C' : '#F1C40F';
     const b3PillBg = authColor === 'green' ? 'rgba(46, 204, 113, 0.1)' : authColor === 'red' ? 'rgba(231, 76, 60, 0.1)' : 'rgba(241, 196, 15, 0.1)';
-    const b3Text1 = authColor === 'green' ? 'Tachymeter engraving depth matches standards' : 'Extremely shallow letter engraving';
-    const b3Text2 = authColor === 'green' ? 'Checked gold/platinum coating substance' : 'Metallic gloss & plating variance';
+    const b3Text1 = authColor === 'green'
+      ? tt('Tachymeter engraving depth matches standards', 'ความลึกของการแกะสลักได้มาตรฐาน')
+      : tt('Extremely shallow letter engraving', 'การแกะสลักตัวอักษรตื้นเกินไป');
+    const b3Text2 = authColor === 'green'
+      ? tt('Checked gold/platinum coating substance', 'ตรวจสอบสารเคลือบทอง/แพลทินัมแล้ว')
+      : tt('Metallic gloss & plating variance', 'ความเงาและการชุบโลหะผิดปกติ');
 
-    // Box 4: Caseback Serial & Engravings
-    const b4Title = '4. Caseback Serial & Engravings';
-    const b4Pill = authColor === 'green' ? 'Normal 100%' : authColor === 'red' ? 'Warning 70%' : 'Uncertain 85%';
+    // Box 4 — Caseback Serial & Engravings
+    const b4Title = tt('4. Caseback Serial & Engravings', '4. ซีเรียลและการแกะสลักฝาหลัง');
+    const b4Pill = authColor === 'green' ? pillNormal(100) : authColor === 'red' ? pillWarning(70) : pillUncertain(85);
     const b4PillColor = authColor === 'green' ? '#2ECC71' : authColor === 'red' ? '#E74C3C' : '#F1C40F';
     const b4PillBg = authColor === 'green' ? 'rgba(46, 204, 113, 0.1)' : authColor === 'red' ? 'rgba(231, 76, 60, 0.1)' : 'rgba(241, 196, 15, 0.1)';
-    const b4Text1 = authColor === 'green' ? 'Deeply stamped caseback serial' : 'Laser etched serial replication';
-    const b4Text2 = authColor === 'green' ? 'Polished thread edges smooth' : 'Coarse brushed metal contours';
+    const b4Text1 = authColor === 'green'
+      ? tt('Deeply stamped caseback serial', 'ซีเรียลฝาหลังประทับลึกชัดเจน')
+      : tt('Laser etched serial replication', 'ซีเรียลแกะด้วยเลเซอร์แบบลอกเลียน');
+    const b4Text2 = authColor === 'green'
+      ? tt('Polished thread edges smooth', 'ขอบเกลียวขัดเรียบเนียน')
+      : tt('Coarse brushed metal contours', 'ขอบโลหะหยาบ ไม่เนียน');
 
-    // Box 5: Lume Consistency
-    const b5Title = '5. Lume Consistency';
-    const b5Pill = authColor === 'green' ? 'Normal 100%' : authColor === 'red' ? 'Deviant 75%' : 'Uncertain 92%';
+    // Box 5 — Lume Consistency
+    const b5Title = tt('5. Lume Consistency', '5. ความสม่ำเสมอของสารเรืองแสง');
+    const b5Pill = authColor === 'green' ? pillNormal(100) : authColor === 'red' ? pillDeviant(75) : pillUncertain(92);
     const b5PillColor = authColor === 'green' ? '#2ECC71' : authColor === 'red' ? '#E74C3C' : '#F1C40F';
     const b5PillBg = authColor === 'green' ? 'rgba(46, 204, 113, 0.1)' : authColor === 'red' ? 'rgba(231, 76, 60, 0.1)' : 'rgba(241, 196, 15, 0.1)';
-    const b5Text1 = authColor === 'green' ? 'Luminous pigment applied evenly' : 'Overflowed granular lume deposits';
-    const b5Text2 = authColor === 'green' ? 'Luminescence brightness visually consistent' : 'Blotchy excitation glow unbalance';
+    const b5Text1 = authColor === 'green'
+      ? tt('Luminous pigment applied evenly', 'เคลือบสารเรืองแสงสม่ำเสมอ')
+      : tt('Overflowed granular lume deposits', 'สารเรืองแสงล้นและเป็นเม็ด');
+    const b5Text2 = authColor === 'green'
+      ? tt('Luminescence brightness visually consistent', 'ความสว่างเรืองแสงสม่ำเสมอทุกตำแหน่ง')
+      : tt('Blotchy excitation glow unbalance', 'การเรืองแสงไม่สม่ำเสมอ มีจุดด่าง');
 
-    // Box 6: Sapphire Crystal & Clarity
-    const b6Title = '6. Sapphire Crystal & Clarity';
-    const b6Pill = authColor === 'green' ? 'Normal 100%' : authColor === 'red' ? 'Warning 80%' : 'Uncertain 87%';
+    // Box 6 — Sapphire Crystal & Clarity
+    const b6Title = tt('6. Sapphire Crystal & Clarity', '6. กระจกแซฟไฟร์และความใส');
+    const b6Pill = authColor === 'green' ? pillNormal(100) : authColor === 'red' ? pillWarning(80) : pillUncertain(87);
     const b6PillColor = authColor === 'green' ? '#2ECC71' : authColor === 'red' ? '#E74C3C' : '#F1C40F';
     const b6PillBg = authColor === 'green' ? 'rgba(46, 204, 113, 0.1)' : authColor === 'red' ? 'rgba(231, 76, 60, 0.1)' : 'rgba(241, 196, 15, 0.1)';
-    const b6Text1 = authColor === 'green' ? 'Anti-reflective coated sapphire scratch-free' : 'Anti-reflective coat color variance';
-    const b6Text2 = authColor === 'green' ? 'Laser etched crown logo size correct at 6 o\'clock' : 'Thick, visible replica laser etching';
+    const b6Text1 = authColor === 'green'
+      ? tt('Anti-reflective coated sapphire scratch-free', 'กระจกแซฟไฟร์เคลือบกันสะท้อน ไม่มีรอย')
+      : tt('Anti-reflective coat color variance', 'สีของชั้นเคลือบกันสะท้อนผิดปกติ');
+    const b6Text2 = authColor === 'green'
+      ? tt('Laser etched crown logo size correct at 6 o\'clock', 'โลโก้สลักเลเซอร์ขนาดถูกต้องที่ 6 นาฬิกา')
+      : tt('Thick, visible replica laser etching', 'ร่องรอยการสลักเลเซอร์หนาเห็นได้ชัด');
 
     // SHA-256 random transaction signature
     const randomSig = `b4f8d2e6c8a071d3f9e4b6c2a1d7f0e39c6b12d5${Math.random().toString(16).substring(2, 10).toUpperCase()}`;
+
+    // ── Gauge tick marks for the Condition & Authenticity Index.
+    //    20 ticks every 18° around a 120-unit SVG canvas. Majors
+    //    sit at the 4 quarter-points (0/25/50/75/100%) — visible
+    //    as longer, brighter strokes — to give the eye reference
+    //    points without crowding the dial. Inspired by the minute
+    //    ring on a Patek Calatrava sector dial.
+    const gaugeArcLen = (2 * Math.PI * 40).toFixed(2); // r=40 → circumference
+    const gaugeDashOffset = (parseFloat(gaugeArcLen) * (1 - probability / 100)).toFixed(2);
+    const gaugeTicks = Array.from({ length: 20 }, (_, i) => {
+      const angleRad = ((i * 18 - 90) * Math.PI) / 180;
+      const isMajor = i % 5 === 0;
+      const innerR = isMajor ? 46 : 50;
+      const outerR = 52;
+      const cos = Math.cos(angleRad);
+      const sin = Math.sin(angleRad);
+      const x1 = (60 + innerR * cos).toFixed(2);
+      const y1 = (60 + innerR * sin).toFixed(2);
+      const x2 = (60 + outerR * cos).toFixed(2);
+      const y2 = (60 + outerR * sin).toFixed(2);
+      const stroke = isMajor ? 'rgba(212,185,140,0.65)' : 'rgba(212,185,140,0.30)';
+      const w = isMajor ? 0.7 : 0.35;
+      return `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="${stroke}" stroke-width="${w}" />`;
+    }).join('');
 
     // Watch images scans
     const dialImg = base64Images[0] || 'https://via.placeholder.com/300';
@@ -188,12 +282,12 @@ export async function exportWatchPDF({
     // pairing used by Sotheby's / Phillips auction catalogues.
     const htmlContent = `
 <!DOCTYPE html>
-<html lang="en">
+<html lang="${isTh ? 'th' : 'en'}">
 <head>
   <meta charset="UTF-8">
-  <title>Authenticity Diagnostic Report</title>
+  <title>${tt('Authenticity Diagnostic Report', 'รายงานการตรวจสอบความแท้')}</title>
   <style>
-    @import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;500;700&family=Inter:wght@300;400;500;600;700;800&family=Playfair+Display:wght@500;600;700;800;900&display=swap');
+    @import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@400;500;600;700;800;900&family=Inter:wght@300;400;500;600;700;800&family=Noto+Sans+Thai:wght@300;400;500;600;700;800&display=swap');
 
     @page {
       size: A4 landscape;
@@ -211,22 +305,57 @@ export async function exportWatchPDF({
       height: 210mm;
       background-color: #0A0805;
       color: #FFFFFF;
-      font-family: 'Inter', sans-serif;
+      font-family: 'Inter', 'Noto Sans Thai', sans-serif;
       padding: 8mm;
       display: flex;
       justify-content: center;
       align-items: center;
     }
 
+    /* ── Thai-mode tracking override.
+       The luxury Latin layout uses wide letter-spacing (2-6 px) on
+       uppercase labels to mimic auction-catalogue typography. Thai
+       script has no uppercase form and gets fragmented at that
+       tracking — vowels detach from consonants and tone marks drift.
+       When the document is in Thai, collapse spacing on those
+       labels to a near-natural value so each syllable reads as one
+       glyph cluster. Latin labels in non-Thai mode keep their wide
+       tracking unchanged. */
+    html[lang="th"] .header-title,
+    html[lang="th"] .header-subtitle,
+    html[lang="th"] .header-logo-sub,
+    html[lang="th"] .header-ref-badge,
+    html[lang="th"] .panel-title,
+    html[lang="th"] .detail-label,
+    html[lang="th"] .verdict-overline,
+    html[lang="th"] .verdict-gauge-qualifier,
+    html[lang="th"] .verdict-status-title,
+    html[lang="th"] .verdict-status-sub,
+    html[lang="th"] .metrics-section-title,
+    html[lang="th"] .metrics-section-subtitle,
+    html[lang="th"] .scan-label-tab,
+    html[lang="th"] .scan-pass-badge,
+    html[lang="th"] .metric-name,
+    html[lang="th"] .metric-badge,
+    html[lang="th"] .metric-item,
+    html[lang="th"] .footer-title {
+      letter-spacing: 0.3px !important;
+    }
+
+    /* Thai title remains bold but at a reasonable tracking */
+    html[lang="th"] .header-title {
+      letter-spacing: 1.5px !important;
+    }
+
     .report-container {
       width: 100%;
       height: 100%;
-      border: 1.5px solid #ECC87A;
+      border: 1.5px solid #D4B98C;
       border-radius: 6px;
       padding: 6mm 7mm;
       background:
-        radial-gradient(ellipse at top left, rgba(236, 200, 122, 0.05) 0%, transparent 60%),
-        radial-gradient(ellipse at bottom right, rgba(236, 200, 122, 0.04) 0%, transparent 60%),
+        radial-gradient(ellipse at top left, rgba(212, 185, 140, 0.05) 0%, transparent 60%),
+        radial-gradient(ellipse at bottom right, rgba(212, 185, 140, 0.04) 0%, transparent 60%),
         linear-gradient(180deg, #131008 0%, #0A0805 100%);
       /* Explicit grid layout with fixed row heights — flex+gap
          was causing the metrics row to overflow and bleed into
@@ -248,7 +377,7 @@ export async function exportWatchPDF({
       position: absolute;
       width: 12mm;
       height: 12mm;
-      border-color: #ECC87A;
+      border-color: #D4B98C;
       border-style: solid;
       border-width: 0;
     }
@@ -272,7 +401,7 @@ export async function exportWatchPDF({
       align-items: center;
       gap: 6mm;
       padding-bottom: 4mm;
-      border-bottom: 1px solid rgba(236, 200, 122, 0.30);
+      border-bottom: 1px solid rgba(212, 185, 140, 0.30);
     }
 
     .header-logo-box {
@@ -286,7 +415,7 @@ export async function exportWatchPDF({
       width: 38px;
       height: 38px;
       border-radius: 50%;
-      border: 1.5px solid #ECC87A;
+      border: 1.5px solid #D4B98C;
       background-color: rgba(18, 14, 10, 0.7);
       object-fit: cover;
       padding: 1px;
@@ -300,28 +429,28 @@ export async function exportWatchPDF({
     }
 
     .header-logo-text {
-      font-family: 'Playfair Display', serif;
+      font-family: 'Cinzel', 'Playfair Display', 'Noto Sans Thai', serif;
       font-weight: 900;
       font-size: 13px;
-      color: #ECC87A;
+      color: #D4B98C;
       letter-spacing: 4px;
     }
 
     .header-logo-sub {
-      font-family: 'Inter', sans-serif;
+      font-family: 'Inter', 'Noto Sans Thai', sans-serif;
       font-weight: 600;
       font-size: 6.5px;
-      color: #8A8278;
+      color: #A0978A;
       letter-spacing: 1.5px;
       text-transform: uppercase;
       margin-top: 2px;
     }
 
     .header-title {
-      font-family: 'Playfair Display', serif;
+      font-family: 'Cinzel', 'Playfair Display', 'Noto Sans Thai', serif;
       font-size: 22px;
       font-weight: 700;
-      color: #F5E9CC;
+      color: #EDE0BD;
       letter-spacing: 6px;
       text-transform: uppercase;
       text-align: center;
@@ -339,7 +468,7 @@ export async function exportWatchPDF({
 
     .header-ref-badge {
       justify-self: end;
-      font-family: 'Inter', sans-serif;
+      font-family: 'Inter', 'Noto Sans Thai', sans-serif;
       font-size: 8.5px;
       color: #B5AFA5;
       letter-spacing: 1px;
@@ -350,7 +479,7 @@ export async function exportWatchPDF({
 
     .header-ref-badge strong {
       display: block;
-      color: #F5E9CC;
+      color: #EDE0BD;
       font-weight: 700;
       letter-spacing: 0.5px;
       text-transform: none;
@@ -370,7 +499,7 @@ export async function exportWatchPDF({
     }
 
     .panel {
-      border: 1px solid rgba(236, 200, 122, 0.22);
+      border: 1px solid rgba(212, 185, 140, 0.22);
       border-radius: 6px;
       background:
         linear-gradient(180deg, rgba(26, 22, 18, 0.55) 0%, rgba(15, 12, 9, 0.55) 100%);
@@ -379,78 +508,128 @@ export async function exportWatchPDF({
     }
 
     .panel-title {
-      font-family: 'Inter', sans-serif;
+      font-family: 'Inter', 'Noto Sans Thai', sans-serif;
       font-size: 8px;
       font-weight: 700;
-      color: #ECC87A;
+      color: #D4B98C;
       letter-spacing: 3px;
       text-transform: uppercase;
       margin-bottom: 3.5mm;
       padding-bottom: 2mm;
-      border-bottom: 1px solid rgba(236, 200, 122, 0.15);
+      border-bottom: 1px solid rgba(212, 185, 140, 0.15);
     }
 
-    /* ── Verdict card ── */
+    /* ── Verdict card · Condition & Authenticity Index gauge ──
+       Replaces the simple progress ring with a layered watch-dial
+       gauge: outer bezel, 20-tick ring (majors at 25/50/75/100),
+       gold gradient arc filling proportionally, recessed center
+       hub, big Cinzel %, italic qualifier band (Excellent / Very
+       Good / Acceptable / Critical) — auction-catalogue feel.
+       ─────────────────────────────────────────────────────── */
     .verdict-card {
       display: flex;
       flex-direction: column;
       justify-content: center;
       align-items: center;
       text-align: center;
-      padding: 4mm;
+      padding: 3mm 2mm;
     }
 
-    .verdict-number {
-      font-family: 'Cormorant Garamond', serif;
-      font-size: 56px;
-      font-weight: 500;
-      color: #ECC87A;
-      line-height: 1;
-      letter-spacing: -2px;
-      margin-bottom: 2mm;
+    .verdict-overline {
+      font-family: 'Inter', 'Noto Sans Thai', sans-serif;
+      font-size: 6.5px;
+      font-weight: 700;
+      color: #D4B98C;
+      letter-spacing: 3.5px;
+      text-transform: uppercase;
+      margin-bottom: 2.5mm;
+      text-align: center;
+      line-height: 1.3;
     }
 
-    .verdict-ring-wrapper {
+    .verdict-gauge-wrapper {
       position: relative;
-      width: 64mm;
-      height: 64mm;
+      width: 58mm;
+      height: 58mm;
       display: flex;
       justify-content: center;
       align-items: center;
-      margin-bottom: 3mm;
+      margin-bottom: 2mm;
     }
 
-    .verdict-ring-svg {
+    .verdict-gauge-svg {
       position: absolute;
       top: 0; left: 0;
       width: 100%;
       height: 100%;
     }
 
-    .verdict-ring-inner {
+    .verdict-gauge-inner {
       text-align: center;
       z-index: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .verdict-gauge-percent {
+      font-family: 'Cinzel', 'Cormorant Garamond', 'Noto Sans Thai', serif;
+      font-size: 46px;
+      font-weight: 600;
+      color: #EDE0BD;
+      line-height: 1;
+      letter-spacing: 0.5px;
+    }
+
+    .verdict-gauge-percent-symbol {
+      font-size: 22px;
+      color: #D4B98C;
+      margin-left: 1px;
+      font-weight: 500;
+    }
+
+    .verdict-gauge-qualifier {
+      font-family: 'Cinzel', 'Cormorant Garamond', 'Noto Sans Thai', serif;
+      font-style: italic;
+      font-size: 10.5px;
+      font-weight: 500;
+      color: #D4B98C;
+      letter-spacing: 2.5px;
+      text-transform: uppercase;
+      margin-top: 1.5mm;
+      line-height: 1;
+    }
+
+    .verdict-divider {
+      width: 32mm;
+      height: 1px;
+      background: linear-gradient(90deg, transparent 0%, rgba(212, 185, 140, 0.45) 50%, transparent 100%);
+      margin: 2mm 0 2.5mm 0;
     }
 
     .verdict-status-title {
-      font-family: 'Playfair Display', serif;
-      font-size: 15px;
+      font-family: 'Cinzel', 'Playfair Display', 'Noto Sans Thai', serif;
+      font-size: 13.5px;
       font-weight: 700;
-      color: #F5E9CC;
-      letter-spacing: 2px;
+      color: #EDE0BD;
+      letter-spacing: 2.5px;
       text-transform: uppercase;
-      margin-top: 1mm;
+      margin-top: 0;
       line-height: 1.2;
+      text-align: center;
     }
 
     .verdict-status-sub {
-      font-size: 7.5px;
-      color: #8A8278;
+      font-family: 'Inter', 'Noto Sans Thai', sans-serif;
+      font-size: 7px;
+      color: #A0978A;
       letter-spacing: 2px;
       text-transform: uppercase;
-      margin-top: 2mm;
-      max-width: 50mm;
+      margin-top: 1.5mm;
+      max-width: 52mm;
       line-height: 1.4;
+      text-align: center;
     }
 
     /* ── Watch Details (key-value spec sheet) ── */
@@ -465,7 +644,7 @@ export async function exportWatchPDF({
       grid-template-columns: 28mm 1fr;
       align-items: baseline;
       padding-bottom: 1.5mm;
-      border-bottom: 1px dotted rgba(236, 200, 122, 0.10);
+      border-bottom: 1px dotted rgba(212, 185, 140, 0.10);
     }
 
     .details-row:last-child {
@@ -476,16 +655,16 @@ export async function exportWatchPDF({
     .detail-label {
       font-size: 7.5px;
       font-weight: 700;
-      color: #8A8278;
+      color: #A0978A;
       letter-spacing: 1.8px;
       text-transform: uppercase;
     }
 
     .detail-value {
-      font-family: 'Playfair Display', serif;
+      font-family: 'Cinzel', 'Playfair Display', 'Noto Sans Thai', serif;
       font-size: 11px;
       font-weight: 600;
-      color: #F5E9CC;
+      color: #EDE0BD;
       letter-spacing: 0.5px;
       line-height: 1.2;
     }
@@ -509,7 +688,7 @@ export async function exportWatchPDF({
       min-height: 70mm;
       border-top-left-radius: 4px;
       border-top-right-radius: 4px;
-      border: 1px solid #ECC87A;
+      border: 1px solid #D4B98C;
       border-bottom: none;
       background-color: #1A130C;
       background-size: cover;
@@ -532,7 +711,7 @@ export async function exportWatchPDF({
 
     .scan-label-tab {
       width: 100%;
-      background: linear-gradient(135deg, #ECC87A 0%, #B58F4A 100%);
+      background: linear-gradient(135deg, #D4B98C 0%, #B89B6D 100%);
       color: #0A0805;
       font-size: 8.5px;
       font-weight: 800;
@@ -541,7 +720,7 @@ export async function exportWatchPDF({
       padding: 4px 0;
       border-bottom-left-radius: 4px;
       border-bottom-right-radius: 4px;
-      border: 1px solid #ECC87A;
+      border: 1px solid #D4B98C;
       border-top: none;
       text-transform: uppercase;
     }
@@ -561,24 +740,24 @@ export async function exportWatchPDF({
     }
 
     .metrics-section-title {
-      font-family: 'Inter', sans-serif;
+      font-family: 'Inter', 'Noto Sans Thai', sans-serif;
       font-size: 8px;
       font-weight: 700;
-      color: #ECC87A;
+      color: #D4B98C;
       letter-spacing: 3px;
       text-transform: uppercase;
       padding-bottom: 2mm;
-      border-bottom: 1px solid rgba(236, 200, 122, 0.30);
+      border-bottom: 1px solid rgba(212, 185, 140, 0.30);
       display: flex;
       align-items: center;
       justify-content: space-between;
     }
 
     .metrics-section-subtitle {
-      font-family: 'Inter', sans-serif;
+      font-family: 'Inter', 'Noto Sans Thai', sans-serif;
       font-size: 7px;
       font-weight: 400;
-      color: #8A8278;
+      color: #A0978A;
       letter-spacing: 1.2px;
       text-transform: none;
     }
@@ -593,7 +772,7 @@ export async function exportWatchPDF({
     .metric-card {
       background:
         linear-gradient(180deg, rgba(26, 22, 18, 0.55) 0%, rgba(15, 12, 9, 0.55) 100%);
-      border: 1px solid rgba(236, 200, 122, 0.18);
+      border: 1px solid rgba(212, 185, 140, 0.18);
       border-radius: 6px;
       padding: 3mm 3mm;
       display: flex;
@@ -602,19 +781,19 @@ export async function exportWatchPDF({
     }
 
     .metric-card-number {
-      font-family: 'Cormorant Garamond', serif;
+      font-family: 'Cinzel', 'Cormorant Garamond', 'Noto Sans Thai', serif;
       font-size: 17px;
       font-weight: 500;
-      color: rgba(236, 200, 122, 0.55);
+      color: rgba(212, 185, 140, 0.55);
       line-height: 1;
       margin-bottom: 1mm;
     }
 
     .metric-name {
-      font-family: 'Playfair Display', serif;
+      font-family: 'Cinzel', 'Playfair Display', 'Noto Sans Thai', serif;
       font-size: 10px;
       font-weight: 700;
-      color: #F5E9CC;
+      color: #EDE0BD;
       letter-spacing: 0.2px;
       line-height: 1.15;
       margin-bottom: 1.5mm;
@@ -661,7 +840,7 @@ export async function exportWatchPDF({
        container clips any long-text bleed into the metrics row.
        ────────────────────────────────────────────────────── */
     .footer {
-      border-top: 1px solid rgba(236, 200, 122, 0.30);
+      border-top: 1px solid rgba(212, 185, 140, 0.30);
       padding-top: 2.5mm;
       display: grid;
       grid-template-columns: 1.8fr 1.4fr auto;
@@ -681,7 +860,7 @@ export async function exportWatchPDF({
     .footer-title {
       font-size: 6.5px;
       font-weight: 700;
-      color: #ECC87A;
+      color: #D4B98C;
       letter-spacing: 2px;
       text-transform: uppercase;
     }
@@ -737,15 +916,15 @@ export async function exportWatchPDF({
           : ''}
         <div class="header-logo-text-wrap">
           <span class="header-logo-text">LWA</span>
-          <span class="header-logo-sub">Luxury Watch Auth</span>
+          <span class="header-logo-sub">${tt('Luxury Watch Auth', 'ตรวจสอบนาฬิกาหรู')}</span>
         </div>
       </div>
       <div>
-        <h1 class="header-title">Authenticity Diagnostic Report</h1>
-        <div class="header-subtitle">AI Horological Analytics · Forensic-Grade Examination</div>
+        <h1 class="header-title">${tt('Authenticity Diagnostic Report', 'รายงานการตรวจสอบความแท้')}</h1>
+        <div class="header-subtitle">${tt('AI Horological Analytics · Forensic-Grade Examination', 'การวิเคราะห์นาฬิกาด้วย AI · มาตรฐานระดับนิติเวช')}</div>
       </div>
       <div class="header-ref-badge">
-        Report Reference
+        ${tt('Report Reference', 'หมายเลขรายงาน')}
         <strong>${randomSig.substring(0, 12).toUpperCase()}</strong>
       </div>
     </div>
@@ -753,57 +932,81 @@ export async function exportWatchPDF({
     <!-- 2. Top row — Verdict | Watch Details | Scans -->
     <div class="top-row">
 
-      <!-- Verdict ring -->
+      <!-- Verdict · Condition & Authenticity Index gauge -->
       <div class="panel verdict-card">
-        <div class="verdict-ring-wrapper">
-          <svg class="verdict-ring-svg" viewBox="0 0 120 120">
+        <div class="verdict-overline">${tt('Condition &amp; Authenticity Index', 'ดัชนีสภาพและความแท้')}</div>
+
+        <div class="verdict-gauge-wrapper">
+          <svg class="verdict-gauge-svg" viewBox="0 0 120 120">
             <defs>
               <linearGradient id="goldGradient" x1="0%" y1="0%" x2="100%" y2="100%">
-                <stop offset="0%" stop-color="#F5E9CC" />
-                <stop offset="60%" stop-color="#ECC87A" />
-                <stop offset="100%" stop-color="#A37C2F" />
+                <stop offset="0%" stop-color="#EDE0BD" />
+                <stop offset="50%" stop-color="#D4B98C" />
+                <stop offset="100%" stop-color="#8E7345" />
               </linearGradient>
+              <radialGradient id="hubGradient" cx="50%" cy="50%" r="55%">
+                <stop offset="0%" stop-color="#1F1810" />
+                <stop offset="100%" stop-color="#0A0805" />
+              </radialGradient>
             </defs>
-            <circle cx="60" cy="60" r="52" fill="none" stroke="rgba(236, 200, 122, 0.10)" stroke-width="4"></circle>
-            <circle cx="60" cy="60" r="52" fill="none" stroke="url(#goldGradient)" stroke-width="4"
-                    stroke-dasharray="326.73" stroke-dashoffset="${326.73 - (326.73 * probability) / 100}"
-                    stroke-linecap="round" transform="rotate(-90 60 60)"></circle>
+
+            <!-- Outer decorative bezel rings -->
+            <circle cx="60" cy="60" r="58" fill="none" stroke="rgba(212,185,140,0.45)" stroke-width="0.4" />
+            <circle cx="60" cy="60" r="55.5" fill="none" stroke="rgba(212,185,140,0.20)" stroke-width="0.3" />
+
+            <!-- Tick marks (20 ticks, majors at 0/25/50/75/100) -->
+            ${gaugeTicks}
+
+            <!-- Track ring -->
+            <circle cx="60" cy="60" r="40" fill="none" stroke="rgba(212,185,140,0.10)" stroke-width="5" />
+
+            <!-- Progress arc (gold gradient, proportional to index) -->
+            <circle cx="60" cy="60" r="40" fill="none" stroke="url(#goldGradient)" stroke-width="5"
+                    stroke-dasharray="${gaugeArcLen}" stroke-dashoffset="${gaugeDashOffset}"
+                    stroke-linecap="round" transform="rotate(-90 60 60)" />
+
+            <!-- Recessed center hub -->
+            <circle cx="60" cy="60" r="34" fill="url(#hubGradient)" stroke="rgba(212,185,140,0.35)" stroke-width="0.4" />
+            <circle cx="60" cy="60" r="31.5" fill="none" stroke="rgba(212,185,140,0.18)" stroke-width="0.3" />
           </svg>
-          <div class="verdict-ring-inner">
-            <div class="verdict-number">${probability}<span style="font-size: 28px;">%</span></div>
-            <div style="font-size: 7px; color: #8A8278; letter-spacing: 3px; text-transform: uppercase; margin-top: -2mm;">Verdict</div>
+
+          <div class="verdict-gauge-inner">
+            <div class="verdict-gauge-percent">${probability}<span class="verdict-gauge-percent-symbol">%</span></div>
+            <div class="verdict-gauge-qualifier">${conditionLabel}</div>
           </div>
         </div>
-        <div class="verdict-status-title">${verdictTitleEn}</div>
-        <div class="verdict-status-sub">AI Horological Analytics Consensus</div>
+
+        <div class="verdict-divider"></div>
+        <div class="verdict-status-title">${verdictTitle}</div>
+        <div class="verdict-status-sub">${tt('AI Horological Forensic Consensus', 'ฉันทามติจากระบบ AI ระดับนิติเวช')}</div>
       </div>
 
       <!-- Watch Details key-value sheet -->
       <div class="panel">
-        <div class="panel-title">Watch Details</div>
+        <div class="panel-title">${tt('Watch Details', 'รายละเอียดนาฬิกา')}</div>
         <div class="details-list">
           <div class="details-row">
-            <span class="detail-label">Brand</span>
+            <span class="detail-label">${tt('Brand', 'ยี่ห้อ')}</span>
             <span class="detail-value">${brand}</span>
           </div>
           <div class="details-row">
-            <span class="detail-label">Model</span>
+            <span class="detail-label">${tt('Model', 'รุ่น')}</span>
             <span class="detail-value">${name}</span>
           </div>
           <div class="details-row">
-            <span class="detail-label">Reference</span>
+            <span class="detail-label">${tt('Reference', 'รหัสรุ่น')}</span>
             <span class="detail-value">${reference}</span>
           </div>
           <div class="details-row">
-            <span class="detail-label">Serial</span>
+            <span class="detail-label">${tt('Serial', 'ซีเรียล')}</span>
             <span class="detail-value">${serial}</span>
           </div>
           <div class="details-row">
-            <span class="detail-label">Case Material</span>
+            <span class="detail-label">${tt('Case Material', 'วัสดุตัวเรือน')}</span>
             <span class="detail-value">${caseMaterial}</span>
           </div>
           <div class="details-row">
-            <span class="detail-label">Caliber</span>
+            <span class="detail-label">${tt('Caliber', 'กลไก')}</span>
             <span class="detail-value">${caliber}</span>
           </div>
         </div>
@@ -811,19 +1014,19 @@ export async function exportWatchPDF({
 
       <!-- Scan images -->
       <div class="panel">
-        <div class="panel-title">Photographic Evidence</div>
+        <div class="panel-title">${tt('Photographic Evidence', 'หลักฐานภาพถ่าย')}</div>
         <div class="scans-grid">
           <div class="scan-box">
             <div class="scan-image" style="background-image: url('${dialImg}');">
-              <span class="scan-pass-badge" style="background-color: ${verdictPillColor};">${verdictPillTextEn}</span>
+              <span class="scan-pass-badge" style="background-color: ${verdictPillColor};">${verdictPillText}</span>
             </div>
-            <div class="scan-label-tab">Dial Scan</div>
+            <div class="scan-label-tab">${tt('Dial Scan', 'สแกนหน้าปัด')}</div>
           </div>
           <div class="scan-box">
             <div class="scan-image" style="background-image: url('${casebackImg}');">
-              <span class="scan-pass-badge" style="background-color: ${verdictPillColor};">${verdictPillTextEn}</span>
+              <span class="scan-pass-badge" style="background-color: ${verdictPillColor};">${verdictPillText}</span>
             </div>
-            <div class="scan-label-tab">Caseback Scan</div>
+            <div class="scan-label-tab">${tt('Caseback Scan', 'สแกนฝาหลัง')}</div>
           </div>
         </div>
       </div>
@@ -832,17 +1035,17 @@ export async function exportWatchPDF({
     <!-- 3. Diagnostic Metrics — 6 cards in one row -->
     <div class="metrics-section">
       <div class="metrics-section-title">
-        <span>Hallmark Diagnostic Metrics · 6 Inspection Points</span>
-        <span class="metrics-section-subtitle">Numbered cross-reference to AI landmark map</span>
+        <span>${tt('Hallmark Diagnostic Metrics · 6 Inspection Points', 'ตัวชี้วัดเอกลักษณ์ · 6 จุดตรวจสอบ')}</span>
+        <span class="metrics-section-subtitle">${tt('Numbered cross-reference to AI landmark map', 'เลขอ้างอิงตามแผนภาพจุดตรวจสอบของ AI')}</span>
       </div>
       <div class="metrics-grid">
         ${[
-          { n: '01', name: 'Dial Markings', pill: b1Pill, pillColor: b1PillColor, pillBg: b1PillBg, t1: b1Text1, t2: b1Text2 },
-          { n: '02', name: 'Text Printing', pill: b2Pill, pillColor: b2PillColor, pillBg: b2PillBg, t1: b2Text1, t2: b2Text2 },
-          { n: '03', name: 'Bezel Engraving', pill: b3Pill, pillColor: b3PillColor, pillBg: b3PillBg, t1: b3Text1, t2: b3Text2 },
-          { n: '04', name: 'Caseback Serial', pill: b4Pill, pillColor: b4PillColor, pillBg: b4PillBg, t1: b4Text1, t2: b4Text2 },
-          { n: '05', name: 'Lume Application', pill: b5Pill, pillColor: b5PillColor, pillBg: b5PillBg, t1: b5Text1, t2: b5Text2 },
-          { n: '06', name: 'Sapphire Crystal', pill: b6Pill, pillColor: b6PillColor, pillBg: b6PillBg, t1: b6Text1, t2: b6Text2 },
+          { n: '01', name: tt('Dial Markings', 'เครื่องหมายหน้าปัด'), pill: b1Pill, pillColor: b1PillColor, pillBg: b1PillBg, t1: b1Text1, t2: b1Text2 },
+          { n: '02', name: tt('Text Printing', 'การพิมพ์ตัวอักษร'), pill: b2Pill, pillColor: b2PillColor, pillBg: b2PillBg, t1: b2Text1, t2: b2Text2 },
+          { n: '03', name: tt('Bezel Engraving', 'การแกะสลักขอบ'), pill: b3Pill, pillColor: b3PillColor, pillBg: b3PillBg, t1: b3Text1, t2: b3Text2 },
+          { n: '04', name: tt('Caseback Serial', 'ซีเรียลฝาหลัง'), pill: b4Pill, pillColor: b4PillColor, pillBg: b4PillBg, t1: b4Text1, t2: b4Text2 },
+          { n: '05', name: tt('Lume Application', 'สารเรืองแสง'), pill: b5Pill, pillColor: b5PillColor, pillBg: b5PillBg, t1: b5Text1, t2: b5Text2 },
+          { n: '06', name: tt('Sapphire Crystal', 'กระจกแซฟไฟร์'), pill: b6Pill, pillColor: b6PillColor, pillBg: b6PillBg, t1: b6Text1, t2: b6Text2 },
         ].map((m) => `
           <div class="metric-card">
             <div class="metric-card-number">${m.n}</div>
@@ -870,12 +1073,15 @@ export async function exportWatchPDF({
     <!-- 4. Footer — security hash | disclaimer | QR -->
     <div class="footer">
       <div class="footer-cell">
-        <span class="footer-title">Verification Secure · SHA-256</span>
+        <span class="footer-title">${tt('Verification Secure · SHA-256', 'ลายเซ็นยืนยัน · SHA-256')}</span>
         <span class="footer-hash">${randomSig}</span>
       </div>
       <div class="footer-cell">
         <span class="footer-disclaimer">
-          Luxury Authenticator is an independent AI-driven diagnostic tool, not affiliated with any manufacturer. This report reflects machine-vision analysis only — ultimate verification requires physical inspection by an authorized brand boutique or certified independent watchmaker.
+          ${tt(
+            'Luxury Authenticator is an independent AI-driven diagnostic tool, not affiliated with any manufacturer. This report reflects machine-vision analysis only — ultimate verification requires physical inspection by an authorized brand boutique or certified independent watchmaker.',
+            'Luxury Authenticator เป็นเครื่องมือตรวจสอบอัตโนมัติด้วย AI โดยไม่ได้สังกัดผู้ผลิตรายใด รายงานฉบับนี้สะท้อนผลการวิเคราะห์ด้วยระบบ Machine Vision เท่านั้น การยืนยันขั้นสุดท้ายต้องผ่านการตรวจสอบทางกายภาพโดยร้านบูทีคของแบรนด์ที่ได้รับอนุญาต หรือช่างนาฬิกาอิสระที่ได้รับการรับรอง'
+          )}
         </span>
       </div>
       <div class="footer-qr">

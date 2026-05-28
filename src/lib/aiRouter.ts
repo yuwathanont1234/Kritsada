@@ -24,6 +24,7 @@ import {
 } from './visualRag';
 import { logCostEvent, COST_PER_CALL } from './costBreaker';
 import { getDataConsent } from './dataConsent';
+import { scanBreadcrumb, captureScanError } from './sentry';
 
 /**
  * Tier-based AI routing for Luxury Watch Authenticator.
@@ -40,31 +41,47 @@ import { getDataConsent } from './dataConsent';
 const RAG_MIN_SIMILARITY = 0.3;
 const RAG_MIN_GLOBAL_SPREAD = 0.15;
 const RAG_MIN_TOP_MARGIN = 0.05;
-// Raised from 8s → 25s. The 8s budget was originally chosen for a "warm"
-// Replicate endpoint where embedding completes in 1-3s. In practice — even
-// with the keep-warm cron — there are periods when Replicate genuinely
-// cold-starts (e.g. after a GitHub scheduling outage). 8s in that case
-// guaranteed a fallback to image-only identify, which then takes the same
-// 30+ seconds anyway. By extending the timeout we let the embedding
-// actually land, which feeds the visual-RAG candidates into the identify
-// call and dramatically improves accuracy on near-misses (cf. the recurring
-// Panerai/TAG Heuer mid-scan false positives we used to see at 8s).
+// Visual RAG is treated as a "best-effort hint" for Phase 1A identify.
+// History: timeouts were raised 8s → 25s → 35s to wait for Replicate
+// cold starts (30-60s) so the embedding could feed candidates into
+// identify and prevent Pro-grounded retries. Reality: when Replicate
+// is cold, the 35s wait + 60s cold-start + identify = 160s+ scans
+// (live log: 166537ms for a Rolex OP scan).
 //
-// Bumped 25s → 35s after a live Tudor BB Chrono scan timed out at
-// 41869ms (Replicate prewarm took 60857ms — fully cold). Allowing
-// extra runway prevents the "no visual match" → grounded-retry
-// cascade that turned a normal scan into 125s + ฿2.74.
-const RAG_TIMEOUT_MS = 35000;
-// Likewise raised — when Replicate is fully cold the prewarm itself can
-// take 30-60s. Waiting up to 45s avoids the "RAG skipped" path that costs
-// us identification accuracy.
-const PREWARM_WAIT_MS = 45000;
+// Reverted to a tight 10s budget: when Replicate is warm (keep-warm
+// cron working), embed lands in 2-5s and the hint is preserved. When
+// Replicate is cold, we cut our losses at 10s, run identify WITHOUT
+// the RAG hint, and rely on the post-identify embed (Phase 1B, 12s
+// race) to still produce DB validation. Total scan budget drops
+// 166s → ~50-60s on cold paths.
+const RAG_TIMEOUT_MS = 10000;
+// Prewarm wait similarly trimmed. The cron-job.org keep-warm should
+// keep Replicate hot; if it's cold despite that, the prewarm endpoint
+// is broken upstream and we shouldn't extend the user's scan to
+// compensate for an infrastructure issue.
+const PREWARM_WAIT_MS = 8000;
+
+/**
+ * Visual RAG outcome — distinguishes "no candidates because it didn't
+ * run / ran out of time" from "ran fine but rejected on similarity
+ * thresholds". The downstream Pro-retry gate uses this distinction:
+ * if the visual signal genuinely failed to corroborate (rejected), we
+ * should retry; if it never ran (skipped), retry can't help and just
+ * burns ฿2 + 30s.
+ */
+type RagOutcome = {
+  candidates: SimilarWatch[];
+  /** True when embed timed out or errored — no visual signal available. */
+  skipped: boolean;
+  /** True when embed succeeded but candidates failed quality gates. */
+  rejected: boolean;
+};
 
 async function getVisualCandidates(
   frontUri: string,
   backUri?: string | null
-): Promise<SimilarWatch[]> {
-  if (!isVisualRagConfigured()) return [];
+): Promise<RagOutcome> {
+  if (!isVisualRagConfigured()) return { candidates: [], skipped: true, rejected: false };
   const ragT0 = Date.now();
   try {
     const prewarmT0 = Date.now();
@@ -89,34 +106,34 @@ async function getVisualCandidates(
 
     if (globalSpread < RAG_MIN_GLOBAL_SPREAD) {
       console.log(
-        `[aiRouter] Visual RAG: SKIP — global spread ${globalSpread.toFixed(3)} < ${RAG_MIN_GLOBAL_SPREAD}. Falling back to image-only.`
+        `[aiRouter] Visual RAG: REJECTED — global spread ${globalSpread.toFixed(3)} < ${RAG_MIN_GLOBAL_SPREAD}. Falling back to image-only.`
       );
-      return [];
+      return { candidates: [], skipped: false, rejected: true };
     }
     if (topMargin < RAG_MIN_TOP_MARGIN) {
       console.log(
-        `[aiRouter] Visual RAG: SKIP — top margin ${topMargin.toFixed(3)} < ${RAG_MIN_TOP_MARGIN}. Falling back to image-only.`
+        `[aiRouter] Visual RAG: REJECTED — top margin ${topMargin.toFixed(3)} < ${RAG_MIN_TOP_MARGIN}. Falling back to image-only.`
       );
-      return [];
+      return { candidates: [], skipped: false, rejected: true };
     }
     if (topSimilarity < RAG_MIN_SIMILARITY) {
       console.log(
-        `[aiRouter] Visual RAG: top sim ${topSimilarity.toFixed(3)} < ${RAG_MIN_SIMILARITY} — skipping`
+        `[aiRouter] Visual RAG: REJECTED — top sim ${topSimilarity.toFixed(3)} < ${RAG_MIN_SIMILARITY}`
       );
-      return [];
+      return { candidates: [], skipped: false, rejected: true };
     }
 
     const filtered = candidates.filter((c) => c.similarity >= RAG_MIN_SIMILARITY);
     console.log(
       `[aiRouter] Visual RAG: ${filtered.length}/${candidates.length} above ${RAG_MIN_SIMILARITY}, top=${filtered[0]?.id} (sim=${topSimilarity.toFixed(3)})`
     );
-    return filtered;
+    return { candidates: filtered, skipped: false, rejected: false };
   } catch (e: any) {
     console.warn(
-      `[aiRouter] Visual RAG skipped (${Date.now() - ragT0}ms):`,
+      `[aiRouter] Visual RAG SKIPPED (${Date.now() - ragT0}ms):`,
       e?.message
     );
-    return [];
+    return { candidates: [], skipped: true, rejected: false };
   }
 }
 
@@ -127,7 +144,8 @@ async function retryIdentifyWithGoogle(
   prevAttempt: ScanResult,
   imageMaxWidth: number,
   tier: MembershipTier,
-  cohortHash: string | null
+  cohortHash: string | null,
+  signal?: AbortSignal
 ): Promise<ScanResult | null> {
   try {
     const retryT0 = Date.now();
@@ -137,7 +155,7 @@ async function retryIdentifyWithGoogle(
       ragArg,
       undefined,
       undefined,
-      { enableGroundedSearch: true, imageMaxWidth, disableThinking: true }
+      { enableGroundedSearch: true, imageMaxWidth, disableThinking: true, signal }
     );
     console.log(
       `[aiRouter] Gemini-grounded retry done in ${Date.now() - retryT0}ms, confidence ${prevAttempt.confidence ?? 0} → ${retried.confidence ?? 0}`
@@ -174,7 +192,8 @@ export async function assessAuthenticityByTier(
   identified: { name: string; brand: string; reference: string },
   signals?: import('./prompts').AuthSignals,
   certExemplarUrls?: string[],
-  extraAngleUris?: string[]
+  extraAngleUris?: string[],
+  signal?: AbortSignal
 ): Promise<AuthPayload> {
   const imageMaxWidth = imageWidthForTier(tier);
   const t0 = Date.now();
@@ -184,6 +203,7 @@ export async function assessAuthenticityByTier(
     certExemplarUrls,
     extraAngleUris,
     disableThinking: true,
+    signal,
   });
   console.log(`[aiRouter] auth-on-demand done in ${Date.now() - t0}ms`);
 
@@ -205,7 +225,8 @@ export async function assessAuthenticityByTier(
  */
 export async function fetchPricesByTier(
   tier: MembershipTier,
-  identified: { name: string; brand: string; reference: string; confidence?: number }
+  identified: { name: string; brand: string; reference: string; confidence?: number },
+  signal?: AbortSignal
 ): Promise<{
   prices: PricePayload;
   fromCache: boolean;
@@ -216,7 +237,7 @@ export async function fetchPricesByTier(
     identified.name,
     identified.brand,
     identified.reference,
-    { disableThinking: true, idConfidence: identified.confidence }
+    { disableThinking: true, idConfidence: identified.confidence, signal }
   );
   console.log(`[aiRouter] price-on-demand fetched in ${Date.now() - priceT0}ms`);
 
@@ -297,13 +318,21 @@ export async function analyzeWatchByTier(
   backUri?: string,
   isTrialing = false,
   extraImages?: string[],
-  userWeightG?: number
+  userWeightG?: number,
+  signal?: AbortSignal
 ): Promise<{
   result: ScanResult;
   provider: 'gemini';
   ragCandidates?: SimilarWatch[];
 }> {
   const totalT0 = Date.now();
+  scanBreadcrumb('analyzeWatchByTier:start', {
+    tier,
+    isTrialing,
+    hasBack: !!backUri,
+    extraImageCount: extraImages?.length ?? 0,
+    hasUserWeight: typeof userWeightG === 'number',
+  });
 
   if (!isGeminiConfigured()) {
     throw new Error(
@@ -339,10 +368,6 @@ export async function analyzeWatchByTier(
     }).catch(() => {});
   }
 
-  if (enableVisualRag) {
-    candidates = await getVisualCandidates(frontUri, backUri);
-  }
-
   // Always disable thinking for identify — it's a fast visual classification,
   // not a deep reasoning task. With thinking enabled the call takes 30-40s
   // instead of 8-12s, for no measurable accuracy gain on watch identification.
@@ -352,18 +377,53 @@ export async function analyzeWatchByTier(
   const imageMaxWidth = imageWidthForTier(tier);
   const maxOutputTokens = outputTokensForTier(tier);
 
-  // Phase 1A: Fast Visual Identification
-  const ragArg = candidates.length > 0 ? candidates : undefined;
-  let identified = await identifyWatchGemini(
+  // ── Phase 1A + Visual RAG in PARALLEL ────────────────────────
+  // Previously: getVisualCandidates was awaited BEFORE identify.
+  // That added prewarm-wait (8s) + embed-timeout (10s) to every
+  // cold-path scan, even though identify doesn't strictly need
+  // RAG hints (Gemini Flash identifies most watches correctly
+  // from images alone). Pulling identify out of that chain saves
+  // 5-18s/scan on the cold path with no expected accuracy loss
+  // — the RAG candidates are still used afterwards for Phase 1B
+  // DB validation and the Pro-retry gate.
+  //
+  // Trade-off: identify no longer receives RAG candidates as a
+  // prompt hint. For obscure references this MIGHT shift identify
+  // from "Black Bay Chrono (ref 79360)" to "Black Bay Chrono".
+  // The post-identify flow corrects this via dbValidated /
+  // visualBrandCorroborated when candidates land.
+  const identifyPromise = identifyWatchGemini(
     frontUri,
     backUri,
-    ragArg,
+    undefined,                             // no RAG hint upfront
     undefined,
     undefined,
-    { disableThinking, imageMaxWidth, maxOutputTokens }
+    { disableThinking, imageMaxWidth, maxOutputTokens, signal }
   );
+  const ragPromise: Promise<{ candidates: SimilarWatch[]; skipped: boolean; rejected: boolean }> =
+    enableVisualRag
+      ? getVisualCandidates(frontUri, backUri)
+      : Promise.resolve({ candidates: [], skipped: true, rejected: false });
 
-  console.log(`[aiRouter] identify done in ${Date.now() - totalT0}ms`);
+  const [identifyResult, ragOutcome] = await Promise.all([identifyPromise, ragPromise]);
+
+  let identified = identifyResult;
+  candidates = ragOutcome.candidates;
+  let ragSkipped = ragOutcome.skipped;
+  let ragRejected = ragOutcome.rejected;
+  // Inferred ragArg for any downstream consumer that wants candidates
+  // (e.g. Pro retry below). Empty array → undefined keeps existing
+  // call sites that null-check on truthiness happy.
+  const ragArg = candidates.length > 0 ? candidates : undefined;
+
+  console.log(`[aiRouter] identify+RAG parallel done in ${Date.now() - totalT0}ms (rag ${ragSkipped ? 'SKIPPED' : ragRejected ? 'REJECTED' : `${candidates.length} cand`})`);
+  scanBreadcrumb('identify+rag:done', {
+    ms: Date.now() - totalT0,
+    confidence: identified.confidence,
+    ragState: ragSkipped ? 'skipped' : ragRejected ? 'rejected' : 'matched',
+    candidates: candidates.length,
+    brand: identified.brand?.slice(0, 30),
+  });
 
   // Cost logging for initial fast identify
   const consent = await getDataConsent().catch(() => ({ granted: false, cohortHash: null }));
@@ -425,6 +485,22 @@ export async function analyzeWatchByTier(
             dbValidated = true;
             console.log(
               `[aiRouter] DB-validated ✓ AI + DINOv3 agree: "${identified.name}" vs top visual "${top.name}" (sim=${top.similarity.toFixed(3)})`
+            );
+          } else if (top.similarity >= 0.85 && matchesBrand) {
+            // Strong-sim brand match (T2 short-circuit, 2026-05).
+            // DINOv3 returned a near-identical embedding with matching
+            // brand — even if the model name diverges slightly (e.g.
+            // Flash says "Submariner Date" vs DB says "Submariner"),
+            // the visual fingerprint is close enough to skip the
+            // ฿1.84-per-call Pro grounded retry. Treat as DB-validated.
+            //
+            // Why 0.85 not 0.95: DINOv3 embeddings on luxury watches
+            // rarely cross 0.95 unless the input image is from the
+            // brand's own marketing shot. Real user photos at ~0.85
+            // are still extremely confident matches.
+            dbValidated = true;
+            console.log(
+              `[aiRouter] DB-validated ✓ strong-sim brand match: "${identified.brand}" vs top visual "${top.brand} ${top.name}" (sim=${top.similarity.toFixed(3)})`
             );
           } else if (
             top.similarity >= 0.65 &&
@@ -494,14 +570,63 @@ export async function analyzeWatchByTier(
     tier === 'standard' || tier === 'pro' ? 75 :
     0;
 
-  if (
+  // Pro grounded-search retry decision.
+  // ─────────────────────────────────
+  // We retry with Gemini Pro + Google grounding ONLY when there's a
+  // real signal that the Flash identification might be wrong:
+  //   • Low confidence below the tier threshold
+  //   • AND no DB / cert / light-corroboration validation
+  //   • AND visual RAG actually ran and rejected (not just timed out)
+  //
+  // Why the `ragSkipped` gate matters: when Replicate cold-starts and
+  // RAG times out, we have NO visual signal at all — running Pro
+  // grounded search can't compensate for missing visual data, it just
+  // burns ~30s + ฿2 of Gemini quota repeating the same Flash call with
+  // Google Search on top. Worse, the user already waited 30-60s for
+  // the cold start; piling on another Pro call turns a 60s scan into
+  // a 160s scan.
+  //
+  // When `ragRejected` (RAG ran, found no good match), Pro retry is
+  // actually useful — it lets Google Search find references our DB
+  // doesn't have. So we keep the retry path for that case.
+  //
+  // EXCEPT (T2 short-circuit, 2026-05): when ALL top-3 RAG candidates
+  // belong to a different brand family than Flash's claim, this strongly
+  // suggests our DB simply doesn't have this watch in its index. Pro
+  // grounded uses Google Search (not our DB), so it MIGHT help — but
+  // empirically, the Pro grounded path is unreliable (~50% 5xx rate on
+  // ambiguous queries per logs) and when it does fire, it usually
+  // returns the same answer Flash already gave. For mid-confidence
+  // Flash answers (60-74) with a structured reference, the expected
+  // value of Pro retry is barely positive after factoring failure cost.
+  // Skip the retry and accept Flash with its existing low confidence.
+  const ragHasBrandMismatch = (() => {
+    if (ragSkipped || candidates.length === 0) return false;
+    const flashBrand = (identified.brand || '').toLowerCase().trim();
+    if (!flashBrand) return false;
+    return candidates.slice(0, 3).every((c) => {
+      const cBrand = (c.brand || '').toLowerCase().trim();
+      return cBrand && !cBrand.includes(flashBrand) && !flashBrand.includes(cBrand);
+    });
+  })();
+
+  const flashHasStructuredAnswer =
+    identified.identified &&
+    !!identified.brand &&
+    !!identified.reference &&
+    identified.confidence >= 60;
+
+  const proRetryUseful =
     identified.confidence < groundedRetryThreshold &&
     !dbValidated &&
     !certValidated &&
-    !visualBrandCorroborated
-  ) {
+    !visualBrandCorroborated &&
+    !ragSkipped && // ← key change: skipped (timeout) != rejected (mismatch)
+    !(ragHasBrandMismatch && flashHasStructuredAnswer); // T2 short-circuit
+
+  if (proRetryUseful) {
     console.log(
-      `[aiRouter] Low confidence (${identified.confidence} < ${groundedRetryThreshold}) and no visual match validation. Running grounded search fallback...`
+      `[aiRouter] Low confidence (${identified.confidence} < ${groundedRetryThreshold}), visual ${ragRejected ? 'REJECTED' : 'no match'} — running Pro grounded search fallback...`
     );
     const groundedResult = await retryIdentifyWithGoogle(
       frontUri,
@@ -510,11 +635,28 @@ export async function analyzeWatchByTier(
       identified,
       imageMaxWidth,
       tier,
-      consent.granted ? consent.cohortHash : null
+      consent.granted ? consent.cohortHash : null,
+      signal
     );
     if (groundedResult && groundedResult.confidence > identified.confidence) {
       identified = groundedResult;
     }
+  } else if (identified.confidence < groundedRetryThreshold && ragSkipped) {
+    // Diagnostic log so we can see this branch firing in cost telemetry.
+    console.log(
+      `[aiRouter] Low confidence (${identified.confidence} < ${groundedRetryThreshold}) but visual RAG SKIPPED — accepting Flash result without Pro retry (no visual signal to corroborate against)`
+    );
+  } else if (
+    identified.confidence < groundedRetryThreshold &&
+    ragHasBrandMismatch &&
+    flashHasStructuredAnswer
+  ) {
+    // T2 short-circuit branch — RAG ran but DB clearly doesn't know
+    // this watch (all top-3 are different brands), and Flash gave a
+    // structured Brand+Reference at confidence ≥ 60. Accept it.
+    console.log(
+      `[aiRouter] Low confidence (${identified.confidence} < ${groundedRetryThreshold}) but DB has no candidates in brand="${identified.brand}" — skipping Pro retry (DB index gap, not a Flash error). Saving ~฿3.68.`
+    );
   }
 
   if (identified.identified) {
@@ -592,15 +734,19 @@ export async function analyzeWatchByTier(
           { name: identified.name, brand: identified.brand, reference: identified.reference },
           authSignals,
           certMatchHit?.certUrl ? [certMatchHit.certUrl] : undefined,
-          extraUris.length > 0 ? extraUris : undefined
+          extraUris.length > 0 ? extraUris : undefined,
+          signal
         ).catch((err) => {
+          if (err?.name === 'AbortError') throw err;
           console.warn('[aiRouter] authenticity assessment failed, falling back:', err?.message);
           return null;
         }),
         fetchPricesByTier(
           tier,
-          { name: identified.name, brand: identified.brand, reference: identified.reference, confidence: identified.confidence }
+          { name: identified.name, brand: identified.brand, reference: identified.reference, confidence: identified.confidence },
+          signal
         ).catch((err) => {
+          if (err?.name === 'AbortError') throw err;
           console.warn('[aiRouter] price fetching failed, falling back:', err?.message);
           return null;
         })

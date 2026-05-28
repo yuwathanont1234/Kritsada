@@ -60,6 +60,9 @@ export type SimilarWatch = {
 };
 
 export function isVisualRagConfigured(): boolean {
+  if (USE_EDGE_FUNCTIONS) {
+    return SUPABASE_URL.length > 0 && SUPABASE_ANON_KEY.length > 0;
+  }
   return (
     REPLICATE_TOKEN.length > 0 &&
     SUPABASE_URL.length > 0 &&
@@ -208,7 +211,7 @@ export function isEmbeddingCached(frontUri: string, backUri?: string | null): bo
 }
 
 export async function embedImage(uri: string): Promise<number[]> {
-  if (!REPLICATE_TOKEN) {
+  if (!USE_EDGE_FUNCTIONS && !REPLICATE_TOKEN) {
     throw new Error('ยังไม่ได้ตั้งค่า REPLICATE_API_TOKEN');
   }
   const cached = embedCache.get(uri);

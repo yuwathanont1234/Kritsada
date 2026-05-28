@@ -113,6 +113,151 @@ QUERIES: dict[str, list[str]] = {
         "Citizen Series 8",
         "Citizen watch",
     ],
+
+    # ── 2026-05 expansion: 15 supported brands missing from DB ──
+    # These are all in the app's 31-brand coverage list (SettingsScreen)
+    # but had no scraper, causing visual RAG misses when users scan them.
+
+    # TIER I — Apex Manufactures
+    "A_Lange_Sohne": [
+        "A. Lange & Söhne Lange 1",
+        "A. Lange & Söhne Datograph",
+        "A. Lange & Söhne Saxonia",
+        "A. Lange & Söhne Odysseus",
+        "A. Lange & Söhne 1815",
+        "A. Lange & Söhne Zeitwerk",
+        "A. Lange & Söhne watch",
+    ],
+    "FP_Journe": [
+        "F.P. Journe Chronomètre",
+        "F.P. Journe Octa",
+        "F.P. Journe Élégante",
+        "F.P. Journe Resonance",
+        "F.P. Journe Tourbillon",
+        "F.P. Journe watch",
+    ],
+
+    # TIER II — Established Luxury
+    "Jaeger_LeCoultre": [
+        "Jaeger-LeCoultre Reverso",
+        "Jaeger-LeCoultre Master Ultra Thin",
+        "Jaeger-LeCoultre Polaris",
+        "Jaeger-LeCoultre Master Control",
+        "Jaeger-LeCoultre Rendez-Vous",
+        "Jaeger-LeCoultre Atmos",
+        "Jaeger-LeCoultre watch",
+    ],
+    "Hublot": [
+        "Hublot Big Bang",
+        "Hublot Classic Fusion",
+        "Hublot Spirit of Big Bang",
+        "Hublot MP Collection",
+        "Hublot Square Bang",
+        "Hublot watch",
+    ],
+    "Breitling": [
+        "Breitling Navitimer",
+        "Breitling Superocean",
+        "Breitling Avenger",
+        "Breitling Premier",
+        "Breitling Chronomat",
+        "Breitling Top Time",
+        "Breitling watch",
+    ],
+    "Zenith": [
+        "Zenith El Primero",
+        "Zenith Chronomaster",
+        "Zenith Defy",
+        "Zenith Pilot",
+        "Zenith Elite",
+        "Zenith watch",
+    ],
+    "Bvlgari": [
+        "Bvlgari Octo Finissimo",
+        "Bvlgari Serpenti",
+        "Bvlgari Diagono",
+        "Bvlgari Bvlgari watch",
+        "Bvlgari Aluminium watch",
+        "Bvlgari Lvcea",
+        "Bulgari watch",
+    ],
+    "Franck_Muller": [
+        # Note: 'fc' in scripts/scrape_fc.py = Frédérique Constant. Franck
+        # Muller (Cintrée Curvex case) has no dedicated scraper yet.
+        "Franck Muller Cintrée Curvex",
+        "Franck Muller Vanguard",
+        "Franck Muller Crazy Hours",
+        "Franck Muller Long Island",
+        "Franck Muller Casablanca",
+        "Franck Muller watch",
+    ],
+    "Girard_Perregaux": [
+        "Girard-Perregaux Laureato",
+        "Girard-Perregaux 1966",
+        "Girard-Perregaux Cat's Eye",
+        "Girard-Perregaux Three Bridges",
+        "Girard-Perregaux watch",
+    ],
+
+    # TIER III — Independent & Niche
+    "MB_F": [
+        "MB&F Horological Machine",
+        "MB&F Legacy Machine",
+        "MB&F HM10",
+        "MB&F HMX",
+        "MB&F LMX",
+        "MB&F watch",
+    ],
+    "Urwerk": [
+        "URWERK UR-100",
+        "URWERK UR-110",
+        "URWERK UR-220",
+        "URWERK satellite watch",
+        "Urwerk watch",
+    ],
+    "Bovet": [
+        "Bovet Récital",
+        "Bovet Amadeo Fleurier",
+        "Bovet Virtuoso",
+        "Bovet watch",
+    ],
+    "Ulysse_Nardin": [
+        "Ulysse Nardin Marine",
+        "Ulysse Nardin Diver",
+        "Ulysse Nardin Freak",
+        "Ulysse Nardin Executive",
+        "Ulysse Nardin Blast",
+        "Ulysse Nardin watch",
+    ],
+    "Parmigiani_Fleurier": [
+        "Parmigiani Fleurier Tonda",
+        "Parmigiani Fleurier Tonda PF",
+        "Parmigiani Fleurier Kalpa",
+        "Parmigiani Fleurier Toric",
+        "Parmigiani Fleurier watch",
+    ],
+
+    # TIER IV — Accessible Luxury
+    "Longines": [
+        "Longines Master Collection",
+        "Longines HydroConquest",
+        "Longines Spirit",
+        "Longines Conquest",
+        "Longines Heritage",
+        "Longines Legend Diver",
+        "Longines DolceVita",
+        "Longines watch",
+    ],
+    "Seiko": [
+        "Seiko Prospex",
+        "Seiko Presage",
+        "Seiko Presage Cocktail",
+        "Seiko 5 Sports",
+        "Seiko Astron",
+        "Seiko Turtle SRP",
+        "Seiko Samurai",
+        "Seiko watch",
+    ],
 }
 
 

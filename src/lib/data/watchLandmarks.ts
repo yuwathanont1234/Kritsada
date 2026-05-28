@@ -607,19 +607,23 @@ export function getLandmarksForBrand(brand: string | undefined): LandmarkPoint[]
  */
 export type LandmarkSignalMatch = {
   signal: string;
+  /** Thai display string (present only for scans run in Thai mode). */
+  signalTh?: string;
   weight: 'positive' | 'negative' | 'neutral';
 };
 
 export function matchSignalToLandmark(
   landmark: LandmarkPoint,
-  signals: Array<{ signal: string; weight: 'positive' | 'negative' | 'neutral' }>
+  signals: Array<{ signal: string; signalTh?: string; weight: 'positive' | 'negative' | 'neutral' }>
 ): LandmarkSignalMatch | null {
   if (!signals?.length) return null;
   const lowerKeywords = landmark.signalKeywords.map((k) => k.toLowerCase());
+  // Match on the ENGLISH `signal` only so pin colours stay stable regardless
+  // of UI language; the Thai display string rides along in `signalTh`.
   for (const s of signals) {
     const sl = (s.signal || '').toLowerCase();
     if (lowerKeywords.some((kw) => sl.includes(kw))) {
-      return { signal: s.signal, weight: s.weight };
+      return { signal: s.signal, signalTh: s.signalTh, weight: s.weight };
     }
   }
   return null;

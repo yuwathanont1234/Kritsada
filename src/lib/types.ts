@@ -1,5 +1,10 @@
 export type AuthenticitySignal = {
   signal: string;
+  // Thai translation of `signal`, populated by Gemini only when the scan
+  // ran in Thai mode. The English `signal` is always kept because the
+  // Hallmark landmark matcher keys off English `signalKeywords`; the UI
+  // shows `signalTh` (falling back to `signal`) when lang === 'th'.
+  signalTh?: string;
   weight: 'positive' | 'negative' | 'neutral';
 };
 

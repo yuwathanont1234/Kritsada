@@ -683,6 +683,7 @@ export async function assessAuthenticityGemini(
     certExemplarUrls?: string[];
     extraAngleUris?: string[];
     signal?: AbortSignal;
+    language?: 'th' | 'en';
   }
 ): Promise<AuthPayload> {
   // ── Auth-bypass fast-path (cheap-watch brands) ────────────────────────
@@ -929,7 +930,8 @@ export async function assessAuthenticityGemini(
           certBase64s.length,
           backB64 !== null,
           opts?.signals,
-          extraB64s.length
+          extraB64s.length,
+          opts?.language ?? 'en'
         )
       : buildAuthAssessmentPrompt(
           identified.name,
@@ -937,7 +939,8 @@ export async function assessAuthenticityGemini(
           identified.reference,
           opts?.signals,
           backB64 !== null,
-          extraB64s.length
+          extraB64s.length,
+          opts?.language ?? 'en'
         );
 
   const parts: any[] = [{ inline_data: { mime_type: 'image/jpeg', data: frontB64 } }];

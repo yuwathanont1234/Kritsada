@@ -751,7 +751,7 @@ function LandmarkCardsSection({
                   numberOfLines={1}
                   style={{ color: '#C0B4A0', fontSize: 11.5, marginTop: 2, lineHeight: 16 }}
                 >
-                  {match.signal}
+                  {lang === 'th' ? (match.signalTh || match.signal) : match.signal}
                 </Text>
               )}
               {!expanded && !match && (
@@ -784,7 +784,7 @@ function LandmarkCardsSection({
                         {lang === 'th' ? 'การสังเกตของ AI' : 'AI OBSERVATION'}
                       </Text>
                       <Text style={{ color: '#E8DCC0', fontSize: 12.5, lineHeight: 18 }}>
-                        {match.signal}
+                        {lang === 'th' ? (match.signalTh || match.signal) : match.signal}
                       </Text>
                     </View>
                   ) : null}

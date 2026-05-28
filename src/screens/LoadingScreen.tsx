@@ -633,7 +633,8 @@ export function LoadingScreen({ route, navigation }: Props) {
             membership.isTrialing,
             extraImages,
             undefined,
-            abortController.signal
+            abortController.signal,
+            lang
           );
           result = out.result;
           provider = out.provider;

@@ -193,7 +193,8 @@ export async function assessAuthenticityByTier(
   signals?: import('./prompts').AuthSignals,
   certExemplarUrls?: string[],
   extraAngleUris?: string[],
-  signal?: AbortSignal
+  signal?: AbortSignal,
+  language: 'th' | 'en' = 'en'
 ): Promise<AuthPayload> {
   const imageMaxWidth = imageWidthForTier(tier);
   const t0 = Date.now();
@@ -204,6 +205,7 @@ export async function assessAuthenticityByTier(
     extraAngleUris,
     disableThinking: true,
     signal,
+    language,
   });
   console.log(`[aiRouter] auth-on-demand done in ${Date.now() - t0}ms`);
 
@@ -319,7 +321,8 @@ export async function analyzeWatchByTier(
   isTrialing = false,
   extraImages?: string[],
   userWeightG?: number,
-  signal?: AbortSignal
+  signal?: AbortSignal,
+  language: 'th' | 'en' = 'en'
 ): Promise<{
   result: ScanResult;
   provider: 'gemini';
@@ -735,7 +738,8 @@ export async function analyzeWatchByTier(
           authSignals,
           certMatchHit?.certUrl ? [certMatchHit.certUrl] : undefined,
           extraUris.length > 0 ? extraUris : undefined,
-          signal
+          signal,
+          language
         ).catch((err) => {
           if (err?.name === 'AbortError') throw err;
           console.warn('[aiRouter] authenticity assessment failed, falling back:', err?.message);

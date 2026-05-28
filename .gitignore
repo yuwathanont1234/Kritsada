@@ -22,6 +22,18 @@ web-build/
 # Node
 node_modules/
 
+# Python (backend harvesters, indexers, FastAPI app/)
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+*.egg-info/
+
+# Logs & scratch build artifacts (e.g. mega-overnight-*.log, config.py.bak)
+*.log
+*.bak
+*.tsbuildinfo
+
 # Supabase
 supabase/.temp/
 

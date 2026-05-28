@@ -6,7 +6,7 @@ import { AuthColor } from '../../lib/authVerdictColor';
 import { ScanResult } from '../../lib/types';
 import { useLanguage } from '../../lib/localization';
 import {
-  getLandmarksForBrand,
+  getLandmarksForWatch,
   matchSignalToLandmark,
   LandmarkPoint,
 } from '../../lib/data/watchLandmarks';
@@ -44,8 +44,8 @@ export default function VerdictHeader({
   // pins inherit the correct colour. `greenCount` powers the pass-
   // ratio header text ("6/7 PASS").
   const landmarks: LandmarkPoint[] = React.useMemo(
-    () => getLandmarksForBrand(result.brand),
-    [result.brand]
+    () => getLandmarksForWatch(result.brand, result.name, result.reference),
+    [result.brand, result.name, result.reference]
   );
   const signals = result.authenticitySignals ?? [];
   const greenCount = React.useMemo(() => {

@@ -181,9 +181,10 @@ const AP_LANDMARKS: LandmarkPoint[] = [
 ];
 
 // ────────────────────────────────────────────────────────────────────
-// TUDOR — Black Bay / Pelagos / Heritage
+// TUDOR — model-family aware (diver vs dress); resolved in BRAND_FAMILIES
 // ────────────────────────────────────────────────────────────────────
-const TUDOR_LANDMARKS: LandmarkPoint[] = [
+// Diver / sport family — Black Bay, Pelagos, BB58, BB GMT, etc.
+const TUDOR_DIVER_LANDMARKS: LandmarkPoint[] = [
   {
     id: 'snowflake-hands',
     labelEn: 'Snowflake Hands',
@@ -246,6 +247,76 @@ const TUDOR_LANDMARKS: LandmarkPoint[] = [
     descriptionTh: 'สลักโล่ Tudor บนเม็ดมะยม — ความลึก + การจัดวาง + กลไกหมุนล็อค',
     xPct: 92, yPct: 50,
     signalKeywords: ['crown', 'tudor crown', 'screw-down'],
+  },
+];
+
+// Dress / classic family — 1926, Glamour, Style, Royal, Heritage dress.
+// These have NO snowflake hands, NO rivet bracelet and NO rotating dive
+// bezel, so the diver checkpoints above would mislead. Swap in
+// dress-relevant landmarks instead.
+const TUDOR_DRESS_LANDMARKS: LandmarkPoint[] = [
+  {
+    id: 'shield-logo',
+    labelEn: 'Tudor Shield Logo',
+    labelTh: 'โลโก้โล่ Tudor',
+    descriptionEn: 'Applied shield logo at 12 — sharp 3D relief, perfectly centred, crisp enamel.',
+    descriptionTh: 'โลโก้โล่ applied ที่ 12 — นูน 3D คม อยู่กึ่งกลางพอดี ลงสีคมชัด',
+    xPct: 50, yPct: 22,
+    signalKeywords: ['shield', 'tudor logo', 'rose logo', 'logo'],
+  },
+  {
+    id: 'dial-texture',
+    labelEn: 'Dial Texture & Indices',
+    labelTh: 'ลายหน้าปัด + หลักชั่วโมง',
+    descriptionEn: 'Guilloché / waffle (1926) or sunray dial with applied faceted indices — sharp transfer printing.',
+    descriptionTh: 'ลาย guilloché / waffle (1926) หรือหน้าปัด sunray + หลักชั่วโมง applied เหลี่ยม — ตัวอักษรพิมพ์คม',
+    xPct: 50, yPct: 40,
+    signalKeywords: ['dial', 'guilloche', 'waffle', 'indices', 'index', 'applied', 'sunray'],
+  },
+  {
+    id: 'hands',
+    labelEn: 'Dauphine / Baton Hands',
+    labelTh: 'เข็ม Dauphine / Baton',
+    descriptionEn: 'Faceted dauphine or baton hands (NOT snowflake) — clean polish, even alignment.',
+    descriptionTh: 'เข็ม dauphine เหลี่ยม หรือ baton (ไม่ใช่ snowflake) — ขัดเงาเรียบ จัดวางตรง',
+    xPct: 50, yPct: 50,
+    signalKeywords: ['hands', 'dauphine', 'baton', 'leaf hands'],
+  },
+  {
+    id: 'date-window',
+    labelEn: 'Date Window',
+    labelTh: 'ช่องวันที่',
+    descriptionEn: 'Date aperture at 3 — numeral font, centring in the window, and frame finishing.',
+    descriptionTh: 'ช่องวันที่ที่ 3 นาฬิกา — ฟอนต์เลข การจัดกึ่งกลางช่อง และขอบกรอบ',
+    xPct: 72, yPct: 52,
+    signalKeywords: ['date', 'date window', 'aperture'],
+  },
+  {
+    id: 'case-bezel',
+    labelEn: 'Fixed Bezel & Case',
+    labelTh: 'ขอบหน้าปัด + ตัวเรือนขัดเงา',
+    descriptionEn: 'Smooth / fluted FIXED bezel (not a rotating dive bezel) — case bevels + polish quality.',
+    descriptionTh: 'ขอบหน้าปัดเรียบ/ร่อง แบบ FIXED (ไม่ใช่ bezel ดำน้ำหมุนได้) — ขอบตัวเรือน + คุณภาพขัดเงา',
+    xPct: 50, yPct: 8,
+    signalKeywords: ['bezel', 'fluted', 'polished', 'case', 'fixed bezel'],
+  },
+  {
+    id: 'bracelet',
+    labelEn: 'Bracelet / Strap & Clasp',
+    labelTh: 'สาย + กลไกล็อค',
+    descriptionEn: 'Jubilee-style 5-link or leather strap with folding clasp — link finish + Tudor-engraved clasp.',
+    descriptionTh: 'สาย 5 ข้อแบบ jubilee หรือสายหนัง + บานพับล็อค — ผิวข้อต่อ + ตราสลัก Tudor บนล็อค',
+    xPct: 50, yPct: 96,
+    signalKeywords: ['bracelet', 'jubilee', 'strap', 'clasp', 'links'],
+  },
+  {
+    id: 'crown',
+    labelEn: 'Tudor Crown',
+    labelTh: 'เม็ดมะยม Tudor',
+    descriptionEn: 'Tudor shield-engraved crown — depth of engraving + alignment with the case.',
+    descriptionTh: 'เม็ดมะยมสลักโล่ Tudor — ความลึกของลายสลัก + การจัดวางกับตัวเรือน',
+    xPct: 92, yPct: 50,
+    signalKeywords: ['crown', 'tudor crown'],
   },
 ];
 
@@ -445,26 +516,85 @@ const BRAND_LANDMARKS: Record<string, LandmarkPoint[]> = {
   rolex: ROLEX_LANDMARKS,
   'audemars piguet': AP_LANDMARKS,
   ap: AP_LANDMARKS,
-  tudor: TUDOR_LANDMARKS,
   'patek philippe': PATEK_LANDMARKS,
   patek: PATEK_LANDMARKS,
   omega: OMEGA_LANDMARKS,
 };
 
+// ────────────────────────────────────────────────────────────────────
+// Model-family resolution
+// ────────────────────────────────────────────────────────────────────
+// Some brands span very different watch families (e.g. Tudor's Black Bay
+// diver vs the 1926 dress line) whose authentication checkpoints barely
+// overlap. For those brands we register an ordered list of families; the
+// first whose `match(model, reference)` returns true wins, and the LAST
+// entry MUST be a catch-all (`match: () => true`) acting as the brand
+// default. Brands absent here fall back to the flat BRAND_LANDMARKS map.
+type LandmarkFamily = {
+  id: string;
+  /** Both args are already lower-cased. */
+  match: (modelLower: string, refLower: string) => boolean;
+  landmarks: LandmarkPoint[];
+};
+
+const BRAND_FAMILIES: Record<string, LandmarkFamily[]> = {
+  tudor: [
+    {
+      id: 'tudor-dress',
+      // 1926 / Glamour / Style / Royal / Classic dress lines.
+      // Refs: 1926 = 91xxx, Glamour = 53xxx/57xxx, Royal = M28xxx, Style = 12xxx.
+      match: (m, r) =>
+        /1926|glamour|\bstyle\b|royal|classic|monarch|\bprince/.test(m) ||
+        /^m?9[0-9]{4}\b|^m?5[37][0-9]{3}\b|^m?28[0-9]{3}\b|^m?12[0-9]{3}\b/.test(r),
+      landmarks: TUDOR_DRESS_LANDMARKS,
+    },
+    // Default = Black Bay / Pelagos diver-sport family.
+    { id: 'tudor-diver', match: () => true, landmarks: TUDOR_DIVER_LANDMARKS },
+  ],
+};
+
+/** Map a free-form brand string to a registered key (exact, then substring). */
+function resolveBrandKey(brandLower: string): string | null {
+  if (BRAND_FAMILIES[brandLower] || BRAND_LANDMARKS[brandLower]) return brandLower;
+  for (const k of [...Object.keys(BRAND_FAMILIES), ...Object.keys(BRAND_LANDMARKS)]) {
+    if (brandLower.includes(k) || k.includes(brandLower)) return k;
+  }
+  return null;
+}
+
 /**
- * Resolve the landmark map for a watch by brand name. Falls back to a
+ * Resolve the landmark map for a specific watch — brand AND (when the brand
+ * has model families) the identified model name + reference. Falls back to a
  * 5-point generic map for any brand not explicitly registered.
  */
-export function getLandmarksForBrand(brand: string | undefined): LandmarkPoint[] {
+export function getLandmarksForWatch(
+  brand: string | undefined,
+  model?: string,
+  reference?: string
+): LandmarkPoint[] {
   if (!brand) return GENERIC_LANDMARKS;
-  const key = brand.toLowerCase().trim();
-  if (BRAND_LANDMARKS[key]) return BRAND_LANDMARKS[key];
-  // Substring fallback — handles "Officine Panerai" → no match, but
-  // covers brand variants without needing every alias in the table.
-  for (const k of Object.keys(BRAND_LANDMARKS)) {
-    if (key.includes(k) || k.includes(key)) return BRAND_LANDMARKS[k];
+  const key = resolveBrandKey(brand.toLowerCase().trim());
+  if (!key) return GENERIC_LANDMARKS;
+
+  const families = BRAND_FAMILIES[key];
+  if (families) {
+    const m = (model || '').toLowerCase();
+    const r = (reference || '').toLowerCase();
+    for (const fam of families) {
+      if (fam.match(m, r)) return fam.landmarks;
+    }
+    return families[families.length - 1].landmarks; // catch-all safety
   }
-  return GENERIC_LANDMARKS;
+  return BRAND_LANDMARKS[key] ?? GENERIC_LANDMARKS;
+}
+
+/**
+ * Brand-only convenience wrapper (no model context). For family brands this
+ * returns the brand default (the catch-all family). Prefer
+ * getLandmarksForWatch when the model/reference is known.
+ */
+export function getLandmarksForBrand(brand: string | undefined): LandmarkPoint[] {
+  return getLandmarksForWatch(brand);
 }
 
 /**

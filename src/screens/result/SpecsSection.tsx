@@ -9,7 +9,7 @@ import { TierCapabilities } from '../../lib/tier';
 import { useLanguage } from '../../lib/localization';
 import { usePriceFallback } from './usePriceFallback';
 import {
-  getLandmarksForBrand,
+  getLandmarksForWatch,
   matchSignalToLandmark,
 } from '../../lib/data/watchLandmarks';
 
@@ -606,8 +606,8 @@ function LandmarkCardsSection({
 }) {
   const [expandedId, setExpandedId] = React.useState<string | null>(null);
   const landmarks = React.useMemo(
-    () => getLandmarksForBrand(result.brand),
-    [result.brand]
+    () => getLandmarksForWatch(result.brand, result.name, result.reference),
+    [result.brand, result.name, result.reference]
   );
   const signals = result.authenticitySignals ?? [];
   const overridden = result.weightCheck?.grade === 'mismatch';
@@ -833,8 +833,8 @@ function AiMetricsPanel({
   lang: 'th' | 'en';
 }) {
   const landmarks = React.useMemo(
-    () => getLandmarksForBrand(result.brand),
-    [result.brand]
+    () => getLandmarksForWatch(result.brand, result.name, result.reference),
+    [result.brand, result.name, result.reference]
   );
   const signals = result.authenticitySignals ?? [];
   const totals = React.useMemo(() => {

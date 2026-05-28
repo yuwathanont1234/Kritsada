@@ -1,0 +1,132 @@
+name: Keep Replicate DINOv3 Warm
+
+# Pings the Supabase embed-image edge function (which calls Replicate
+# DINOv3 ViT-L/16) on a 5-minute cadence so the Replicate model endpoint
+# stays hot. Without this, after ~10 minutes of inactivity the Replicate
+# endpoint cold-starts and the next embed call takes 30-60 seconds,
+# stalling the entire scan pipeline (RAG embedding times out at 8s, the
+# probe is empty, and identify has nothing to validate against).
+#
+# Cost: ~$0.0011 per embed × 12 pings/hour × 24 hours ≈ $0.32/day ≈ ฿11/day.
+# This is dramatically cheaper than the user experience hit of a 60-second
+# stalled scan, especially for the first scan of the day.
+#
+# GitHub Actions free tier covers this easily (~7,200 minute-runs/month for
+# a ~30-second job = ~3,600 minutes, well under the 2,000/month free tier
+# for private repos — and unlimited for public repos).
+#
+# Trigger manually for debugging: gh workflow run replicate-keepwarm.yml
+
+on:
+  schedule:
+    # Plain "every 5 minutes, always". Earlier we tried `*/10 0-16,21-23 * * *`
+    # to skip Thai 00:00-04:00 quiet hours (-58% cost), but GitHub Actions
+    # never fired that schedule despite >45 minutes of waiting on a public
+    # repo with an active workflow. Reports from other users suggest the
+    # comma-separated hour-range syntax in cron occasionally fails to
+    # register on newly-created workflows. Falling back to the simplest
+    # possible expression to maximise the chance the cron actually runs.
+    #
+    # Trade-off: ~฿336/month instead of ~฿140/month. We accept the +฿196
+    # because the alternative (client-side prewarm only) leaves first-of-
+    # the-day users staring at a 60s cold-start spinner.
+    - cron: '*/5 * * * *'
+  workflow_dispatch:
+
+# Cancel a previous in-flight run if a new one is triggered before it
+# finishes. Prevents pile-up if Replicate is slow to respond.
+concurrency:
+  group: replicate-keepwarm
+  cancel-in-progress: true
+
+jobs:
+  ping:
+    name: Ping embed-image (keeps Replicate hot)
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - name: Ping embed-image with a tiny dummy image
+        env:
+          SUPABASE_URL: ${{ secrets.EXPO_PUBLIC_SUPABASE_URL }}
+          ANON_KEY:     ${{ secrets.EXPO_PUBLIC_SUPABASE_ANON_KEY }}
+          EMBED_SECRET: ${{ secrets.EMBED_FUNCTION_SECRET }}
+        run: |
+          set -e
+
+          # 32x32 white JPG → base64 data URL. A 1x1 PNG trips the model's
+          # normalize transform ("mean must have 1 elements if it is an iterable,
+          # got 3") because torchvision sees an RGBA pixel. A small RGB JPG
+          # passes preprocessing cleanly, the model produces a valid embedding,
+          # and crucially the GPU spins up — which is the whole point.
+          # Payload ≈ 860 bytes base64; bandwidth is negligible.
+          DATA_URL="data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAUDBAQEAwUEBAQFBQUGBwwIBwcHBw8LCwkMEQ8SEhEPERETFhwXExQaFRERGCEYGh0dHx8fExciJCIeJBweHx7/2wBDAQUFBQcGBw4ICA4eFBEUHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh7/wAARCAAgACADASIAAhEBAxEB/8QAHwAAAQUBAQEBAQEAAAAAAAAAAAECAwQFBgcICQoL/8QAtRAAAgEDAwIEAwUFBAQAAAF9AQIDAAQRBRIhMUEGE1FhByJxFDKBkaEII0KxwRVS0fAkM2JyggkKFhcYGRolJicoKSo0NTY3ODk6Q0RFRkdISUpTVFVWV1hZWmNkZWZnaGlqc3R1dnd4eXqDhIWGh4iJipKTlJWWl5iZmqKjpKWmp6ipqrKztLW2t7i5usLDxMXGx8jJytLT1NXW19jZ2uHi4+Tl5ufo6erx8vP09fb3+Pn6/8QAHwEAAwEBAQEBAQEBAQAAAAAAAAECAwQFBgcICQoL/8QAtREAAgECBAQDBAcFBAQAAQJ3AAECAxEEBSExBhJBUQdhcRMiMoEIFEKRobHBCSMzUvAVYnLRChYkNOEl8RcYGRomJygpKjU2Nzg5OkNERUZHSElKU1RVVldYWVpjZGVmZ2hpanN0dXZ3eHl6goOEhYaHiImKkpOUlZaXmJmaoqOkpaanqKmqsrO0tba3uLm6wsPExcbHyMnK0tPU1dbX2Nna4uPk5ebn6Onq8vP09fb3+Pn6/9oADAMBAAIRAxEAPwD7LooooAKKKKACiiigAooooA//2Q=="
+
+          echo "Pinging $SUPABASE_URL/functions/v1/embed-image at $(date -u)"
+
+          # Disable -e for the curl call so a timeout doesn't kill the workflow.
+          # During Replicate cold-start the very first ping after a long idle
+          # period can take 30-90+ seconds — and the whole *point* of this
+          # workflow is to *trigger* that warm-up. If the request times out
+          # mid-warm-up, Replicate is still spinning up in the background and
+          # the NEXT scheduled ping (5-10 min later) will benefit. Treating a
+          # timeout as workflow failure produces noisy red checkmarks without
+          # actually meaning anything is broken.
+          set +e
+          HTTP_CODE=$(curl -sS -o /tmp/resp.txt -w "%{http_code}" \
+            -X POST \
+            -H "Authorization: Bearer $ANON_KEY" \
+            -H "x-embed-secret: $EMBED_SECRET" \
+            -H "Content-Type: application/json" \
+            --max-time 150 \
+            -d "{\"image\":\"$DATA_URL\"}" \
+            "$SUPABASE_URL/functions/v1/embed-image")
+          CURL_EXIT=$?
+          set -e
+
+          echo "curl exit=$CURL_EXIT, HTTP=$HTTP_CODE"
+          if [ -s /tmp/resp.txt ]; then
+            echo "Response preview:"
+            head -c 400 /tmp/resp.txt; echo
+          fi
+
+          # Classify the outcome.
+          # 2xx/4xx — happy path: endpoint reachable, Replicate warm (or model
+          #           rejected our dummy image but that still spun up the GPU).
+          # curl 28 (timeout) — first ping after long idle; Replicate is now
+          #                     warming up. Treat as "warm-up triggered" success.
+          # 5xx — edge function or Replicate genuinely unhealthy.
+          # Other curl errors (DNS, TLS) — transport failure, treat as bad.
+          if [ "$CURL_EXIT" -eq 28 ]; then
+            echo "::notice::curl timed out after 150s — Replicate cold-start warmup triggered. Next scheduled ping will land hot."
+            exit 0
+          fi
+          if [ "$CURL_EXIT" -ne 0 ]; then
+            echo "::warning::curl exit $CURL_EXIT — transport-level failure (DNS/TLS/network)"
+            exit 1
+          fi
+          if [ -z "$HTTP_CODE" ] || [ "$HTTP_CODE" = "000" ]; then
+            echo "::warning::no HTTP response received"
+            exit 1
+          fi
+          # HTTP 500 with body indicating Replicate prediction status is
+          # "starting" / "processing" / "queued" — this means Replicate is
+          # cold-starting. The whole point of this ping is to *trigger* that
+          # warm-up. Treat as success.
+          #
+          # Match the keyword ANYWHERE in the body, case-insensitive,
+          # without quote delimiters. Replicate surfaces the status both
+          # as a JSON field ("status":"starting") AND embedded in error
+          # messages ("Embedding prediction did not succeed: starting").
+          # The earlier regex required quote delimiters around the
+          # keyword, which missed the error-message variant and caused
+          # 2/3 of recent "failure" runs to actually be cold-start
+          # triggers misclassified as hard failures.
+          if [ "$HTTP_CODE" = "500" ] && grep -qiE '(starting|processing|queued|booting|cold)' /tmp/resp.txt 2>/dev/null; then
+            echo "::notice::Replicate cold-start in progress (status=starting/processing) — warm-up triggered. Next ping will land hot."
+            exit 0
+          fi
+          if [ "$HTTP_CODE" -ge 500 ]; then
+            echo "::warning::embed-image returned $HTTP_CODE — endpoint may be unhealthy"
+            exit 1
+          fi
+          echo "✅ embed-image reachable (HTTP $HTTP_CODE)"

@@ -6,7 +6,7 @@ import { AuthColor } from '../../lib/authVerdictColor';
 import { ScanResult } from '../../lib/types';
 import { useLanguage } from '../../lib/localization';
 import {
-  getLandmarksForBrand,
+  getLandmarksForWatch,
   matchSignalToLandmark,
   LandmarkPoint,
 } from '../../lib/data/watchLandmarks';
@@ -44,8 +44,8 @@ export default function VerdictHeader({
   // pins inherit the correct colour. `greenCount` powers the pass-
   // ratio header text ("6/7 PASS").
   const landmarks: LandmarkPoint[] = React.useMemo(
-    () => getLandmarksForBrand(result.brand),
-    [result.brand]
+    () => getLandmarksForWatch(result.brand, result.name, result.reference),
+    [result.brand, result.name, result.reference]
   );
   const signals = result.authenticitySignals ?? [];
   const greenCount = React.useMemo(() => {
@@ -91,74 +91,13 @@ export default function VerdictHeader({
                   style={styles.galleryImg}
                   resizeMode="cover"
                 />
-                
-                {/* Numbered AI landmark pins — only on the front photo
-                    (idx 0). Each pin is positioned by % so it works for
-                    any image aspect ratio. Colour reflects the matched
-                    Gemini signal weight (positive→green, negative→red,
-                    neutral→amber, no match→neutral gray). Numbered so
-                    users can cross-reference against the cards below. */}
-                {showHeatmap && activeImageIdx === 0 && (
-                  <View style={StyleSheet.absoluteFillObject} pointerEvents="none">
-                    {landmarks.map((lm, idx) => {
-                      const match = matchSignalToLandmark(lm, signals);
-                      const colorPalette = match
-                        ? match.weight === 'positive'
-                          ? { bg: '#22C55E', shadow: '#22C55E' }
-                          : match.weight === 'negative'
-                          ? { bg: '#EF4444', shadow: '#EF4444' }
-                          : { bg: '#F59E0B', shadow: '#F59E0B' }
-                        : { bg: '#94A3B8', shadow: '#64748B' };
-                      return (
-                        <View
-                          key={lm.id}
-                          style={{
-                            position: 'absolute',
-                            left: `${lm.xPct}%`,
-                            top: `${lm.yPct}%`,
-                            transform: [{ translateX: -14 }, { translateY: -14 }],
-                          }}
-                        >
-                          <View
-                            style={{
-                              width: 28,
-                              height: 28,
-                              borderRadius: 14,
-                              backgroundColor: colorPalette.bg,
-                              borderWidth: 2,
-                              borderColor: 'rgba(255,255,255,0.9)',
-                              justifyContent: 'center',
-                              alignItems: 'center',
-                              shadowColor: colorPalette.shadow,
-                              shadowOffset: { width: 0, height: 2 },
-                              shadowOpacity: 0.6,
-                              shadowRadius: 4,
-                              elevation: 5,
-                            }}
-                          >
-                            <Text
-                              style={{
-                                color: '#0A0805',
-                                fontSize: 13,
-                                fontWeight: '900',
-                                letterSpacing: 0,
-                              }}
-                            >
-                              {idx + 1}
-                            </Text>
-                          </View>
-                        </View>
-                      );
-                    })}
-                    <View style={styles.heatmapLabelContainer}>
-                      <Text style={styles.heatmapLabel}>
-                        {lang === 'th'
-                          ? `${greenCount}/${landmarks.length} ผ่าน • ${landmarkBrandLabel} HALLMARK`
-                          : `${greenCount}/${landmarks.length} PASS • ${landmarkBrandLabel} HALLMARK`}
-                      </Text>
-                    </View>
-                  </View>
-                )}
+                {/* Hallmark landmark pins are intentionally NOT overlaid on
+                    the user's photo: fixed % coordinates can't track an
+                    arbitrarily tilted / off-centre / cropped shot, so pins
+                    floated onto the wrong parts. Instead the numbered pins
+                    live on an upright reference schematic (HallmarkSchematic)
+                    rendered below the toggle — where each landmark's canonical
+                    position is always correct and matches the cards 1:1. */}
               </View>
             </View>
           ))}
@@ -219,6 +158,25 @@ export default function VerdictHeader({
         </Pressable>
       </View>
 
+      {/* Hallmark Diagnostic Map — numbered checkpoints on an upright
+          reference schematic. Positions are canonical (not tied to the
+          user's photo angle), so pin ↔ number ↔ card always agree. */}
+      {showHeatmap && (
+        <View style={styles.schematicCard}>
+          <Text style={styles.schematicHeader}>
+            {lang === 'th'
+              ? `${greenCount}/${landmarks.length} ผ่าน • ${landmarkBrandLabel} HALLMARK`
+              : `${greenCount}/${landmarks.length} PASS • ${landmarkBrandLabel} HALLMARK`}
+          </Text>
+          <HallmarkSchematic landmarks={landmarks} signals={signals} />
+          <Text style={styles.schematicCaption}>
+            {lang === 'th'
+              ? 'ผังตำแหน่งจุดตรวจมาตรฐานของรุ่น — หมายเลขตรงกับการ์ดด้านล่าง (ไม่ใช่พิกัดบนรูปถ่ายจริง)'
+              : 'Reference schematic of checkpoints — numbers match the cards below (not your exact photo)'}
+          </Text>
+        </View>
+      )}
+
       {/* Center-aligned Luxury Watch Details Section */}
       <View style={styles.watchDetailsBox}>
         <Text style={styles.watchBrand}>{result.brand?.toUpperCase() || 'ROLEX'}</Text>
@@ -230,9 +188,114 @@ export default function VerdictHeader({
   );
 }
 
+/**
+ * HallmarkSchematic — draws an upright, stylised watch (bezel + dial +
+ * crown + bracelet stubs) and overlays the brand's numbered checkpoint
+ * pins at their canonical xPct/yPct. Because the diagram is always upright
+ * and centred, every pin lands on the correct anatomical zone and stays in
+ * lock-step with the cards below (same array index → same number). Pin
+ * colour reflects the matched Gemini signal: green pass / red fail /
+ * amber neutral / gray = no signal mentioned this landmark.
+ */
+function HallmarkSchematic({
+  landmarks,
+  signals,
+}: {
+  landmarks: LandmarkPoint[];
+  signals: Array<{ signal: string; weight: 'positive' | 'negative' | 'neutral' }>;
+}) {
+  const size = Math.min(SCREEN_WIDTH - 88, 300);
+  const markers = [
+    { l: 0.485, t: 0.21 },
+    { l: 0.485, t: 0.74 },
+    { l: 0.74, t: 0.485 },
+    { l: 0.215, t: 0.485 },
+  ];
+  return (
+    <View style={{ width: size, height: size, alignSelf: 'center', position: 'relative' }}>
+      {/* bracelet stubs (top + bottom) */}
+      <View style={{ position: 'absolute', left: size * 0.35, top: 0, width: size * 0.3, height: size * 0.16, backgroundColor: '#241D14', borderTopLeftRadius: 10, borderTopRightRadius: 10, borderWidth: 1, borderColor: 'rgba(236,200,122,0.22)' }} />
+      <View style={{ position: 'absolute', left: size * 0.35, bottom: 0, width: size * 0.3, height: size * 0.16, backgroundColor: '#241D14', borderBottomLeftRadius: 10, borderBottomRightRadius: 10, borderWidth: 1, borderColor: 'rgba(236,200,122,0.22)' }} />
+      {/* crown (right) */}
+      <View style={{ position: 'absolute', right: size * 0.04, top: size * 0.44, width: size * 0.07, height: size * 0.12, backgroundColor: '#3A2F1E', borderRadius: 3, borderWidth: 1, borderColor: 'rgba(236,200,122,0.3)' }} />
+      {/* bezel ring */}
+      <View style={{ position: 'absolute', left: size * 0.11, top: size * 0.11, width: size * 0.78, height: size * 0.78, borderRadius: size * 0.39, backgroundColor: '#15100B', borderWidth: 3, borderColor: 'rgba(236,200,122,0.4)' }} />
+      {/* dial */}
+      <View style={{ position: 'absolute', left: size * 0.18, top: size * 0.18, width: size * 0.64, height: size * 0.64, borderRadius: size * 0.32, backgroundColor: '#0E0B07', borderWidth: 1, borderColor: 'rgba(236,200,122,0.18)' }} />
+      {/* hour markers + centre hub */}
+      {markers.map((m, i) => (
+        <View key={i} style={{ position: 'absolute', left: size * m.l, top: size * m.t, width: size * 0.03, height: size * 0.03, borderRadius: size * 0.015, backgroundColor: 'rgba(236,200,122,0.5)' }} />
+      ))}
+      <View style={{ position: 'absolute', left: size * 0.485, top: size * 0.485, width: size * 0.03, height: size * 0.03, borderRadius: size * 0.015, backgroundColor: 'rgba(236,200,122,0.85)' }} />
+
+      {/* Numbered checkpoint pins — canonical positions on the schematic */}
+      {landmarks.map((lm, idx) => {
+        const match = matchSignalToLandmark(lm, signals);
+        const bg = match
+          ? match.weight === 'positive'
+            ? '#22C55E'
+            : match.weight === 'negative'
+            ? '#EF4444'
+            : '#F59E0B'
+          : '#94A3B8';
+        return (
+          <View
+            key={lm.id}
+            style={{
+              position: 'absolute',
+              left: (lm.xPct / 100) * size - 14,
+              top: (lm.yPct / 100) * size - 14,
+              width: 28,
+              height: 28,
+              borderRadius: 14,
+              backgroundColor: bg,
+              borderWidth: 2,
+              borderColor: 'rgba(255,255,255,0.9)',
+              justifyContent: 'center',
+              alignItems: 'center',
+              shadowColor: bg,
+              shadowOffset: { width: 0, height: 2 },
+              shadowOpacity: 0.6,
+              shadowRadius: 4,
+              elevation: 5,
+            }}
+          >
+            <Text style={{ color: '#0A0805', fontSize: 13, fontWeight: '900' }}>{idx + 1}</Text>
+          </View>
+        );
+      })}
+    </View>
+  );
+}
+
 const styles = StyleSheet.create({
   container: {
     width: '100%',
+  },
+  schematicCard: {
+    backgroundColor: 'rgba(18, 14, 10, 0.6)',
+    borderRadius: radius.lg,
+    borderWidth: 1,
+    borderColor: 'rgba(236, 200, 122, 0.2)',
+    padding: spacing.md,
+    marginTop: spacing.sm,
+    alignItems: 'center',
+  },
+  schematicHeader: {
+    color: colors.amber,
+    fontSize: 13,
+    fontWeight: '800',
+    letterSpacing: 0.5,
+    textAlign: 'center',
+    marginBottom: spacing.sm,
+  },
+  schematicCaption: {
+    color: '#8A8278',
+    fontSize: 11,
+    textAlign: 'center',
+    marginTop: spacing.md,
+    lineHeight: 16,
+    paddingHorizontal: spacing.sm,
   },
   galleryContainer: {
     width: '100%',

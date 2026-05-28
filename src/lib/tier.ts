@@ -97,7 +97,7 @@ const FREE_CAPS: TierCapabilities = {
   dailyScanLimit: 9999,           // no daily pacing
   welcomeScans: 0,
   lifetimeScanLimit: FREE_SCAN_LIMIT,
-  collectionLimit: 10,            // matches max scans (5 base + 5 consent bonus)
+  collectionLimit: 0,             // Free = scan only; saving to the vault requires an upgrade
   highQualityPhoto: false,
   autoCrop: false,
   bgRemoval: false,
@@ -123,13 +123,13 @@ const FREE_CAPS: TierCapabilities = {
   weightFusion: false,
 };
 
-// Standard Package — monthly scan limit: 50
+// Standard Package — monthly scan limit: 20
 const STANDARD_CAPS: TierCapabilities = {
-  monthlyScanLimit: 50,           // 50 scans paired 1:1 with auth
+  monthlyScanLimit: 20,           // 20 scans paired 1:1 with auth
   dailyScanLimit: 9999,
   welcomeScans: 0,
   lifetimeScanLimit: 'unlimited',
-  collectionLimit: 50,            // matches monthly scan cap
+  collectionLimit: 20,            // matches monthly scan cap
   highQualityPhoto: true,
   autoCrop: false,
   bgRemoval: false,
@@ -146,7 +146,7 @@ const STANDARD_CAPS: TierCapabilities = {
   priorityAi: false,
   cloudBackup: false,
   aiQuestionsPerMonth: 30,
-  authenticityPerMonth: 50,       // 50 auth tries (1:1 with scans)
+  authenticityPerMonth: 20,       // 20 auth tries (1:1 with scans)
   useHeatmapInAuth: true,         // heatmap pre-fire ON for accuracy
   authenticityHeatmap: false,
   heatmapPerMonth: 0,
@@ -155,13 +155,13 @@ const STANDARD_CAPS: TierCapabilities = {
   weightFusion: false,
 };
 
-// Pro Package — monthly scan limit: 100
+// Pro Package — monthly scan limit: 50
 const PRO_CAPS: TierCapabilities = {
-  monthlyScanLimit: 100,           // 100 scans paired 1:1 with auth
+  monthlyScanLimit: 50,            // 50 scans paired 1:1 with auth
   dailyScanLimit: 9999,
   welcomeScans: 0,
   lifetimeScanLimit: 'unlimited',
-  collectionLimit: 100,
+  collectionLimit: 50,            // matches monthly scan cap
   highQualityPhoto: true,
   autoCrop: false,
   bgRemoval: true,
@@ -178,7 +178,7 @@ const PRO_CAPS: TierCapabilities = {
   priorityAi: false,
   cloudBackup: true,
   aiQuestionsPerMonth: 100,
-  authenticityPerMonth: 100,       // 100 auth tries (1:1 with scans)
+  authenticityPerMonth: 50,        // 50 auth tries (1:1 with scans)
   useHeatmapInAuth: true,
   authenticityHeatmap: false,
   heatmapPerMonth: 0,
@@ -187,13 +187,13 @@ const PRO_CAPS: TierCapabilities = {
   weightFusion: false,
 };
 
-// Premium Package — monthly scan limit: 200
+// Premium Package — monthly scan limit: 100
 const PREMIUM_CAPS: TierCapabilities = {
-  monthlyScanLimit: 200,          // 200 scans paired 1:1 with auth
+  monthlyScanLimit: 100,          // 100 scans paired 1:1 with auth
   dailyScanLimit: 9999,
   welcomeScans: 0,
   lifetimeScanLimit: 'unlimited',
-  collectionLimit: 'unlimited',   // Dealer positioning
+  collectionLimit: 100,           // matches monthly scan cap
   highQualityPhoto: true,
   autoCrop: true,
   bgRemoval: true,
@@ -210,7 +210,7 @@ const PREMIUM_CAPS: TierCapabilities = {
   priorityAi: true,
   cloudBackup: true,
   aiQuestionsPerMonth: 300,
-  authenticityPerMonth: 200,      // 200 auth tries (1:1 with scans)
+  authenticityPerMonth: 100,      // 100 auth tries (1:1 with scans)
   useHeatmapInAuth: true,
   authenticityHeatmap: true,      // AI heatmap UI overlay
   heatmapPerMonth: 50,
@@ -790,11 +790,29 @@ export async function resetTrialScans(): Promise<void> {
 }
 
 /** Check if user can scan now based on their tier and trial state. */
+/**
+ * Helper: compute the "approaching limit" flag. Fires when the user has
+ * ≤ 20% of their quota remaining (rounded up, minimum 1). Used by
+ * ScanScreen to render an amber warning + fire scan_quota_approaching.
+ */
+function isApproaching(remaining: number, total: number): boolean {
+  if (total <= 0) return false;
+  if (remaining <= 0) return false; // exhausted is a separate state
+  const threshold = Math.max(1, Math.ceil(total * 0.2));
+  return remaining <= threshold;
+}
+
 export async function checkScanAllowed(
   tier: MembershipTier,
   freeScansUsedLifetime: number,
   trialStart?: string | null
-): Promise<{ allowed: boolean; reason?: string; remaining?: number | 'unlimited' }> {
+): Promise<{
+  allowed: boolean;
+  reason?: string;
+  remaining?: number | 'unlimited';
+  total?: number;
+  approaching?: boolean;
+}> {
   // If Free tier and NOT trialing, they are completely locked out of scanning!
   if (tier === 'free' && !trialStart) {
     return {
@@ -827,7 +845,13 @@ export async function checkScanAllowed(
       };
     }
 
-    return { allowed: true, remaining: Math.min(remaining, dailyRemaining) };
+    const effectiveRemaining = Math.min(remaining, dailyRemaining);
+    return {
+      allowed: true,
+      remaining: effectiveRemaining,
+      total: TRIAL_SCAN_LIMIT,
+      approaching: isApproaching(effectiveRemaining, TRIAL_SCAN_LIMIT),
+    };
   }
 
   const caps = tierCaps(tier);
@@ -866,9 +890,15 @@ export async function checkScanAllowed(
         allowed: false,
         reason: `ใช้ครบสแกนฟรี ${effectiveLimit} ครั้งแล้ว — ${hint}`,
         remaining: 0,
+        total: effectiveLimit,
       };
     }
-    return { allowed: true, remaining };
+    return {
+      allowed: true,
+      remaining,
+      total: effectiveLimit,
+      approaching: isApproaching(remaining, effectiveLimit),
+    };
   }
 
   // Paid tiers — monthly cadence, no daily cap
@@ -885,7 +915,13 @@ export async function checkScanAllowed(
       allowed: false,
       reason: `ใช้ครบโควต้า ${caps.monthlyScanLimit} ครั้งของเดือนนี้แล้ว · ซื้อเครดิตเพื่อสแกนต่อทันที หรือรออีก ${countdown}`,
       remaining: 0,
+      total: caps.monthlyScanLimit,
     };
   }
-  return { allowed: true, remaining };
+  return {
+    allowed: true,
+    remaining,
+    total: caps.monthlyScanLimit,
+    approaching: isApproaching(remaining, caps.monthlyScanLimit),
+  };
 }

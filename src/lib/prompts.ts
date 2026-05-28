@@ -401,13 +401,26 @@ export function formatAuthSignalsBlock(signals?: AuthSignals): string {
   );
 }
 
+// Appended to the auth prompt when the app is in Thai mode so Gemini emits
+// user-facing text in Thai. The English `signal` field is preserved for the
+// Hallmark landmark matcher (English keywords); a parallel `signalTh` carries
+// the Thai display string. JSON keys + enum values stay English so parsing,
+// verdict colour, and pin weight logic are unaffected.
+const THAI_OUTPUT_DIRECTIVE =
+  '\n\n🇹🇭 OUTPUT LANGUAGE = THAI. Write these field VALUES in natural, professional Thai: ' +
+  '"authenticityReasoning", "recommendation", every item in "checklist", and every item in "warningFlags". ' +
+  'For EACH object in "authenticitySignals": keep "signal" as a concise ENGLISH phrase (used internally for matching) ' +
+  'AND add a "signalTh" field holding the Thai translation of that signal. ' +
+  'Keep ALL JSON keys and ALL enumerated values (e.g. authenticityVerdict, weight) in English — never translate keys or enums.';
+
 export function buildAuthAssessmentPrompt(
   name: string,
   brand: string,
   reference: string,
   signals?: AuthSignals,
   hasBackPhoto: boolean = true,
-  extraAngleCount: number = 0
+  extraAngleCount: number = 0,
+  language: 'th' | 'en' = 'en'
 ): string {
   const signalsBlock = formatAuthSignalsBlock(signals);
   let imageGuide = '';
@@ -431,7 +444,8 @@ export function buildAuthAssessmentPrompt(
     `- Reference: ${reference || '(not specified)'}\n` +
     imageGuide +
     `\nAnalyze the front${hasBackPhoto ? ' (and back)' : ''}${extraAngleCount > 0 ? ' (and additional angle)' : ''} images ${signalsBlock ? 'along with the technical pipeline signals above' : ''} ` +
-    `and formulate your findings in the requested JSON structure. Do not include markdown.`
+    `and formulate your findings in the requested JSON structure. Do not include markdown.` +
+    (language === 'th' ? THAI_OUTPUT_DIRECTIVE : '')
   );
 }
 
@@ -442,7 +456,8 @@ export function buildAuthAssessmentPromptWithCert(
   certCount: number,
   hasBackPhoto: boolean,
   signals?: AuthSignals,
-  extraAngleCount: number = 0
+  extraAngleCount: number = 0,
+  language: 'th' | 'en' = 'en'
 ): string {
   const signalsBlock = formatAuthSignalsBlock(signals);
   const userImageCount = (hasBackPhoto ? 2 : 1) + extraAngleCount;
@@ -471,7 +486,8 @@ export function buildAuthAssessmentPromptWithCert(
       ? `5. **Leverage side/thickness views** — check case profiles and lug holes to detect common Super Clone thickness offsets.\n`
       : '') +
     `\n⚠️ Technical Warning: If reference images seem incorrect or mismatched, flag it in the reasoning immediately. Do not speculate on future investment trends.\n\n` +
-    `Respond strictly as a pure JSON object. No markdown.`
+    `Respond strictly as a pure JSON object. No markdown.` +
+    (language === 'th' ? THAI_OUTPUT_DIRECTIVE : '')
   );
 }
 

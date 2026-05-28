@@ -68,7 +68,87 @@ PROBE_WEIGHTS = Path(__file__).resolve().parent / "output" / "probe_v4_weights.n
 # cross-file dependency on the FastAPI backend code.
 BRAND_DISPLAY = {
     "Maurice_Lacroix": "Maurice Lacroix",
+    # ── 2026-05-27: 15 brands seeded via scripts/scrape_apify.py ──
+    # Folder names match brand_to_folder() in scrape_apify.py
+    # (drops &, ., accents — Söhne→Sohne; replaces space/hyphen with _).
+    # Display values match the canonical names used in SettingsScreen.tsx.
+    "A_Lange_Sohne":       "A. Lange & Söhne",
+    "FP_Journe":           "F.P. Journe",
+    "Jaeger_LeCoultre":    "Jaeger-LeCoultre",
+    "Hublot":              "Hublot",
+    "Breitling":           "Breitling",
+    "Zenith":              "Zenith",
+    "Bvlgari":             "Bvlgari",
+    "Franck_Muller":       "Franck Muller",
+    "Girard_Perregaux":    "Girard-Perregaux",
+    "MB_F":                "MB&F",
+    "URWERK":              "URWERK",
+    "Bovet":               "Bovet",
+    "Ulysse_Nardin":       "Ulysse Nardin",
+    "Parmigiani_Fleurier": "Parmigiani Fleurier",
+    "Longines":            "Longines",
+    "Seiko":               "Seiko",
+    # ── 2026-05-28: official-site scrapes (filename embeds Ref+Name+THB) ──
+    "Hermes":              "Hermès",
 }
+
+# Filename pattern for official-site scrapes (Longines, Hermès):
+#   <Reference>_<Clean_Name...>_THB_<Price>.jpg
+# e.g. L3.430.4.92.6_CONQUEST_34mm_Automatic_Stainless_Steel_THB_76100.jpg
+#      408261WW00_Arceau_Le_Temps_voyageur_watch_Large_model_38mm_THB_1777200.jpg
+# The reference is the first underscore-delimited token; everything between
+# it and the trailing _THB_<price> is the model name.
+_THB_RE = re.compile(r"^(?P<ref>[^_]+)_(?P<name>.+?)_THB_(?P<price>\d+)$", re.IGNORECASE)
+
+
+def _parse_thb_filename(stem: str) -> tuple[str, str, int] | None:
+    """Parse '<Ref>_<Name>_THB_<Price>' stems. Returns (name, ref, price_thb)
+    or None if the stem doesn't match the official-site pattern."""
+    m = _THB_RE.match(stem)
+    if not m:
+        return None
+    ref = m.group("ref").strip()
+    name = m.group("name").replace("_", " ").strip()
+    try:
+        price = int(m.group("price"))
+    except ValueError:
+        price = 0
+    return name, ref, price
+
+
+# Longines official-site scrapes (collection subfolders) name files as:
+#   Longines_[longines-]<collection>-<ref>-<hash6>_official.avif
+# e.g. Longines_longines-spirit-l3-810-4-03-6-926b7e_official.avif
+#      Longines_conquest-l3-320-5-87-6-1467d7_official.avif
+#      Longines_hydroconquest-l3-782-3-96-7-e344bf_official.avif
+#      Longines_longines-master-collection-l2-793-5-37-7-2dc98e_official.avif
+# The reference is the 'l<digit>-...' token (→ L3.810.4.03.6) and everything
+# before it (minus a redundant leading 'longines-') is the collection name.
+# These carry no _THB_ price, so they bypass the _THB_ parser above.
+# Reference is the standard Longines 5-part form L#.###.#.##.# → the token
+# 'l<digit>' followed by exactly four '-<digits>' groups. Pinning it to 4
+# groups (rather than 2+) also disambiguates an all-digit trailing hash
+# (e.g. '...-6-399749') which would otherwise be swallowed into the ref.
+# The hash suffix is 3–8 hex chars and optional (limited editions sometimes
+# ship a short/absent hash); collection names may contain digits ('2026').
+_LONGINES_OFFICIAL_RE = re.compile(
+    r"^longines_(?:longines-)?(?P<coll>[a-z][a-z0-9-]*?)-"
+    r"(?P<ref>l\d+(?:-\d+){4})"
+    r"(?:-[0-9a-f]{3,8})?-?_official$",
+    re.IGNORECASE,
+)
+
+
+def _parse_longines_official(stem: str) -> tuple[str, str] | None:
+    """Parse a Longines official-scrape stem → ('Longines <Collection>',
+    'L3.810.4.03.6'). Returns None when the stem isn't that pattern."""
+    m = _LONGINES_OFFICIAL_RE.match(stem)
+    if not m:
+        return None
+    coll = m.group("coll").replace("-", " ").strip().title()
+    ref = m.group("ref").upper().replace("-", ".")  # l3-810-4-03-6 → L3.810.4.03.6
+    return f"Longines {coll}".strip(), ref
+
 
 # Filenames in /Maurice_Lacroix/Watches that Wikimedia returns for
 # brand-name queries but which are NOT watch photos (factory shots,
@@ -89,43 +169,55 @@ def _slug(s: str) -> str:
 
 
 def _classify_filename(brand: str, fname: str) -> tuple[str, str]:
-    """Infer (model_name, reference) from a Wikimedia filename.
+    """Infer (model_name, reference) from a scraped filename.
 
-    Best-effort string matching — Wikimedia filenames are
-    inconsistent so we fall back to brand-generic when no model
-    keyword is present. Conservative: when uncertain, use
-    "Maurice Lacroix" + the filename stem as ref, which still
-    contributes to the brand cluster but won't be confused with
-    a specific model.
+    Returns (model_name, reference) — both used in the `watches` table.
+
+    Per-brand classifiers are GATED on `brand` to avoid cross-brand
+    false-matches. Earlier bug: a Hublot file named
+    "Classic_Fusion_Chronograph-Premier-League" was mistakenly tagged
+    as "Maurice Lacroix Aikon Chronograph" because the generic chrono
+    fallback didn't check the brand parameter.
+
+    For brands without specific classifiers, falls back to:
+        (brand_display, filename_stem[:48])
+    Each file produces a unique `watches` row (prevents UNIQUE collisions
+    on (brand, reference)) and all rows cluster under the brand in DINOv3
+    embedding space, which is what visual RAG actually queries on.
     """
     low = fname.lower()
-    # Aikon is the line that mis-matched in production — explicit handling.
-    if "aikon" in low or "ai6038" in low:
-        return ("Maurice Lacroix Aikon", "AI6038-SS001-330-2")
-    if "pontos" in low:
-        return ("Maurice Lacroix Pontos", "PT6188")
-    if "masterpiece" in low and "double" in low and "retrograde" in low:
-        return ("Maurice Lacroix Masterpiece Double Retrograde", "MP7218")
-    if "masterpiece" in low:
-        return ("Maurice Lacroix Masterpiece", "MP6378")
-    if "reveil" in low:
-        return ("Maurice Lacroix Masterpiece Reveil Globe", "MP6388")
-    if "calendrier" in low or "retrograde" in low:
-        return ("Maurice Lacroix Masterpiece Retrograde", "MP6068")
-    if "eliros" in low:
-        return ("Maurice Lacroix Eliros", "EL1118")
-    if "calypso" in low:
-        return ("Maurice Lacroix Calypso", "CP1101")
-    if "daydate" in low or "day_date" in low:
-        return ("Maurice Lacroix Pontos Day Date", "PT6158")
-    if "chronograph" in low or "chrono" in low:
-        # Generic chronograph fallback — assume Aikon Chrono since
-        # that's the most common modern Maurice Lacroix chrono.
-        return ("Maurice Lacroix Aikon Chronograph", "AI6038-SS001")
-    # Brand-generic fallback. Stem becomes the reference so each
-    # image still produces a unique watches row (prevents UNIQUE
-    # collisions on the watches table) but they all live under
-    # the brand cluster.
+
+    # ── Maurice Lacroix-specific classifiers (only when brand matches) ──
+    # These keyword patterns ("aikon", "pontos", "masterpiece", etc.) are
+    # specific to Maurice Lacroix product naming. Gated to prevent the
+    # generic "chronograph" → "Aikon Chrono" rule from firing on Hublot,
+    # Breitling, etc. files that happen to contain "chronograph" too.
+    if brand == "Maurice Lacroix":
+        if "aikon" in low or "ai6038" in low:
+            return ("Maurice Lacroix Aikon", "AI6038-SS001-330-2")
+        if "pontos" in low:
+            return ("Maurice Lacroix Pontos", "PT6188")
+        if "masterpiece" in low and "double" in low and "retrograde" in low:
+            return ("Maurice Lacroix Masterpiece Double Retrograde", "MP7218")
+        if "masterpiece" in low:
+            return ("Maurice Lacroix Masterpiece", "MP6378")
+        if "reveil" in low:
+            return ("Maurice Lacroix Masterpiece Reveil Globe", "MP6388")
+        if "calendrier" in low or "retrograde" in low:
+            return ("Maurice Lacroix Masterpiece Retrograde", "MP6068")
+        if "eliros" in low:
+            return ("Maurice Lacroix Eliros", "EL1118")
+        if "calypso" in low:
+            return ("Maurice Lacroix Calypso", "CP1101")
+        if "daydate" in low or "day_date" in low:
+            return ("Maurice Lacroix Pontos Day Date", "PT6158")
+        if "chronograph" in low or "chrono" in low:
+            return ("Maurice Lacroix Aikon Chronograph", "AI6038-SS001")
+
+    # ── Brand-generic fallback ──
+    # Stem becomes the reference so each image still produces a unique
+    # watches row (prevents UNIQUE collisions on the watches table) but
+    # they all live under the brand cluster.
     return (f"{brand}", Path(fname).stem[:48])
 
 
@@ -270,7 +362,9 @@ def _iter_images(brand_folder: str) -> Iterable[Path]:
     for p in sorted(root.rglob("*")):
         if not p.is_file():
             continue
-        if p.suffix.lower() not in {".jpg", ".jpeg", ".png", ".webp"}:
+        # .avif/.heic included — official-site scrapes (Longines collections)
+        # ship .avif; _load_image_bytes transcodes them to JPEG for Replicate.
+        if p.suffix.lower() not in {".jpg", ".jpeg", ".png", ".webp", ".avif", ".heic"}:
             continue
         if p.name in MANUAL_BLACKLIST:
             log.info("blacklisted: %s", p.name)
@@ -318,13 +412,37 @@ def main() -> None:
     counts = {"new": 0, "skipped": 0, "failed": 0, "blacklisted": 0}
     t0 = time.time()
     for i, path in enumerate(images, 1):
-        model_name, reference = _classify_filename(brand_display, path.name)
+        # Official-site scrapes (Longines/Hermès) embed Ref+Name+THB price
+        # directly in the filename: '<Ref>_<Name>_THB_<Price>.jpg'. Detect
+        # that first — it gives a real model name + reference + Thai price,
+        # far better than the generic filename-stem fallback.
+        price_thb: int | None = None
+        thb = _parse_thb_filename(path.stem)
+        if thb:
+            model_name, reference, price_thb = thb
+            # Prefix brand for display consistency (ResultScreen shows name)
+            if not model_name.lower().startswith(brand_display.lower()):
+                model_name = f"{brand_display} {model_name}"
+        else:
+            # Longines official collection scrapes (.avif, ref embedded in
+            # filename, no _THB_ price) → clean 'L3.810.4.03.6' reference.
+            longi = (_parse_longines_official(path.stem)
+                     if brand_display == "Longines" else None)
+            if longi:
+                model_name, reference = longi
+            else:
+                model_name, reference = _classify_filename(brand_display, path.name)
         watch_id = f"{_slug(brand_display)}-{_slug(model_name)}-{_slug(reference)}"
         # Image URL — local file path is acceptable here. The mobile
         # app shows DB image_url as a thumbnail tooltip; for now we
         # store the source filename so curation is traceable. If we
         # later mirror to S3/Supabase storage we can rewrite this.
-        image_url = f"local://maurice_lacroix/{path.name}"
+        #
+        # NOTE: was hardcoded to "maurice_lacroix" for all brands —
+        # bug pre-2026-05-27 that mis-tagged every indexed image with
+        # the wrong brand prefix in image_url. Fixed by using the
+        # actual brand-folder slug.
+        image_url = f"local://{_slug(brand_display)}/{path.name}"
 
         log.info("[%d/%d] %s → %s / %s", i, len(images), path.name, model_name, reference)
 
@@ -359,11 +477,14 @@ def main() -> None:
             "dial_color": "Black",
             "year_created": "2020",
             "difficulty": "medium",
-            "price_market_excellent": 2000,
-            "price_market_good": 1500,
-            "price_market_fair": 1200,
+            # Real Thai retail price (THB→USD ÷35, bigint) when the filename
+            # carried it; otherwise generic placeholders. Grade bands:
+            # excellent 1.0× / good 0.92× / fair 0.80×.
+            "price_market_excellent": (int(round(price_thb / 35.0)) if price_thb else 2000),
+            "price_market_good": (int(round(price_thb / 35.0 * 0.92)) if price_thb else 1500),
+            "price_market_fair": (int(round(price_thb / 35.0 * 0.80)) if price_thb else 1200),
             "price_trend": "stable",
-            "price_last_updated": "2026-01-01",
+            "price_last_updated": "2026-05-28" if price_thb else "2026-01-01",
             "history": f"Reference exemplar for {brand_display} visual RAG matching.",
             "significance": "Visual reference (not for display).",
             "data_confidence": "medium",

@@ -55,7 +55,15 @@ function generateCohortHash(): string {
 
 let inflightCohortHash: Promise<string> | null = null;
 
-async function ensureCohortHash(): Promise<string> {
+/**
+ * Get-or-create the anonymous cohort hash. Exported so funnel/event
+ * loggers can attach the cohort id without requiring full consent
+ * grant first (the hash is by definition anonymous per PDPA Section
+ * 26 — "anonymous data" — so it's safe to generate on first use).
+ *
+ * Stable across sessions, rotates on eraseMyData().
+ */
+export async function ensureCohortHash(): Promise<string> {
   if (inflightCohortHash) return inflightCohortHash;
   inflightCohortHash = (async () => {
     const existing = await AsyncStorage.getItem(KEYS.cohortHash);

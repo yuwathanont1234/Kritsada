@@ -550,6 +550,13 @@ export function LoadingScreen({ route, navigation }: Props) {
 
   useEffect(() => {
     let cancelled = false;
+    // AbortController for the network calls inside analyzeWatchByTier.
+    // When the user backgrounds the app, hits back, or navigates away
+    // mid-scan, we abort all in-flight Gemini/Replicate/Supabase calls
+    // instead of letting them complete and bill for nothing. The
+    // signal is threaded through analyzeWatchByTier → identify / auth /
+    // price / Pro-retry — see src/lib/aiRouter.ts.
+    const abortController = new AbortController();
     clearScanCaches();
     prewarmAll();
     const scanT0 = Date.now();
@@ -624,7 +631,10 @@ export function LoadingScreen({ route, navigation }: Props) {
             frontUri,
             backUri,
             membership.isTrialing,
-            extraImages
+            extraImages,
+            undefined,
+            abortController.signal,
+            lang
           );
           result = out.result;
           provider = out.provider;
@@ -712,6 +722,12 @@ export function LoadingScreen({ route, navigation }: Props) {
         });
       } catch (e: any) {
         if (cancelled) return;
+        // Abort triggered by the cleanup function — silent, no error UI.
+        // The user moved on; we just stop billing.
+        if (e?.name === 'AbortError' || abortController.signal.aborted) {
+          console.log('[scan] aborted by navigation away — discarding result');
+          return;
+        }
         const msg = e?.message ?? 'An unexpected diagnostic error occurred.';
         void logTesterEvent('scan_error', {
           totalMs: Date.now() - scanT0,
@@ -723,6 +739,9 @@ export function LoadingScreen({ route, navigation }: Props) {
 
     return () => {
       cancelled = true;
+      // Cancel in-flight network calls so we don't bill Gemini /
+      // Replicate / Supabase for work whose result will be discarded.
+      abortController.abort();
     };
   }, []);
 

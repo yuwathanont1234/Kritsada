@@ -1,6 +1,6 @@
 import { Feather } from '@expo/vector-icons';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
-import { NavigationContainer } from '@react-navigation/native';
+import { NavigationContainer, createNavigationContainerRef } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { StatusBar } from 'expo-status-bar';
 import React, { useEffect, useState } from 'react';
@@ -8,8 +8,31 @@ import { Pressable, Text } from 'react-native';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import { colors } from './src/lib/theme';
 import { RootStackParamList } from './src/lib/types';
-import { getMembership } from './src/lib/auth';
+import { getMembership, getAuthUser } from './src/lib/auth';
 import { LanguageProvider, useLanguage } from './src/lib/localization';
+import { initIap, syncMembershipFromIap, listenIapChanges } from './src/lib/iap';
+import { initSentry, ErrorBoundary } from './src/lib/sentry';
+
+// Initialize crash reporting BEFORE the React tree mounts so the very
+// first render is also captured if something explodes. No-op when
+// EXPO_PUBLIC_SENTRY_DSN is unset — see src/lib/sentry.ts.
+initSentry();
+
+// Initialize PostHog analytics. Async because identify() needs to read
+// dataConsent (AsyncStorage). No-op when EXPO_PUBLIC_POSTHOG_KEY is
+// unset — see src/lib/posthog.ts.
+void initPosthog();
+
+// Configure how foreground push notifications render. Must be called
+// once at module scope before any notifications arrive. Permission
+// itself is requested later via the Settings toggle (engagement-
+// gated). See src/lib/pushNotifications.ts for the full rationale.
+configurePushHandler();
+
+// Navigation ref so the push-notification response listener (which
+// fires outside the React tree) can imperatively navigate when a user
+// taps a re-engagement push from the lock screen / notification tray.
+const navigationRef = createNavigationContainerRef<RootStackParamList>();
 
 // Core Screens
 import SplashScreen from './src/screens/SplashScreen';
@@ -25,6 +48,12 @@ import { ScanScreen } from './src/screens/ScanScreen';
 import { LoadingScreen } from './src/screens/LoadingScreen';
 import { ResultScreen } from './src/screens/ResultScreen';
 import { MagazineScreen } from './src/screens/MagazineScreen';
+import { OnboardingScreen } from './src/screens/OnboardingScreen';
+import { initPosthog } from './src/lib/posthog';
+import { logFunnelEvent } from './src/lib/funnelEvents';
+import { getUserProfile } from './src/lib/userProfile';
+import { configurePushHandler } from './src/lib/pushNotifications';
+import * as Notifications from 'expo-notifications';
 
 import { styles } from './src/screens/AppStyles';
 
@@ -96,20 +125,119 @@ export default function App() {
       setAppTierKey(m.tier);
     });
 
+    // Fire app_opened acquisition event — once per launch. The is_returning_user
+    // flag distinguishes first-launch (post-install) from re-opens for
+    // funnel attribution. install_source is currently 'organic' as a
+    // placeholder; Phase 2 will hook expo-linking for UTM parsing.
+    (async () => {
+      try {
+        const profile = await getUserProfile();
+        const isReturning = !!profile.firstSeenAt;
+        await logFunnelEvent('app_opened', {
+          install_source: profile.installSource ?? 'organic',
+          is_returning_user: isReturning,
+          language: profile.language ?? 'th',
+        });
+      } catch {
+        /* fire-and-forget */
+      }
+    })();
+
+    // Initialize IAP (RevenueCat). Pass current user email as appUserId so
+    // subscription state follows the user across reinstalls. Safe to call
+    // even when RevenueCat key is not configured (degrades to mock mode).
+    (async () => {
+      try {
+        const user = await getAuthUser();
+        await initIap(user?.email ?? null);
+        // Pull the latest subscription state from the store of record —
+        // covers cases where a subscription expired or was refunded while
+        // the app was closed.
+        const syncedTier = await syncMembershipFromIap();
+        if (syncedTier) setAppTierKey(syncedTier);
+      } catch (e: any) {
+        console.warn('[App] IAP init failed (non-fatal):', e?.message);
+      }
+    })();
+
+    // Listen for real-time entitlement changes (e.g. user finishes purchase
+    // in a different tab, subscription expires server-side, refund issued).
+    let unsubscribeIap: (() => void) | null = null;
+    listenIapChanges((tier) => {
+      console.log('[App] IAP entitlement changed:', tier);
+      setAppTierKey(tier);
+    }).then((unsub) => {
+      unsubscribeIap = unsub;
+    });
+
     // Register global settings tier change callback
     const unsubscribe = registerUpdateTierCallback((tier) => {
       setAppTierKey(tier);
     });
 
+    // ── Push notification tap handler ───────────────────────
+    // Fires when user taps a notification from the lock screen / tray.
+    // Re-engagement pushes carry a `data.trigger` field that we use to
+    // deep-link into MembershipScreen with attribution intact, so the
+    // resulting paywall_viewed event ties back to the campaign.
+    const notifResponseSub = Notifications.addNotificationResponseReceivedListener((response) => {
+      try {
+        const data = (response.notification.request.content.data ?? {}) as Record<string, any>;
+        const triggerFromPush: string = typeof data.trigger === 'string' ? data.trigger : 're_engagement';
+
+        // Telemetry — wire to PostHog so we can measure CTR on
+        // re-engagement campaigns. Two events fired:
+        //   • push_opened — generic tap signal
+        //   • re_engagement_clicked — campaign-attributed click
+        logFunnelEvent('push_opened', { trigger: triggerFromPush }).catch(() => {});
+        if (data.campaign === 'cart_abandonment' || data.campaign === 'free_limit') {
+          logFunnelEvent('re_engagement_clicked', {
+            campaign: data.campaign,
+            trigger: triggerFromPush,
+          }).catch(() => {});
+        }
+
+        // Imperatively navigate. Wrapped in try/catch — if the ref
+        // isn't ready (cold start race condition) we silently drop
+        // the navigation; the user lands on the Home screen and can
+        // tap upgrade from there.
+        if (navigationRef.isReady()) {
+          navigationRef.navigate('Membership', { trigger: triggerFromPush });
+        }
+      } catch (e: any) {
+        console.warn('[App] push response handler failed:', e?.message);
+      }
+    });
+
     return () => {
       unsubscribe();
+      unsubscribeIap?.();
+      notifResponseSub.remove();
     };
   }, []);
 
   return (
+    <ErrorBoundary
+      fallback={({ resetError }) => (
+        <SafeAreaView style={{ flex: 1, justifyContent: 'center', alignItems: 'center', padding: 24, backgroundColor: '#0A0805' }}>
+          <Text style={{ color: '#D4B98C', fontSize: 18, fontWeight: '700', marginBottom: 12, textAlign: 'center' }}>
+            เกิดข้อผิดพลาดที่ไม่คาดคิด
+          </Text>
+          <Text style={{ color: '#A0978A', fontSize: 14, marginBottom: 24, textAlign: 'center' }}>
+            An unexpected error occurred. The issue has been reported automatically.
+          </Text>
+          <Pressable
+            onPress={resetError}
+            style={{ paddingVertical: 12, paddingHorizontal: 28, borderWidth: 1, borderColor: '#D4B98C', borderRadius: 6 }}
+          >
+            <Text style={{ color: '#D4B98C', fontWeight: '700', letterSpacing: 2 }}>RESTART</Text>
+          </Pressable>
+        </SafeAreaView>
+      )}
+    >
     <LanguageProvider>
       <SafeAreaProvider>
-        <NavigationContainer key={appTierKey}>
+        <NavigationContainer ref={navigationRef} key={appTierKey}>
           <Stack.Navigator
             screenOptions={{
               headerShown: false,
@@ -120,8 +248,9 @@ export default function App() {
             {/* Main Core Scanning Flow */}
             <Stack.Screen name="Splash" component={SplashScreen} />
             <Stack.Screen name="Login" component={LoginScreen} />
+            <Stack.Screen name="Onboarding" component={OnboardingScreen} />
             <Stack.Screen name="Main" component={MainTabNavigator} />
-            
+
             <Stack.Screen name="Scan" component={ScanScreen} />
             <Stack.Screen name="Loading" component={LoadingScreen} />
             <Stack.Screen name="Result" component={ResultScreen} />
@@ -156,5 +285,6 @@ export default function App() {
         </NavigationContainer>
       </SafeAreaProvider>
     </LanguageProvider>
+    </ErrorBoundary>
   );
 }

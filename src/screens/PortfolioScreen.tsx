@@ -16,6 +16,7 @@ import { Feather } from '@expo/vector-icons';
 import Svg, { Path, Circle, Defs, LinearGradient as SvgLinearGradient, Stop, G, Line, Rect, Text as SvgText } from 'react-native-svg';
 import { colors, spacing } from '../lib/theme';
 import { getAllWatches, calculatePortfolio } from '../lib/collection';
+import type { PortfolioSummary } from '../lib/collection';
 import type { SavedWatch } from '../lib/types';
 import { getExchangeRate } from '../lib/currency';
 import { useLanguage } from '../lib/localization';
@@ -25,26 +26,46 @@ import { styles } from './AppStyles';
 // "Sort by" pill. Order matters: it's the cycle order users see.
 type SortMode = 'none' | 'weight' | 'change-desc' | 'change-asc';
 
+const TH_MONTHS = ['ม.ค.', 'ก.พ.', 'มี.ค.', 'เม.ย.', 'พ.ค.', 'มิ.ย.', 'ก.ค.', 'ส.ค.', 'ก.ย.', 'ต.ค.', 'พ.ย.', 'ธ.ค.'];
+const EN_MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+
+type ValuePoint = { label: string; value: number };
+
+// ── Real portfolio value time-series ──────────────────────────────────────
+// For each of the last `months` calendar months (ending this month) we sum
+// the *current* market value (customPrice ?? marketPrice, USD) of every
+// active (unsold) watch that had already been acquired (savedAt ≤ month end).
+// The result is a cumulative "how my portfolio value built up" curve — 100%
+// derived from the user's own holdings + acquisition dates, and it updates
+// automatically whenever prices or holdings change. No synthetic data.
+function buildValueSeries(watches: SavedWatch[], months: number, lang: 'th' | 'en'): ValuePoint[] {
+  const labels = lang === 'th' ? TH_MONTHS : EN_MONTHS;
+  const now = new Date();
+  const active = watches.filter((w) => !w.soldAt);
+  const points: ValuePoint[] = [];
+  for (let i = months - 1; i >= 0; i--) {
+    const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+    const endOfMonth = new Date(d.getFullYear(), d.getMonth() + 1, 0, 23, 59, 59, 999).getTime();
+    const value = active
+      .filter((w) => {
+        const t = new Date(w.savedAt).getTime();
+        return !isNaN(t) && t <= endOfMonth;
+      })
+      .reduce((s, w) => s + (w.customPrice || w.result?.marketPrice || 0), 0);
+    points.push({ label: labels[d.getMonth()], value });
+  }
+  return points;
+}
+
 async function getPortfolioMetrics() {
   const list = await getAllWatches();
   const summary = calculatePortfolio(list);
-  const brandCount: Record<string, number> = {};
-  for (const w of list) {
-    if (w.result && w.result.brand) {
-      brandCount[w.result.brand] = (brandCount[w.result.brand] || 0) + 1;
-    }
-  }
-  return {
-    totalCount: summary.count,
-    totalValue: summary.totalCurrentValue,
-    brandCount,
-    watches: list,
-  };
+  return { summary, watches: list };
 }
 
 export default function PortfolioScreen({ navigation }: any) {
   const { t, lang } = useLanguage();
-  const [metrics, setMetrics] = useState<any>(null);
+  const [metrics, setMetrics] = useState<{ summary: PortfolioSummary; watches: SavedWatch[] } | null>(null);
   const [exchangeRate, setExchangeRate] = useState<number>(36.5);
   const [brandFilter, setBrandFilter] = useState<string>('all');
   const [sortMode, setSortMode] = useState<SortMode>('none');
@@ -52,15 +73,15 @@ export default function PortfolioScreen({ navigation }: any) {
   const load = async () => {
     const m = await getPortfolioMetrics();
     setMetrics(m);
-    const rate = await getExchangeRate();
-    if (rate !== null) {
-      setExchangeRate(rate);
-    }
   };
 
   useEffect(() => {
     load();
-    const timer = setInterval(load, 2000);
+    // Exchange rate barely moves — fetch once rather than every poll.
+    getExchangeRate().then((rate) => {
+      if (rate !== null) setExchangeRate(rate);
+    });
+    const timer = setInterval(load, 2500);
     return () => clearInterval(timer);
   }, []);
 
@@ -79,6 +100,26 @@ export default function PortfolioScreen({ navigation }: any) {
       ),
     [portfolioWatches]
   );
+
+  // Active (unsold) watches drive the analytics — value chart + allocation.
+  const activeWatches = useMemo(() => portfolioWatches.filter((w) => !w.soldAt), [portfolioWatches]);
+
+  // Cumulative portfolio value over the last 6 months (real, from savedAt).
+  const valueSeries = useMemo(() => buildValueSeries(portfolioWatches, 6, lang), [portfolioWatches, lang]);
+
+  // Brand allocation by *market value* (not count) — what a portfolio app shows.
+  const brandAlloc = useMemo(() => {
+    const m: Record<string, number> = {};
+    for (const w of activeWatches) {
+      const b = w.result?.brand?.trim();
+      if (!b) continue;
+      m[b] = (m[b] || 0) + (w.customPrice || w.result?.marketPrice || 0);
+    }
+    const total = Object.values(m).reduce((a, b) => a + b, 0);
+    return Object.entries(m)
+      .map(([brand, val]) => ({ brand, val, pct: total > 0 ? (val / total) * 100 : 0 }))
+      .sort((a, b) => b.val - a.val);
+  }, [activeWatches]);
 
   // Unique brand list for the filter-chip strip. Sorted by count desc so the
   // user's heaviest brands surface first — same logic CollectionScreen uses.
@@ -164,9 +205,20 @@ export default function PortfolioScreen({ navigation }: any) {
     );
   }
 
-  // Calculate mock diversification percentages
-  const brands = metrics.brandCount || {};
-  const total = Object.values(brands).reduce((a: any, b: any) => a + b, 0) as number || 1;
+  const summary = metrics.summary;
+  const rate = exchangeRate || 1;
+  const fmtTHB = (usd: number) => '฿' + Math.round(usd * rate).toLocaleString();
+  const fmtSignedTHB = (usd: number) => `${usd >= 0 ? '+' : '−'}฿${Math.round(Math.abs(usd) * rate).toLocaleString()}`;
+
+  const hasCost = summary.trackedCount > 0 && summary.totalPurchaseCost > 0;
+  const gainUSD = summary.totalUnrealizedGain;
+  const roi = summary.totalROI;
+  const isGain = gainUSD >= 0;
+  const gainColor = !hasCost ? colors.textSecondary : isGain ? colors.success : colors.danger;
+
+  // Chart is meaningful only with movement across ≥2 months — otherwise show
+  // an honest "keep collecting" prompt instead of a flat/degenerate line.
+  const chartReady = valueSeries.filter((p) => p.value > 0).length >= 2;
 
   return (
     <View style={{ flex: 1, backgroundColor: colors.background }}>
@@ -181,54 +233,225 @@ export default function PortfolioScreen({ navigation }: any) {
             {lang === 'th' ? 'ดัชนีชี้วัดและการวิเคราะห์พอร์ต' : 'VAULT METRICS & ANALYTICS'}
           </Text>
 
-          {/* ROI Stats Card */}
-          <View style={[styles.roiCard, { overflow: 'hidden', borderColor: '#ECC87A', borderWidth: 1.5 }]}>
+          {/* Live valuation strip — credibility / "updated" signal */}
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 7, marginTop: -spacing.xs, marginBottom: spacing.xs }}>
+            <View style={{ width: 7, height: 7, borderRadius: 4, backgroundColor: colors.success }} />
+            <Text style={{ color: '#8A8278', fontSize: 11.5, fontWeight: '600', letterSpacing: 0.3 }}>
+              {lang === 'th' ? 'ประเมินตามราคาตลาดล่าสุด · อัพเดทอัตโนมัติ' : 'Live market valuation · auto-updating'}
+            </Text>
+          </View>
+
+          {/* ───────────────────────── Portfolio value hero ───────────────────────── */}
+          <View style={[styles.roiCard, { overflow: 'hidden', borderColor: '#ECC87A', borderWidth: 1.5, alignItems: 'stretch' }]}>
             <LinearGradient
               colors={['rgba(28, 22, 17, 0.95)', 'rgba(18, 14, 10, 0.98)']}
               style={StyleSheet.absoluteFillObject}
             />
-            <Text style={styles.roiLabel}>
-              {lang === 'th' ? 'ผลตอบแทนรวมเฉลี่ย (ROI)' : 'ESTIMATED ROI'}
+            <Text style={[styles.roiLabel, { textAlign: 'center', letterSpacing: 0.6 }]}>
+              {lang === 'th' ? 'มูลค่าพอร์ตรวม' : 'TOTAL PORTFOLIO VALUE'}
             </Text>
-            <Text style={[styles.roiValue, { color: colors.success, textShadowColor: 'rgba(46, 204, 113, 0.75)', textShadowOffset: { width: 0, height: 0 }, textShadowRadius: 12 }]}>+12.4%</Text>
-            <Text style={styles.roiDelta}>
-              {lang === 'th' ? 'เปรียบเทียบกับราคาทุนรวมสะสม' : 'VS TOTAL COST BASIS'}
+            <Text
+              style={[
+                styles.roiValue,
+                {
+                  color: colors.amberLight,
+                  textAlign: 'center',
+                  textShadowColor: 'rgba(236, 200, 122, 0.45)',
+                  textShadowOffset: { width: 0, height: 0 },
+                  textShadowRadius: 14,
+                },
+              ]}
+            >
+              {fmtTHB(summary.totalCurrentValue)}
             </Text>
-            
-            <View style={styles.roiGrid}>
-              <View style={[styles.roiBox, { backgroundColor: 'rgba(255, 255, 255, 0.02)', borderColor: 'rgba(212, 175, 55, 0.25)', borderWidth: 1 }]}>
-                <Text style={styles.roiBoxLabel}>
-                  {lang === 'th' ? 'ราคาทุนรวม' : 'TOTAL COST BASIS'}
+
+            {/* Total return pill + absolute delta */}
+            <View style={{ flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: 8, marginBottom: 2, flexWrap: 'wrap' }}>
+              {hasCost ? (
+                <>
+                  <View
+                    style={{
+                      flexDirection: 'row',
+                      alignItems: 'center',
+                      gap: 4,
+                      paddingHorizontal: 10,
+                      paddingVertical: 5,
+                      borderRadius: 12,
+                      backgroundColor: isGain ? 'rgba(74, 222, 128, 0.14)' : 'rgba(239, 68, 68, 0.14)',
+                      borderWidth: 1,
+                      borderColor: isGain ? 'rgba(74, 222, 128, 0.4)' : 'rgba(239, 68, 68, 0.4)',
+                    }}
+                  >
+                    <Feather name={isGain ? 'trending-up' : 'trending-down'} size={13} color={gainColor} />
+                    <Text style={{ color: gainColor, fontSize: 13.5, fontWeight: '800' }}>
+                      {`${isGain ? '+' : ''}${roi.toFixed(2)}%`}
+                    </Text>
+                  </View>
+                  <Text style={{ color: gainColor, fontSize: 13, fontWeight: '700' }}>
+                    {fmtSignedTHB(gainUSD)}
+                  </Text>
+                </>
+              ) : (
+                <Text style={{ color: colors.textSecondary, fontSize: 12, fontWeight: '600', textAlign: 'center' }}>
+                  {summary.count === 0
+                    ? lang === 'th'
+                      ? 'เริ่มสแกนและบันทึกนาฬิกาเพื่อเริ่มติดตามพอร์ต'
+                      : 'Scan & save a timepiece to start tracking your vault'
+                    : lang === 'th'
+                    ? 'ยังไม่ได้บันทึกราคาทุน — เพิ่มราคาที่ซื้อมาเพื่อดูผลตอบแทน'
+                    : 'No cost basis yet — add acquisition cost to see ROI'}
                 </Text>
-                <Text style={styles.roiBoxVal}>฿{Math.round(metrics.totalValue * 0.88 * exchangeRate).toLocaleString()}</Text>
-              </View>
-              <View style={[styles.roiBox, { backgroundColor: 'rgba(255, 255, 255, 0.02)', borderColor: 'rgba(212, 175, 55, 0.25)', borderWidth: 1 }]}>
-                <Text style={styles.roiBoxLabel}>
-                  {lang === 'th' ? 'มูลค่าตลาดรวม' : 'MARKET VALUE'}
-                </Text>
-                <Text style={[styles.roiBoxVal, { color: colors.amber }]}>฿{Math.round(metrics.totalValue * exchangeRate).toLocaleString()}</Text>
-              </View>
+              )}
             </View>
+
+            {/* 3-up stat grid */}
+            <View style={{ flexDirection: 'row', gap: 10, marginTop: spacing.lg }}>
+              <StatBox
+                label={lang === 'th' ? 'ต้นทุนรวม' : 'COST BASIS'}
+                value={hasCost ? fmtTHB(summary.totalPurchaseCost) : '—'}
+              />
+              <StatBox
+                label={lang === 'th' ? 'กำไร/ขาดทุน' : 'UNREALIZED P/L'}
+                value={hasCost ? fmtSignedTHB(gainUSD) : '—'}
+                valueColor={hasCost ? gainColor : undefined}
+              />
+              <StatBox
+                label={lang === 'th' ? 'จำนวนเรือน' : 'HOLDINGS'}
+                value={String(summary.count)}
+              />
+            </View>
+
+            {/* Transparency footnote */}
+            {summary.count > 0 && (
+              <Text style={{ color: '#8A8278', fontSize: 10.5, textAlign: 'center', marginTop: 12, lineHeight: 15 }}>
+                {lang === 'th'
+                  ? `${summary.trackedCount}/${summary.count} เรือนบันทึกต้นทุน · ประเมินจากราคาตลาดล่าสุด`
+                  : `${summary.trackedCount}/${summary.count} with cost basis · valued at latest market price`}
+              </Text>
+            )}
+            {summary.soldCount > 0 && (
+              <Text style={{ color: '#8A8278', fontSize: 10.5, textAlign: 'center', marginTop: 3, lineHeight: 15 }}>
+                {lang === 'th'
+                  ? `ขายแล้ว ${summary.soldCount} เรือน · กำไรจริง ${fmtSignedTHB(summary.totalRealizedGain)}`
+                  : `${summary.soldCount} sold · realized ${fmtSignedTHB(summary.totalRealizedGain)}`}
+              </Text>
+            )}
           </View>
 
-          {/* ─────────────────────────────────────────────────────────
-              Brand Diversification — per-watch holdings list.
-              ─────────────────────────────────────────────────────────
-              Old design: stacked horizontal progress bars showing
-              "X% of vault is Rolex" — informationally thin, didn't
-              reveal which specific pieces were driving the weighting
-              and offered no engagement.
+          {/* ───────────────────── Portfolio value chart (real) ───────────────────── */}
+          <View style={[styles.statsCard, { overflow: 'hidden', borderColor: 'rgba(212, 175, 55, 0.25)', borderWidth: 1 }]}>
+            <LinearGradient
+              colors={['rgba(28, 22, 17, 0.9)', 'rgba(18, 14, 10, 0.95)']}
+              style={StyleSheet.absoluteFillObject}
+            />
+            <Text style={styles.sectionTitle}>
+              {lang === 'th' ? 'มูลค่าพอร์ตสะสม · 6 เดือน' : 'PORTFOLIO VALUE · 6 MONTHS'}
+            </Text>
 
-              New design (inspired by WatchCharts Index app screenshot):
-                • Brand filter chips (horizontal scroll) — quickly slice
-                  the vault to a single brand without leaving the page.
-                • "Sort by" pill — single tap cycles None → Weighting ↓
-                  → Change ↓ → Change ↑ so the user can flip between
-                  "what's heaviest" and "what's gained the most".
-                • Per-watch cards with image, brand/model/reference,
-                  weighting % (% of vault by market value), and change
-                  pill (% gain vs purchase price; green positive / red
-                  negative / gray when no purchase price recorded). */}
+            {(() => {
+              const chartWidth = Dimensions.get('window').width - 64;
+              const paddingX = 15;
+              const usableWidth = chartWidth - 2 * paddingX;
+              const topY = 25;
+              const baseY = 145;
+              const floorY = 170;
+
+              if (!chartReady) {
+                return (
+                  <View style={{ height: 180, justifyContent: 'center', alignItems: 'center' }}>
+                    <Feather name="trending-up" size={28} color="rgba(236, 200, 122, 0.4)" />
+                    <Text style={{ color: '#A89E8A', fontSize: 13, textAlign: 'center', marginTop: 10, paddingHorizontal: 20, lineHeight: 19 }}>
+                      {lang === 'th'
+                        ? 'สะสมนาฬิกาข้ามเดือนเพื่อเริ่มติดตามมูลค่าพอร์ตตามเวลาจริง'
+                        : 'Add timepieces across months to start tracking portfolio value over time'}
+                    </Text>
+                  </View>
+                );
+              }
+
+              const series = valueSeries;
+              const values = series.map((p) => p.value);
+              const maxV = Math.max(...values);
+              const minV = Math.min(...values);
+              const range = maxV - minV || 1;
+              const n = series.length;
+              const step = usableWidth / (n - 1);
+              const xs = series.map((_, i) => paddingX + i * step);
+              const ys = series.map((p) => baseY - ((p.value - minV) / range) * (baseY - topY));
+
+              const linePath = xs.map((x, i) => `${i === 0 ? 'M' : 'L'} ${x} ${ys[i]}`).join(' ');
+              const areaPath = `${linePath} L ${xs[n - 1]} ${floorY} L ${xs[0]} ${floorY} Z`;
+
+              // Growth from first non-zero point → latest point (real %).
+              const firstNZ = values.find((v) => v > 0) || 0;
+              const last = values[n - 1];
+              const growth = firstNZ > 0 ? ((last - firstNZ) / firstNZ) * 100 : 0;
+              const up = growth >= 0;
+              const growthColor = up ? colors.success : colors.danger;
+              const lastX = xs[n - 1];
+              const lastY = ys[n - 1];
+              const tipW = 54;
+              const tipX = Math.min(Math.max(lastX - tipW / 2, 0), chartWidth - tipW);
+
+              return (
+                <View style={{ height: 180, width: '100%', marginTop: spacing.md, borderBottomWidth: 1, borderBottomColor: 'rgba(255,255,255,0.08)' }}>
+                  <Svg width={chartWidth} height={180}>
+                    <Defs>
+                      <SvgLinearGradient id="goldGradient" x1="0" y1="0" x2="0" y2="1">
+                        <Stop offset="0%" stopColor="#ECC87A" stopOpacity={0.25} />
+                        <Stop offset="100%" stopColor="#1E140E" stopOpacity={0.0} />
+                      </SvgLinearGradient>
+                      <SvgLinearGradient id="lineGlow" x1="0" y1="0" x2="1" y2="0">
+                        <Stop offset="0%" stopColor="#A37C2F" stopOpacity={0.9} />
+                        <Stop offset="50%" stopColor="#ECC87A" stopOpacity={1} />
+                        <Stop offset="100%" stopColor="#ECC87A" stopOpacity={1} />
+                      </SvgLinearGradient>
+                    </Defs>
+
+                    {/* Horizontal guideline grids */}
+                    <Line x1={paddingX} y1={topY} x2={chartWidth - paddingX} y2={topY} stroke="rgba(236, 200, 122, 0.05)" strokeWidth={1} strokeDasharray="3, 3" />
+                    <Line x1={paddingX} y1={(topY + baseY) / 2} x2={chartWidth - paddingX} y2={(topY + baseY) / 2} stroke="rgba(236, 200, 122, 0.05)" strokeWidth={1} strokeDasharray="3, 3" />
+                    <Line x1={paddingX} y1={baseY} x2={chartWidth - paddingX} y2={baseY} stroke="rgba(236, 200, 122, 0.05)" strokeWidth={1} strokeDasharray="3, 3" />
+
+                    {/* Vertical marker on the latest point */}
+                    <Line x1={lastX} y1={topY} x2={lastX} y2={baseY} stroke={`${up ? 'rgba(74, 222, 128, 0.25)' : 'rgba(239, 68, 68, 0.25)'}`} strokeWidth={1.5} strokeDasharray="2, 2" />
+
+                    {/* Area + line */}
+                    <Path d={areaPath} fill="url(#goldGradient)" />
+                    <Path d={linePath} stroke="#ECC87A" strokeWidth={6} fill="none" opacity={0.12} />
+                    <Path d={linePath} stroke="url(#lineGlow)" strokeWidth={3.5} fill="none" strokeLinecap="round" strokeLinejoin="round" />
+
+                    {/* Data dots */}
+                    {xs.slice(0, n - 1).map((x, i) => (
+                      <Circle key={i} cx={x} cy={ys[i]} r={4} fill="#C59A45" stroke="#120E0A" strokeWidth={1.5} />
+                    ))}
+
+                    {/* Latest point — glowing pulse */}
+                    <Circle cx={lastX} cy={lastY} r={8} fill={growthColor} opacity={0.3} />
+                    <Circle cx={lastX} cy={lastY} r={4.5} fill={growthColor} stroke="#120E0A" strokeWidth={1.5} />
+
+                    {/* Floating growth badge */}
+                    <G transform={`translate(${tipX}, 2)`}>
+                      <Rect width={tipW} height={16} rx={4} fill="rgba(10, 8, 5, 0.95)" stroke="#ECC87A" strokeWidth={0.75} />
+                      <SvgText x={tipW / 2} y={11} fontSize={8} fontWeight="800" fill={growthColor} textAnchor="middle">
+                        {`${up ? '+' : ''}${growth.toFixed(1)}%`}
+                      </SvgText>
+                    </G>
+                  </Svg>
+                </View>
+              );
+            })()}
+
+            {chartReady && (
+              <View style={styles.graphMonthsRow}>
+                {valueSeries.map((p, i) => (
+                  <Text key={i} style={styles.graphMonthText}>{p.label}</Text>
+                ))}
+              </View>
+            )}
+          </View>
+
+          {/* ───────────────────── Brand diversification + holdings ───────────────────── */}
           <View style={[styles.diversificationCard, { overflow: 'hidden', borderColor: 'rgba(212, 175, 55, 0.25)', borderWidth: 1 }]}>
             <LinearGradient
               colors={['rgba(28, 22, 17, 0.9)', 'rgba(18, 14, 10, 0.95)']}
@@ -244,12 +467,47 @@ export default function PortfolioScreen({ navigation }: any) {
               </Text>
             ) : (
               <>
+                {/* Allocation bars — % of portfolio value per brand (real) */}
+                {brandAlloc.length > 0 && (
+                  <View style={{ marginTop: 2, marginBottom: spacing.xs }}>
+                    {(() => {
+                      const top = brandAlloc.slice(0, 5);
+                      const restPct = brandAlloc.slice(5).reduce((s, x) => s + x.pct, 0);
+                      const rows: { label: string; pct: number }[] = top.map((x) => ({ label: x.brand, pct: x.pct }));
+                      if (restPct > 0.1) rows.push({ label: lang === 'th' ? 'อื่นๆ' : 'Others', pct: restPct });
+                      return rows.map((r, i) => (
+                        <View key={`${r.label}-${i}`} style={{ marginBottom: 10 }}>
+                          <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 5 }}>
+                            <Text numberOfLines={1} style={{ color: '#E8DCC0', fontSize: 12.5, fontWeight: '600', flex: 1, marginRight: 8 }}>
+                              {r.label}
+                            </Text>
+                            <Text style={{ color: colors.amber, fontSize: 12.5, fontWeight: '700' }}>
+                              {r.pct.toFixed(1)}%
+                            </Text>
+                          </View>
+                          <View style={{ height: 7, borderRadius: 4, backgroundColor: 'rgba(255,255,255,0.06)', overflow: 'hidden' }}>
+                            <LinearGradient
+                              colors={[colors.amberDark, colors.amber]}
+                              start={{ x: 0, y: 0 }}
+                              end={{ x: 1, y: 0 }}
+                              style={{ width: `${Math.max(2, Math.min(100, r.pct))}%`, height: '100%', borderRadius: 4 }}
+                            />
+                          </View>
+                        </View>
+                      ));
+                    })()}
+                  </View>
+                )}
+
+                {/* Divider */}
+                <View style={{ height: 1, backgroundColor: 'rgba(236, 200, 122, 0.12)', marginBottom: spacing.sm }} />
+
                 {/* Brand filter chips — horizontally scrollable strip */}
                 <ScrollView
                   horizontal
                   showsHorizontalScrollIndicator={false}
                   contentContainerStyle={{ gap: 8, paddingVertical: 4 }}
-                  style={{ marginBottom: spacing.sm, marginTop: 4 }}
+                  style={{ marginBottom: spacing.sm }}
                 >
                   <BrandChip
                     label={lang === 'th' ? 'ทุกแบรนด์' : 'All brands'}
@@ -330,99 +588,53 @@ export default function PortfolioScreen({ navigation }: any) {
               </>
             )}
           </View>
-
-          {/* Market Analytics Graph Mock */}
-          <View style={[styles.statsCard, { overflow: 'hidden', borderColor: 'rgba(212, 175, 55, 0.25)', borderWidth: 1 }]}>
-            <LinearGradient
-              colors={['rgba(28, 22, 17, 0.9)', 'rgba(18, 14, 10, 0.95)']}
-              style={StyleSheet.absoluteFillObject}
-            />
-            <Text style={styles.sectionTitle}>
-              {lang === 'th' ? 'ดัชนีแนวโน้มราคาตลาดรอง 6 เดือน' : '6-MONTH MARKET PRICE TREND'}
-            </Text>
-            {(() => {
-              const chartWidth = Dimensions.get('window').width - 64;
-              const paddingX = 15;
-              const usableWidth = chartWidth - 2 * paddingX;
-              const step = usableWidth / 5;
-              
-              const x0 = paddingX;
-              const x1 = paddingX + step;
-              const x2 = paddingX + 2 * step;
-              const x3 = paddingX + 3 * step;
-              const x4 = paddingX + 4 * step;
-              const x5 = chartWidth - paddingX;
-              
-              const y0 = 145; // Dec
-              const y1 = 125; // Jan
-              const y2 = 95;  // Feb
-              const y3 = 75;  // Mar
-              const y4 = 55;  // Apr
-              const y5 = 25;  // May (highest)
-              
-              const linePath = `M ${x0} ${y0} L ${x1} ${y1} L ${x2} ${y2} L ${x3} ${y3} L ${x4} ${y4} L ${x5} ${y5}`;
-              const areaPath = `M ${x0} ${y0} L ${x1} ${y1} L ${x2} ${y2} L ${x3} ${y3} L ${x4} ${y4} L ${x5} ${y5} L ${x5} 170 L ${x0} 170 Z`;
-              
-              return (
-                <View style={{ height: 180, width: '100%', marginTop: spacing.md, borderBottomWidth: 1, borderBottomColor: 'rgba(255,255,255,0.08)' }}>
-                  <Svg width={chartWidth} height={180}>
-                    <Defs>
-                      <SvgLinearGradient id="goldGradient" x1="0" y1="0" x2="0" y2="1">
-                        <Stop offset="0%" stopColor="#ECC87A" stopOpacity={0.25} />
-                        <Stop offset="100%" stopColor="#1E140E" stopOpacity={0.0} />
-                      </SvgLinearGradient>
-                      <SvgLinearGradient id="lineGlow" x1="0" y1="0" x2="1" y2="0">
-                        <Stop offset="0%" stopColor="#A37C2F" stopOpacity={0.9} />
-                        <Stop offset="50%" stopColor="#ECC87A" stopOpacity={1} />
-                        <Stop offset="100%" stopColor="#ECC87A" stopOpacity={1} />
-                      </SvgLinearGradient>
-                    </Defs>
-                    
-                    {/* Horizontal Guideline Grids */}
-                    <Line x1={paddingX} y1={145} x2={chartWidth - paddingX} y2={145} stroke="rgba(236, 200, 122, 0.05)" strokeWidth={1} strokeDasharray="3, 3" />
-                    <Line x1={paddingX} y1={95} x2={chartWidth - paddingX} y2={95} stroke="rgba(236, 200, 122, 0.05)" strokeWidth={1} strokeDasharray="3, 3" />
-                    <Line x1={paddingX} y1={25} x2={chartWidth - paddingX} y2={25} stroke="rgba(236, 200, 122, 0.05)" strokeWidth={1} strokeDasharray="3, 3" />
-                    
-                    {/* Vertical Active line for May */}
-                    <Line x1={x5} y1={25} x2={x5} y2={145} stroke="rgba(46, 204, 113, 0.25)" strokeWidth={1.5} strokeDasharray="2, 2" />
-                    
-                    {/* Area fill under curve */}
-                    <Path d={areaPath} fill="url(#goldGradient)" />
-                    
-                    {/* Soft background glow line */}
-                    <Path d={linePath} stroke="#ECC87A" strokeWidth={6} fill="none" opacity={0.12} />
-                    
-                    {/* Main sharp elegant vector line */}
-                    <Path d={linePath} stroke="url(#lineGlow)" strokeWidth={3.5} fill="none" strokeLinecap="round" strokeLinejoin="round" />
-                    
-                    {/* Dots at intersections */}
-                    <Circle cx={x0} cy={y0} r={4.5} fill="#C59A45" stroke="#120E0A" strokeWidth={1.5} />
-                    <Circle cx={x1} cy={y1} r={4.5} fill="#C59A45" stroke="#120E0A" strokeWidth={1.5} />
-                    <Circle cx={x2} cy={y2} r={4.5} fill="#C59A45" stroke="#120E0A" strokeWidth={1.5} />
-                    <Circle cx={x3} cy={y3} r={4.5} fill="#C59A45" stroke="#120E0A" strokeWidth={1.5} />
-                    <Circle cx={x4} cy={y4} r={4.5} fill="#C59A45" stroke="#120E0A" strokeWidth={1.5} />
-                    
-                    {/* Active May Dot with elegant outer glowing pulse */}
-                    <Circle cx={x5} cy={y5} r={8} fill={colors.success} opacity={0.3} />
-                    <Circle cx={x5} cy={y5} r={4.5} fill={colors.success} stroke="#120E0A" strokeWidth={1.5} />
-                    
-                    {/* Floating Tooltip displaying current estimated ROI */}
-                    <G transform={`translate(${x5 - 50}, 2)`}>
-                      <Rect width={48} height={16} rx={4} fill="rgba(10, 8, 5, 0.95)" stroke="#ECC87A" strokeWidth={0.75} />
-                      <SvgText x={24} y={11} fontSize={8} fontWeight="800" fill={colors.success} textAnchor="middle">+12.4%</SvgText>
-                    </G>
-                  </Svg>
-                </View>
-              );
-            })()}
-            <View style={styles.graphMonthsRow}>
-              {['Dec', 'Jan', 'Feb', 'Mar', 'Apr', 'May'].map((m) => (
-                <Text key={m} style={styles.graphMonthText}>{m}</Text>
-              ))}
-            </View>
-          </View>
         </SafeAreaView>
       </ScrollView>
+    </View>
+  );
+}
+
+/**
+ * StatBox — one cell in the portfolio hero's 3-up stat grid (cost basis,
+ * unrealized P/L, holdings count). Outline + faint fill matches the gold
+ * card language; value auto-shrinks so long THB figures never clip.
+ */
+function StatBox({
+  label,
+  value,
+  valueColor,
+}: {
+  label: string;
+  value: string;
+  valueColor?: string;
+}) {
+  return (
+    <View
+      style={{
+        flex: 1,
+        backgroundColor: 'rgba(255, 255, 255, 0.02)',
+        borderColor: 'rgba(212, 175, 55, 0.25)',
+        borderWidth: 1,
+        borderRadius: 12,
+        paddingVertical: 12,
+        paddingHorizontal: 8,
+        alignItems: 'center',
+      }}
+    >
+      <Text
+        numberOfLines={1}
+        style={{ color: '#8A8278', fontSize: 10, fontWeight: '700', letterSpacing: 0.4, textAlign: 'center' }}
+      >
+        {label}
+      </Text>
+      <Text
+        numberOfLines={1}
+        adjustsFontSizeToFit
+        minimumFontScale={0.7}
+        style={{ color: valueColor || '#F5E9CC', fontSize: 14.5, fontWeight: '800', marginTop: 5, textAlign: 'center' }}
+      >
+        {value}
+      </Text>
     </View>
   );
 }

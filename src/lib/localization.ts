@@ -75,13 +75,13 @@ export const translations = {
       vipTitle: 'PREMIUM',
       scanCredits: 'Scan Credit Packages',
       payPerScan: 'PAY-PER-SCAN • Flexible scan top-ups for active collectors',
-      fortyScansTitle: '40 Scan Credits',
+      fortyScansTitle: '20 Scan Credits',
       fortyScansDesc: 'Premium high-precision visual scan top-ups',
-      eightyScansTitle: '80 Scan Credits',
+      eightyScansTitle: '40 Scan Credits',
       eightyScansDesc: 'The ultimate valuation top-up for active dealers and collectors',
       savePercent: 'SAVE {percent}% 🔥',
-      buyFortyScans: 'BUY 40 SCANS',
-      buyEightyScans: 'BUY 80 SCANS',
+      buyFortyScans: 'BUY 20 SCANS',
+      buyEightyScans: 'BUY 40 SCANS',
       purchaseSuccess: 'Purchase Successful!',
       creditAdded: '{count} Scan credits have been added to your vault.',
     },
@@ -278,13 +278,13 @@ export const translations = {
       vipTitle: 'พรีเมียม (Premium)',
       scanCredits: 'แพ็คเกจซื้อสิทธิ์สแกนเพิ่มเติม',
       payPerScan: 'PAY-PER-SCAN • เติมสิทธิ์สแกนแบบยืดหยุ่นสำหรับนักสะสมนาฬิกา',
-      fortyScansTitle: 'สิทธิ์สแกน 40 ครั้ง',
+      fortyScansTitle: 'สิทธิ์สแกน 20 ครั้ง',
       fortyScansDesc: 'สแกนตรวจสอบด้วย Visual RAG ลึกถึงโครงสร้างกลไกอ้างอิง',
-      eightyScansTitle: 'สิทธิ์สแกน 80 ครั้ง',
+      eightyScansTitle: 'สิทธิ์สแกน 40 ครั้ง',
       eightyScansDesc: 'แพ็คเกจคุ้มค่าสูงสุดสำหรับดีลเลอร์และนักสะสมนาฬิกามืออาชีพ',
       savePercent: 'ประหยัด {percent}% 🔥',
-      buyFortyScans: 'ซื้อสแกน 40 ครั้ง',
-      buyEightyScans: 'ซื้อสแกน 80 ครั้ง',
+      buyFortyScans: 'ซื้อสแกน 20 ครั้ง',
+      buyEightyScans: 'ซื้อสแกน 40 ครั้ง',
       purchaseSuccess: 'ทำรายการซื้อสิทธิ์สำเร็จ!',
       creditAdded: 'เพิ่มสิทธิ์การสแกน {count} ครั้งลงในตู้นิรภัยของคุณเรียบร้อยแล้ว',
     },
@@ -422,7 +422,11 @@ type LanguageContextProps = {
 const LanguageContext = createContext<LanguageContextProps | undefined>(undefined);
 
 export function LanguageProvider({ children }: { children: React.ReactNode }) {
-  const [lang, setLangState] = useState<Language>('en');
+  // Default to Thai for first launch — the app's primary market is
+  // Thailand and every translated string already exists in TH form.
+  // Returning users keep whatever they last picked: AsyncStorage
+  // overrides this initial value as soon as the effect resolves.
+  const [lang, setLangState] = useState<Language>('th');
 
   // Load language preference from AsyncStorage
   useEffect(() => {

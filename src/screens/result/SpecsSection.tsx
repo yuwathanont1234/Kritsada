@@ -9,7 +9,7 @@ import { TierCapabilities } from '../../lib/tier';
 import { useLanguage } from '../../lib/localization';
 import { usePriceFallback } from './usePriceFallback';
 import {
-  getLandmarksForBrand,
+  getLandmarksForWatch,
   matchSignalToLandmark,
 } from '../../lib/data/watchLandmarks';
 
@@ -606,8 +606,8 @@ function LandmarkCardsSection({
 }) {
   const [expandedId, setExpandedId] = React.useState<string | null>(null);
   const landmarks = React.useMemo(
-    () => getLandmarksForBrand(result.brand),
-    [result.brand]
+    () => getLandmarksForWatch(result.brand, result.name, result.reference),
+    [result.brand, result.name, result.reference]
   );
   const signals = result.authenticitySignals ?? [];
   const overridden = result.weightCheck?.grade === 'mismatch';
@@ -751,7 +751,7 @@ function LandmarkCardsSection({
                   numberOfLines={1}
                   style={{ color: '#C0B4A0', fontSize: 11.5, marginTop: 2, lineHeight: 16 }}
                 >
-                  {match.signal}
+                  {lang === 'th' ? (match.signalTh || match.signal) : match.signal}
                 </Text>
               )}
               {!expanded && !match && (
@@ -784,7 +784,7 @@ function LandmarkCardsSection({
                         {lang === 'th' ? 'การสังเกตของ AI' : 'AI OBSERVATION'}
                       </Text>
                       <Text style={{ color: '#E8DCC0', fontSize: 12.5, lineHeight: 18 }}>
-                        {match.signal}
+                        {lang === 'th' ? (match.signalTh || match.signal) : match.signal}
                       </Text>
                     </View>
                   ) : null}
@@ -833,8 +833,8 @@ function AiMetricsPanel({
   lang: 'th' | 'en';
 }) {
   const landmarks = React.useMemo(
-    () => getLandmarksForBrand(result.brand),
-    [result.brand]
+    () => getLandmarksForWatch(result.brand, result.name, result.reference),
+    [result.brand, result.name, result.reference]
   );
   const signals = result.authenticitySignals ?? [];
   const totals = React.useMemo(() => {

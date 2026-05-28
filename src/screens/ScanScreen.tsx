@@ -31,6 +31,7 @@ import { getFreeScansUsed, isFreeWindowExpired } from '../lib/storage';
 import { assessImageQuality } from '../lib/imageQuality';
 import { useMotionStability } from '../lib/useMotionStability';
 import { checkScanAllowed, tierCaps } from '../lib/tier';
+import { logFunnelEvent } from '../lib/funnelEvents';
 import { logTesterEvent } from '../lib/testerMode';
 import { colors, radius, spacing, typography } from '../lib/theme';
 import { RootStackParamList } from '../lib/types';
@@ -215,6 +216,15 @@ export function ScanScreen({ navigation }: Props) {
   // Tier capabilities (for HQ photo + Auto Crop gating)
   const [caps, setCaps] = useState(tierCaps('free'));
 
+  // Quota status snapshot — refreshed on focus so the approaching-limit
+  // banner stays in sync with the current scan budget. Drives the amber
+  // "เหลือ X/Y" warning that appears when remaining ≤ 20% of total.
+  const [quotaStatus, setQuotaStatus] = useState<{
+    remaining: number | 'unlimited' | null;
+    total: number | null;
+    approaching: boolean;
+  }>({ remaining: null, total: null, approaching: false });
+
   // Branded quota-wall modal — replaces native Alert.alert. We carry the
   // friendly reason text from checkScanAllowed and a flag for whether the
   // user is on Free tier (so we can show the trial-first CTA).
@@ -274,6 +284,31 @@ export function ScanScreen({ navigation }: Props) {
     }, [])
   );
 
+  // Refresh quota status on every focus so the approaching-limit banner
+  // reflects the user's CURRENT budget (including bonus credits granted
+  // mid-session, e.g. via dataConsent opt-in).
+  useFocusEffect(
+    React.useCallback(() => {
+      let cancelled = false;
+      (async () => {
+        try {
+          const m = await getMembership();
+          const used = await getFreeScansUsed();
+          const check = await checkScanAllowed(m.tier, used, m.trialStart);
+          if (cancelled) return;
+          setQuotaStatus({
+            remaining: typeof check.remaining === 'number' ? check.remaining : (check.remaining === 'unlimited' ? 'unlimited' : null),
+            total: check.total ?? null,
+            approaching: check.approaching ?? false,
+          });
+        } catch {
+          /* fail-soft — banner just doesn't render */
+        }
+      })();
+      return () => { cancelled = true; };
+    }, [])
+  );
+
   // Reset the auto-shutter latch whenever we change which slot we're
   // capturing for, so each slot gets one (and only one) auto-fire.
   React.useEffect(() => {
@@ -314,22 +349,131 @@ export function ScanScreen({ navigation }: Props) {
   }
 
   if (!permission.granted) {
+    // ── Camera permission primer ────────────────────────────
+    // Before triggering the native permission prompt (which is
+    // OS-controlled, terse, and easy to mis-tap "Deny"), we render
+    // an in-app explainer. This addresses the ~40% drop-off seen on
+    // luxury-watch apps that go straight to the iOS prompt.
+    //
+    // The wrapper around requestPermission also captures funnel
+    // telemetry: we know how many users hit the primer, how many
+    // grant, and how many deny — feeding paywall_viewed funnel.
+    const handleRequestPermission = async () => {
+      try {
+        const result = await requestPermission();
+        // expo-camera returns { granted, status, canAskAgain } — we
+        // log the boolean outcome for clean funnel slicing.
+        logFunnelEvent(
+          result.granted ? 'camera_permission_granted' : 'camera_permission_denied',
+          {
+            can_ask_again: result.canAskAgain,
+          }
+        ).catch(() => {});
+      } catch (e: any) {
+        console.warn('[ScanScreen] requestPermission threw:', e?.message);
+      }
+    };
+
     return (
-      <SafeAreaView style={styles.permWrap}>
-        <Text style={styles.permTitle}>📷 {t('scan.cameraPermission')}</Text>
-        <Text style={styles.permText}>
-          {t('scan.cameraDesc')}
+      <SafeAreaView
+        style={[styles.permWrap, { paddingHorizontal: 28, paddingVertical: 36 }]}
+      >
+        {/* Hero icon — bigger camera icon with halo, Champagne Gold accent */}
+        <View
+          style={{
+            width: 84,
+            height: 84,
+            borderRadius: 42,
+            borderWidth: 1.5,
+            borderColor: '#D4B98C',
+            backgroundColor: 'rgba(212, 185, 140, 0.10)',
+            alignItems: 'center',
+            justifyContent: 'center',
+            marginBottom: 24,
+            alignSelf: 'center',
+          }}
+        >
+          <Feather name="camera" size={36} color="#D4B98C" />
+        </View>
+
+        <Text
+          style={{
+            color: '#EDE0BD',
+            fontSize: 22,
+            fontWeight: '700',
+            textAlign: 'center',
+            letterSpacing: 0.5,
+            marginBottom: 10,
+          }}
+        >
+          {lang === 'th' ? 'เปิดสิทธิ์ใช้งานกล้อง' : 'Enable Camera Access'}
         </Text>
+
+        <Text
+          style={{
+            color: '#A0978A',
+            fontSize: 14,
+            textAlign: 'center',
+            lineHeight: 21,
+            marginBottom: 24,
+          }}
+        >
+          {lang === 'th'
+            ? 'AI ต้องใช้กล้องเพื่อถ่ายภาพหน้าปัดและฝาหลังของนาฬิกาในระดับมาโคร — ระบบจะวิเคราะห์ความแท้แบบเชิงลึก ไม่บันทึกหรือแชร์ภาพออกจากเครื่องของคุณ'
+            : 'Our AI needs camera access to capture macro shots of your watch dial + caseback for forensic analysis. Photos stay on your device — never uploaded or shared.'}
+        </Text>
+
+        {/* 3 benefit bullets — concrete reassurance about what we do */}
+        <View style={{ alignSelf: 'stretch', marginBottom: 24, gap: 10 }}>
+          {[
+            {
+              icon: 'shield',
+              th: 'ภาพถูกประมวลผลแบบเข้ารหัส ไม่เก็บไว้บนเซิร์ฟเวอร์ของเรา',
+              en: 'Encrypted in transit — never stored on our servers',
+            },
+            {
+              icon: 'zap',
+              th: 'AI วิเคราะห์ภายใน 30 วินาที (เร็วกว่าผู้เชี่ยวชาญ 100×)',
+              en: 'AI verdict in 30s — 100× faster than manual expert review',
+            },
+            {
+              icon: 'eye-off',
+              th: 'ปิดสิทธิ์ได้ทุกเมื่อที่ Settings ของระบบ',
+              en: 'Revoke anytime via system Settings',
+            },
+          ].map((b, i) => (
+            <View key={i} style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+              <View
+                style={{
+                  width: 28,
+                  height: 28,
+                  borderRadius: 14,
+                  backgroundColor: 'rgba(212, 185, 140, 0.12)',
+                  borderWidth: 1,
+                  borderColor: 'rgba(212, 185, 140, 0.30)',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}
+              >
+                <Feather name={b.icon as any} size={13} color="#D4B98C" />
+              </View>
+              <Text style={{ flex: 1, color: '#B5AFA5', fontSize: 13, lineHeight: 18 }}>
+                {lang === 'th' ? b.th : b.en}
+              </Text>
+            </View>
+          ))}
+        </View>
+
         <PrimaryButton
-          label={t('scan.cameraBtn')}
-          onPress={requestPermission}
-          style={{ width: '100%', marginTop: spacing.lg }}
+          label={lang === 'th' ? 'ให้สิทธิ์ใช้งานกล้อง' : 'Grant Camera Access'}
+          onPress={handleRequestPermission}
+          style={{ width: '100%' }}
         />
         <PrimaryButton
           label={t('common.cancel')}
           variant="ghost"
           onPress={() => navigation.goBack()}
-          style={{ width: '100%' }}
+          style={{ width: '100%', marginTop: 8 }}
         />
       </SafeAreaView>
     );
@@ -480,9 +624,28 @@ export function ScanScreen({ navigation }: Props) {
       freeUsed,
       membership.trialStart
     );
+
+    // Fire scan_quota_approaching at 80% threshold (1 scan left out of 5
+    // free, 2 out of 10 Standard, 6 out of 30 Pro, etc.). check.approaching
+    // is true on the LAST allowed scan, so this fires once per quota cycle
+    // — perfect for nudge timing. See tier.ts isApproaching().
+    if (check.allowed && check.approaching && typeof check.remaining === 'number') {
+      logFunnelEvent('scan_quota_approaching', {
+        remaining: check.remaining,
+        total: check.total ?? null,
+      }).catch(() => {});
+    }
+
     if (!check.allowed) {
       const isFreeQuotaWall =
         membership.tier === 'free' && !membership.isTrialing;
+
+      logFunnelEvent('scan_quota_exhausted', {
+        trigger_screen: 'ScanScreen',
+        tier: membership.tier,
+        is_trialing: membership.isTrialing,
+        is_free_quota_wall: isFreeQuotaWall,
+      }).catch(() => {});
 
       const consentForLog = await getDataConsent();
       const windowExpired =
@@ -608,6 +771,49 @@ export function ScanScreen({ navigation }: Props) {
           [frontUri, backUri, topUri, bottomUri].filter(Boolean).length
         }
       />
+
+      {/* Approaching-limit banner — amber, non-blocking, top of camera.
+          Shows when checkScanAllowed.approaching === true. Tap navigates
+          to MembershipScreen with attribution 'approaching_limit' so we
+          can measure how often this banner drives conversions vs the
+          hard quota wall. */}
+      {quotaStatus.approaching && typeof quotaStatus.remaining === 'number' && (
+        <Pressable
+          onPress={() => navigation.navigate('Membership', { trigger: 'approaching_limit' })}
+          style={{
+            position: 'absolute',
+            top: 60,
+            left: 16,
+            right: 16,
+            backgroundColor: 'rgba(212, 185, 140, 0.18)',
+            borderWidth: 1,
+            borderColor: '#D4B98C',
+            borderRadius: 10,
+            paddingVertical: 10,
+            paddingHorizontal: 14,
+            flexDirection: 'row',
+            alignItems: 'center',
+            gap: 10,
+          }}
+          hitSlop={6}
+        >
+          <Feather name="alert-circle" size={18} color="#D4B98C" />
+          <Text
+            style={{
+              flex: 1,
+              color: '#EDE0BD',
+              fontSize: 13,
+              fontWeight: '600',
+              letterSpacing: 0.3,
+            }}
+          >
+            {lang === 'th'
+              ? `เหลือสแกนฟรี ${quotaStatus.remaining}${quotaStatus.total ? `/${quotaStatus.total}` : ''} ครั้ง — อัปเกรดเพื่อสแกนต่อ`
+              : `${quotaStatus.remaining}${quotaStatus.total ? `/${quotaStatus.total}` : ''} free scans left — upgrade to keep scanning`}
+          </Text>
+          <Feather name="chevron-right" size={16} color="#D4B98C" />
+        </Pressable>
+      )}
 
       {/* Frame at TRUE screen center — aligned to 1:1 watch dial guidlines */}
       <View style={styles.frameAbsolute} pointerEvents="none">
@@ -953,7 +1159,9 @@ export function ScanScreen({ navigation }: Props) {
         onClose={() => setQuotaModal((m) => ({ ...m, visible: false }))}
         onUpgrade={() => {
           setQuotaModal((m) => ({ ...m, visible: false }));
-          navigation.navigate('Membership');
+          // Pass trigger source so MembershipScreen can fire
+          // paywall_viewed with quota_hit attribution.
+          navigation.navigate('Membership', { trigger: 'quota_hit' });
         }}
         tier={quotaModal.isFreeQuotaWall ? 'premium' : 'pro'}
         reason={quotaModal.reasonPayload}

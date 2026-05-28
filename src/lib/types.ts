@@ -1,5 +1,10 @@
 export type AuthenticitySignal = {
   signal: string;
+  // Thai translation of `signal`, populated by Gemini only when the scan
+  // ran in Thai mode. The English `signal` is always kept because the
+  // Hallmark landmark matcher keys off English `signalKeywords`; the UI
+  // shows `signalTh` (falling back to `signal`) when lang === 'th'.
+  signalTh?: string;
   weight: 'positive' | 'negative' | 'neutral';
 };
 
@@ -142,6 +147,7 @@ export type SavedWatch = {
 export type RootStackParamList = {
   Splash: undefined;
   Login: undefined;
+  Onboarding: undefined;
   Main: undefined;
   Home: undefined;
   Scan: undefined;
@@ -182,8 +188,11 @@ export type RootStackParamList = {
   Settings: undefined;
   ManageAccount: undefined;
   Profile: undefined;
-  Subscription: undefined;
-  Membership: undefined;
+  // `trigger` records WHY the paywall opened — used by MembershipScreen
+  // to fire paywall_viewed with attribution. Falls back to 'unknown' if
+  // omitted (legacy callers).
+  Subscription: { trigger?: string } | undefined;
+  Membership: { trigger?: string } | undefined;
   ImageCredits: undefined;
   AIQA: undefined;
   Game: undefined;

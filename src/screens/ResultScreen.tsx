@@ -21,6 +21,7 @@ import { RootStackParamList, ScanResult } from '../lib/types';
 import {
   saveWatch,
   deleteWatch,
+  checkCollectionLimit,
 } from '../lib/collection';
 import { fetchPricesByTier, applyWeightFusion } from '../lib/aiRouter';
 import { getAuthColorMeta, AuthColor } from '../lib/authVerdictColor';
@@ -28,6 +29,7 @@ import { getMembership, MembershipStatus } from '../lib/auth';
 import { getExchangeRate } from '../lib/currency';
 import { effectiveCaps, TierCapabilities } from '../lib/tier';
 import { UpgradeModal, UpgradeReason } from '../components/UpgradeModal';
+import { logFunnelEvent } from '../lib/funnelEvents';
 import { DataConsentModal } from '../components/DataConsentModal';
 import { PrimaryButton } from '../components/PrimaryButton';
 import { useLanguage } from '../lib/localization';
@@ -165,7 +167,7 @@ export function ResultScreen({ route, navigation }: Props) {
         const m = await getMembership();
         setMembership(m);
         setCaps(effectiveCaps(m));
-        
+
         // Fetch live exchange rate
         const rate = await getExchangeRate();
         setExchangeRate(rate);
@@ -174,6 +176,63 @@ export function ResultScreen({ route, navigation }: Props) {
       }
     })();
   }, []);
+
+  // ── Verdict display telemetry + peak-excitement paywall trigger ──
+  // Fires verdict_displayed for funnel analysis (every result). Then
+  // for free-tier users who saw a confident POSITIVE verdict, opens
+  // the upgrade modal after a short delay — this is the moment the
+  // user is most receptive to the value proposition ("AI just told me
+  // my watch is real; let me get the PDF cert + heatmap").
+  //
+  // Guard rails:
+  //   • Only fires on free tier (paying users already converted).
+  //   • Only on green verdict + confidence ≥ 85 (avoid annoying users
+  //     who got 'uncertain'/'replica' — they don't want to upsell).
+  //   • Skipped if already viewing the result from Collection (saved id).
+  //   • 1.2s delay so the verdict animation completes first.
+  useEffect(() => {
+    // result.authenticityVerdict is a ScanResult-level string like
+    // 'likely-authentic'. authColor (red/yellow/green) is the UI-level
+    // mapping computed by getAuthColorMeta. Use the verdict directly
+    // for the funnel payload (richer signal), and derive the boolean
+    // "positive" flag from the canonical 'likely-authentic' value.
+    const verdict = result.authenticityVerdict;
+    const confidence = result.authenticityProbability ?? 0;
+    const isPositive = verdict === 'likely-authentic';
+
+    logFunnelEvent('verdict_displayed', {
+      verdict: verdict ?? null,
+      confidence,
+      brand: result.brand ?? null,
+    }).catch(() => {});
+
+    // Don't fire the peak-excitement paywall in these cases:
+    if (membership.tier !== 'free') return;
+    if (route.params.savedId) return; // viewing a saved scan from Collection
+    if (!isPositive) return;
+    if (confidence < 85) return;
+    if (upgradeModalVisible) return; // user already saw a different paywall
+
+    const timer = setTimeout(() => {
+      // Re-check the modal visibility flag — user may have triggered a
+      // different upgrade prompt during the delay (e.g. tapped PDF lock).
+      // Skip if so to avoid double-modal flicker.
+      setUpgradeModalVisible((current) => {
+        if (current) return current;
+        setUpgradeType('auth');
+        setUpgradeReason({ kind: 'feature_locked', feature: 'heatmap' });
+        logFunnelEvent('paywall_viewed', {
+          trigger_source: 'positive_verdict',
+          confidence,
+          brand: result.brand ?? null,
+        }).catch(() => {});
+        return true;
+      });
+    }, 1200);
+
+    return () => clearTimeout(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [membership.tier, result.authenticityVerdict, result.authenticityProbability]);
 
   const handleRefreshPrices = async () => {
     if (!savedState.id || refreshingPrices) return;
@@ -248,6 +307,34 @@ export function ResultScreen({ route, navigation }: Props) {
           ]
         );
       } else {
+        // Enforce the collection-vault cap BEFORE saving. saveWatch() itself
+        // writes unconditionally, so the gate lives here: Free = 0 (scan-only,
+        // must upgrade to save), Standard 20 / Pro 50 / Premium 100. When the
+        // vault is full we surface an upgrade prompt instead of saving.
+        const limitCheck = await checkCollectionLimit(caps.collectionLimit);
+        if (!limitCheck.allowed) {
+          const isFree = membership.tier === 'free';
+          Alert.alert(
+            isFree
+              ? (lang === 'th' ? 'บันทึกเข้าตู้สะสมต้องอัปเกรด' : 'Saving requires an upgrade')
+              : (lang === 'th' ? 'ตู้สะสมเต็มแล้ว' : 'Collection vault full'),
+            isFree
+              ? (lang === 'th'
+                  ? 'แพ็คเกจฟรีสแกนได้ แต่ยังบันทึกเข้าตู้สะสมไม่ได้ — อัปเกรดเพื่อเริ่มเก็บนาฬิกาของคุณ'
+                  : 'The Free plan can scan but cannot save to the vault yet — upgrade to start building your collection.')
+              : (lang === 'th'
+                  ? `แพ็คเกจของคุณบันทึกได้สูงสุด ${limitCheck.limit} เรือน (ใช้ไปแล้ว ${limitCheck.current}) — อัปเกรดเพื่อเพิ่มความจุ`
+                  : `Your plan holds up to ${limitCheck.limit} timepieces (${limitCheck.current} saved) — upgrade for more capacity.`),
+            [
+              { text: lang === 'th' ? 'ยกเลิก' : 'Cancel', style: 'cancel' },
+              {
+                text: lang === 'th' ? 'อัปเกรด' : 'Upgrade',
+                onPress: () => navigation.navigate('Subscription', { trigger: 'collection_full' }),
+              },
+            ]
+          );
+          return;
+        }
         // Save
         const savedWatch = await saveWatch(result, frontUri, backUri, {
           bgColor: bgColor || '#1E1814',
@@ -270,14 +357,24 @@ export function ResultScreen({ route, navigation }: Props) {
 
   const handleUpgradePress = (type: 'auth' | 'price') => {
     setUpgradeType(type);
-    
+
+    // Conversion telemetry — fire BEFORE setting modal state so even if
+    // the modal animation hiccups we capture the intent. PostHog uses
+    // this to attribute conversions to specific locked features:
+    //   • auth  → PDF export, hallmark map, heatmap (Pro+ gated)
+    //   • price → real-time price valuation (Standard+ gated)
+    logFunnelEvent('feature_locked_tapped', {
+      feature: type === 'auth' ? 'pdf_or_heatmap' : 'price_fetch',
+      from_screen: 'ResultScreen',
+    }).catch(() => {});
+
     // Inject precise contextual reason based on what is being unlocked
     if (type === 'auth') {
       setUpgradeReason({ kind: 'feature_locked', feature: 'heatmap' });
     } else {
       setUpgradeReason({ kind: 'tier_lock', required: 'standard' });
     }
-    
+
     setUpgradeModalVisible(true);
   };
 
@@ -627,6 +724,14 @@ export function ResultScreen({ route, navigation }: Props) {
           ) : (
             <Pressable
               onPress={() => {
+                // Weight-fusion is a Premium-only feature gate — when a
+                // non-Premium user taps the locked CTA, attribute the
+                // funnel event so we can measure how often this card
+                // drives upgrades vs the PDF/heatmap gates.
+                logFunnelEvent('feature_locked_tapped', {
+                  feature: 'weight_fusion',
+                  from_screen: 'ResultScreen',
+                }).catch(() => {});
                 setUpgradeType('auth');
                 setUpgradeReason(undefined);
                 setUpgradeModalVisible(true);
@@ -856,9 +961,17 @@ export function ResultScreen({ route, navigation }: Props) {
         onClose={() => setUpgradeModalVisible(false)}
         onUpgrade={() => {
           setUpgradeModalVisible(false);
-          navigation.navigate('Subscription');
+          // upgradeType is 'auth' (PDF/heatmap locked) or 'price' (price locked).
+          navigation.navigate('Subscription', {
+            trigger: upgradeType === 'auth' ? 'pdf_locked' : 'price_locked',
+          });
         }}
-        tier={upgradeType === 'auth' ? 'standard' : 'standard'}
+        // Auth modal advertises heatmap + hallmark + AI report — those
+        // unlock at Premium (heatmapPerMonth 50, authenticityHeatmap true).
+        // Routing to Standard would be a bait-and-switch: user pays ฿990
+        // and finds heatmap still locked. Price modal stays on Standard
+        // since real-time RAG valuation is gated there.
+        tier={upgradeType === 'auth' ? 'premium' : 'standard'}
         reason={upgradeReason}
         title={
           upgradeType === 'auth'

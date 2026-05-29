@@ -1,4 +1,12 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import * as WebBrowser from 'expo-web-browser';
+import * as Linking from 'expo-linking';
+import { supabase } from './supabase';
+
+// Required so the in-app browser tab dismisses and returns control to the
+// app after the OAuth redirect completes (no-op on most native flows, but
+// recommended by expo-web-browser for auth sessions).
+WebBrowser.maybeCompleteAuthSession();
 
 const KEYS = {
   authUser: '@luxuryauthenticator/auth_user',
@@ -23,6 +31,8 @@ export type AuthUser = {
   avatarSeed: string;
   avatarUri?: string;
   createdAt: string;
+  /** Auth provider the session was established with ('email' | 'google'). */
+  provider?: string;
 };
 
 export type MembershipTier = 'free' | 'standard' | 'pro' | 'premium';
@@ -47,6 +57,21 @@ export async function getAuthUser(): Promise<AuthUser | null> {
 }
 
 export async function isAuthenticated(): Promise<boolean> {
+  // Primary source of truth: the persisted Supabase session (read from
+  // AsyncStorage by the SDK — works offline on cold start, no network).
+  try {
+    const { data } = await supabase.auth.getSession();
+    if (data.session?.user) {
+      // Keep the local AuthUser mirror fresh so every getAuthUser() consumer
+      // (HomeScreen, Settings, App.tsx IAP) sees the real signed-in identity.
+      void syncAuthUserFromSupabase(data.session.user);
+      return true;
+    }
+  } catch {
+    /* fall through to the local mirror below */
+  }
+  // Fallback: local mirror. Covers the __DEV__ sandbox presets (loginMock
+  // writes a local user but no Supabase session) and offline edge cases.
   return (await getAuthUser()) !== null;
 }
 
@@ -71,7 +96,147 @@ export async function updateUser(patch: Partial<AuthUser>): Promise<AuthUser | n
 }
 
 export async function logout(): Promise<void> {
+  try {
+    await supabase.auth.signOut();
+  } catch {
+    // Network/sign-out failure must never trap the user in the app — we
+    // still clear the local mirror so the UI returns to the login screen.
+  }
   await AsyncStorage.removeItem(KEYS.authUser);
+}
+
+// ── Real Supabase Auth (email OTP + Google OAuth) ────────────────────────
+
+/**
+ * Map a Supabase auth user → the app's AuthUser shape, preserving any
+ * locally-chosen avatar the user set in Settings (provider avatar wins if
+ * present). Writes the result to the AsyncStorage mirror so all existing
+ * getAuthUser() consumers keep working unchanged.
+ */
+async function syncAuthUserFromSupabase(u: {
+  id?: string;
+  email?: string | null;
+  created_at?: string;
+  user_metadata?: Record<string, any> | null;
+  app_metadata?: Record<string, any> | null;
+}): Promise<AuthUser> {
+  const email = (u.email || u.user_metadata?.email || '').toLowerCase();
+  const meta = u.user_metadata || {};
+  const displayName =
+    meta.full_name || meta.name || (email ? email.split('@')[0] : '') || 'Collector';
+  const providerAvatar = meta.avatar_url || meta.picture;
+
+  const existing = await getAuthUser();
+  const merged: AuthUser = {
+    email,
+    displayName,
+    avatarSeed: u.id || email || 'collector',
+    avatarUri: providerAvatar || existing?.avatarUri,
+    createdAt: u.created_at || existing?.createdAt || new Date().toISOString(),
+    phone: existing?.phone,
+    provider: u.app_metadata?.provider || existing?.provider,
+  };
+  await AsyncStorage.setItem(KEYS.authUser, JSON.stringify(merged));
+  return merged;
+}
+
+/**
+ * Step 1 of email sign-in: send a 6-digit one-time code to `email`.
+ * Creates the account on first sign-in (shouldCreateUser:true).
+ */
+export async function sendEmailOtp(email: string): Promise<void> {
+  const clean = email.trim().toLowerCase();
+  const { error } = await supabase.auth.signInWithOtp({
+    email: clean,
+    options: { shouldCreateUser: true },
+  });
+  if (error) throw error;
+}
+
+/**
+ * Step 2 of email sign-in: verify the 6-digit code. On success the session
+ * is persisted by the SDK and the local AuthUser mirror is updated.
+ */
+export async function verifyEmailOtp(email: string, token: string): Promise<AuthUser> {
+  const { data, error } = await supabase.auth.verifyOtp({
+    email: email.trim().toLowerCase(),
+    token: token.trim(),
+    type: 'email',
+  });
+  if (error) throw error;
+  if (!data.user) throw new Error('verifyOtp returned no user');
+  return syncAuthUserFromSupabase(data.user);
+}
+
+/** Pull access/refresh tokens out of an implicit-flow redirect fragment. */
+function parseFragmentTokens(url: string): {
+  access_token?: string;
+  refresh_token?: string;
+} {
+  const frag = url.includes('#') ? url.split('#')[1] : '';
+  const out: Record<string, string> = {};
+  for (const kv of frag.split('&')) {
+    const [k, v] = kv.split('=');
+    if (k) out[k] = decodeURIComponent(v ?? '');
+  }
+  return { access_token: out.access_token, refresh_token: out.refresh_token };
+}
+
+/** Pull a single query-string param (used for the PKCE `code`). */
+function parseQueryParam(url: string, key: string): string | undefined {
+  const q = url.includes('?') ? url.split('?')[1].split('#')[0] : '';
+  for (const kv of q.split('&')) {
+    const [k, v] = kv.split('=');
+    if (k === key) return decodeURIComponent(v ?? '');
+  }
+  return undefined;
+}
+
+/**
+ * Google sign-in via web OAuth: open Supabase's Google authorize URL in an
+ * in-app browser tab, then complete the session from the redirect back to
+ * our app scheme. Handles both PKCE (?code=) and implicit (#access_token=)
+ * redirect shapes so it works regardless of the client's flowType default.
+ */
+export async function signInWithGoogle(): Promise<AuthUser> {
+  const redirectTo = Linking.createURL('auth-callback');
+  const { data, error } = await supabase.auth.signInWithOAuth({
+    provider: 'google',
+    options: { redirectTo, skipBrowserRedirect: true },
+  });
+  if (error) throw error;
+  if (!data?.url) throw new Error('signInWithOAuth returned no URL');
+
+  const result = await WebBrowser.openAuthSessionAsync(data.url, redirectTo);
+  if (result.type === 'cancel' || result.type === 'dismiss') {
+    throw new Error('cancelled');
+  }
+  if (result.type !== 'success' || !result.url) {
+    throw new Error('Google sign-in did not complete');
+  }
+
+  // PKCE flow (?code=...) — exchange the code for a session.
+  const code = parseQueryParam(result.url, 'code');
+  if (code) {
+    const { data: ex, error: exErr } = await supabase.auth.exchangeCodeForSession(code);
+    if (exErr) throw exErr;
+    if (!ex.user) throw new Error('code exchange returned no user');
+    return syncAuthUserFromSupabase(ex.user);
+  }
+
+  // Implicit flow (#access_token=...&refresh_token=...) — set the session.
+  const { access_token, refresh_token } = parseFragmentTokens(result.url);
+  if (access_token && refresh_token) {
+    const { data: sess, error: sErr } = await supabase.auth.setSession({
+      access_token,
+      refresh_token,
+    });
+    if (sErr) throw sErr;
+    if (!sess.user) throw new Error('setSession returned no user');
+    return syncAuthUserFromSupabase(sess.user);
+  }
+
+  throw new Error('OAuth redirect contained no code or tokens');
 }
 
 export async function getMembership(): Promise<MembershipStatus> {

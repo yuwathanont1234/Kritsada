@@ -371,6 +371,21 @@ export default function SettingsScreen({ navigation }: any) {
             <View>
               <Text style={styles.profileName}>{user?.displayName || (lang === 'th' ? 'นักสะสมนาฬิกาหรู' : 'Horological Collector')}</Text>
               <Text style={styles.profileEmail}>{user?.email || 'collector@luxury.com'}</Text>
+              {user?.provider ? (
+                <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 3 }}>
+                  <Feather
+                    name={user.provider === 'google' ? 'chrome' : 'mail'}
+                    size={11}
+                    color="#8A8278"
+                    style={{ marginRight: 5 }}
+                  />
+                  <Text style={{ color: '#8A8278', fontSize: 11, fontWeight: '600' }}>
+                    {user.provider === 'google'
+                      ? lang === 'th' ? 'เข้าสู่ระบบด้วย Google' : 'Signed in with Google'
+                      : lang === 'th' ? 'เข้าสู่ระบบด้วยอีเมล' : 'Signed in with email'}
+                  </Text>
+                </View>
+              ) : null}
             </View>
           </View>
 

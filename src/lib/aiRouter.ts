@@ -39,8 +39,22 @@ import { scanBreadcrumb, captureScanError } from './sentry';
  */
 
 const RAG_MIN_SIMILARITY = 0.3;
-const RAG_MIN_GLOBAL_SPREAD = 0.15;
+// globalSpread = (max − min similarity) across the top-K candidates. Empirically
+// recalibrated 0.15 → 0.08 (2026-05-29): the live `image_embeddings.image_embedding_v2`
+// space (256-d probe-projected DINOv3) is tightly clustered — even a CLEAN, correct
+// Rolex catalog image only produces ~0.08 spread, and real user photos ~0.05. At 0.15
+// the gate rejected essentially every query (the scanned green-dial Rolex got 0.045),
+// so RAG corroboration never fired and every scan fell through to the Gemini path. The
+// downstream brand cross-check (visualBrandCorroborated) + RAG_MIN_TOP_MARGIN still guard
+// against accepting a wrong-brand top hit, so loosening spread is safe.
+const RAG_MIN_GLOBAL_SPREAD = 0.08;
 const RAG_MIN_TOP_MARGIN = 0.05;
+// Hard cap on the Phase-1C Google-grounded identify retry. Normal grounded
+// calls land in 5-15s; a 53s tail has been observed returning unchanged
+// confidence (then discarded). The grounded result is only used when it
+// strictly beats Flash, so aborting a slow call and accepting Flash is nearly
+// free. See retryIdentifyWithGoogle.
+const GROUNDED_RETRY_TIMEOUT_MS = 25000;
 // Visual RAG is treated as a "best-effort hint" for Phase 1A identify.
 // History: timeouts were raised 8s → 25s → 35s to wait for Replicate
 // cold starts (30-60s) so the embedding could feed candidates into
@@ -147,6 +161,24 @@ async function retryIdentifyWithGoogle(
   cohortHash: string | null,
   signal?: AbortSignal
 ): Promise<ScanResult | null> {
+  // Hard cap on the grounded retry. A pathological grounded call has been
+  // observed taking 53s and returning the SAME confidence (65 → 65), which is
+  // then discarded by the `confidence > previous` gate — i.e. ~50s + ~฿2 of
+  // pure waste. Since the grounded result is only kept when it strictly
+  // improves on Flash (rare), aborting a slow call and accepting Flash costs
+  // us almost nothing. Combine the timeout with the upstream scan signal so a
+  // user backgrounding the scan still cancels promptly.
+  const ctrl = new AbortController();
+  const timedOut = { value: false };
+  const timer = setTimeout(() => {
+    timedOut.value = true;
+    ctrl.abort();
+  }, GROUNDED_RETRY_TIMEOUT_MS);
+  const forwardAbort = () => ctrl.abort();
+  if (signal) {
+    if (signal.aborted) ctrl.abort();
+    else signal.addEventListener('abort', forwardAbort);
+  }
   try {
     const retryT0 = Date.now();
     const retried = await identifyWatchGemini(
@@ -155,16 +187,19 @@ async function retryIdentifyWithGoogle(
       ragArg,
       undefined,
       undefined,
-      { enableGroundedSearch: true, imageMaxWidth, disableThinking: true, signal }
+      { enableGroundedSearch: true, imageMaxWidth, disableThinking: true, signal: ctrl.signal }
     );
     console.log(
       `[aiRouter] Gemini-grounded retry done in ${Date.now() - retryT0}ms, confidence ${prevAttempt.confidence ?? 0} → ${retried.confidence ?? 0}`
     );
 
-    // Cost logging for grounded identify scan retry
+    // Cost logging for grounded identify scan retry. Grounded calls cost ~10×
+    // a plain Flash scan (Google Search grounding is billed on top of tokens),
+    // so log the real `scan_grounded` cost — not COST_PER_CALL.scan — otherwise
+    // the daily cost breaker materially under-counts spend.
     logCostEvent({
-      type: 'scan',
-      costUsd: COST_PER_CALL.scan,
+      type: 'scan_grounded',
+      costUsd: COST_PER_CALL.scan_grounded,
       tier,
       cohortHash,
       cacheHit: false,
@@ -176,8 +211,17 @@ async function retryIdentifyWithGoogle(
       _identifiedVia: 'gemini-grounded',
     };
   } catch (e: any) {
-    console.warn('[aiRouter] retryIdentifyWithGoogle failed:', e?.message);
+    if (timedOut.value) {
+      console.warn(
+        `[aiRouter] grounded retry aborted after ${GROUNDED_RETRY_TIMEOUT_MS}ms cap — accepting Flash result`
+      );
+    } else {
+      console.warn('[aiRouter] retryIdentifyWithGoogle failed:', e?.message);
+    }
     return null;
+  } finally {
+    clearTimeout(timer);
+    if (signal) signal.removeEventListener('abort', forwardAbort);
   }
 }
 
@@ -613,10 +657,19 @@ export async function analyzeWatchByTier(
     });
   })();
 
+  // Flash produced an identification we can stand behind without a grounded
+  // retry: a confident brand PLUS at least a model name or a structured
+  // reference. The reference is intentionally NOT required — when RAG's top
+  // candidates are a different brand entirely (DB index gap), grounded search
+  // empirically returns the same Flash answer with unchanged confidence, so an
+  // explicit reference adds nothing to the skip decision. Requiring it was why
+  // DB-gap scans (e.g. green-dial Rolex whose top RAG hit was a TAG Heuer)
+  // still burned a ~฿2 / ~50s grounded retry that returned 65 → 65 and was
+  // then discarded for failing the `confidence > previous` gate.
   const flashHasStructuredAnswer =
     identified.identified &&
     !!identified.brand &&
-    !!identified.reference &&
+    (!!identified.reference || !!identified.name) &&
     identified.confidence >= 60;
 
   const proRetryUseful =

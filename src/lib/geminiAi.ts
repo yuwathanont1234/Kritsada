@@ -288,6 +288,11 @@ type GeminiCallOptions = {
   // the in-flight Gemini fetch instead of letting it complete and bill
   // for nothing. supabase-js v2.105+ honours signal in functions.invoke().
   signal?: AbortSignal;
+  // For label='price' only: the (brand, ref) tuple the edge function should
+  // persist into watch_price_cache after a successful grounded lookup. The
+  // client can't write the cache itself (anon is SELECT-only per migration
+  // 0004), so the write happens server-side with the service-role key.
+  priceCacheKey?: { brand: string; ref: string };
 };
 
 const MAX_RETRY_ATTEMPTS = 4;
@@ -345,7 +350,8 @@ async function callGeminiJson<T = any>(opts: GeminiCallOptions): Promise<T> {
           enableWebSearch: opts.enableWebSearch,
           disableThinking: opts.disableThinking,
           maxOutputTokens: opts.maxOutputTokens,
-          label: opts.label
+          label: opts.label,
+          ...(opts.priceCacheKey ? { priceCacheKey: opts.priceCacheKey } : {}),
         },
         // supabase-js threads this to the underlying fetch so the
         // upstream Gemini call is aborted in-flight.
@@ -1081,12 +1087,19 @@ export async function fetchWatchPricesGemini(
     disableThinking: opts?.disableThinking,
     label: 'price',
     signal: opts?.signal,
+    // Edge function persists the result to watch_price_cache with the
+    // service-role key (anon is SELECT-only — see migration 0004).
+    priceCacheKey: { brand, ref: reference },
   });
 
-  // Persist for the next 30 days. Best-effort — never blocks the response.
-  // Awaited only so writes complete during a short-lived scan context;
-  // the upsert itself is non-blocking on Supabase's side (<100ms typical).
-  void writePriceCache(brand, reference, fresh);
+  // Persist for the next 30 days. When edge functions are active (production),
+  // the analyze-watch edge owns the write via priceCacheKey above — anon can't
+  // write the cache under RLS, so a client write here would only fail noisily.
+  // The direct-client dev path (USE_EDGE_FUNCTIONS=false) has no edge to do it,
+  // so fall back to the client write there. Best-effort either way.
+  if (!USE_EDGE_FUNCTIONS) {
+    void writePriceCache(brand, reference, fresh);
+  }
 
   return fresh;
 }

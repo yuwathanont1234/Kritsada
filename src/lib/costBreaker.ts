@@ -24,7 +24,8 @@ function isConfigured(): boolean {
 }
 
 export type CostEventType =
-  | 'scan'           // Gemini scan call
+  | 'scan'           // Gemini scan call (Flash, no grounding)
+  | 'scan_grounded'  // Gemini scan call WITH Google Search grounding (billed separately)
   | 'ai_qa'          // Claude/Gemini Q&A
   | 'heatmap'        // AI heatmap generation
   | 'authenticity'   // Authenticity AI deep analysis
@@ -111,7 +112,13 @@ export async function canProceedAsFree(): Promise<boolean> {
 // Cost constants in USD — scaled from source THB values (using ~33.3 THB/USD)
 // ---------------------------------------------------------------------------
 export const COST_PER_CALL = {
-  scan: 0.0060,         // ~$0.0060 USD
+  scan: 0.0060,         // ~$0.0060 USD  (Flash identify, no grounding)
+  // Grounded identify = Flash + Google Search grounding. Search grounding is
+  // billed separately from tokens (~$35 / 1k grounded prompts) so a grounded
+  // retry costs roughly 10× a plain scan — ~฿2 (≈$0.060) per call, NOT ฿0.20.
+  // Logging it as `scan` under-counted the daily spend and let the cost
+  // breaker under-estimate the budget. See aiRouter retryIdentifyWithGoogle.
+  scan_grounded: 0.0600, // ~$0.0600 USD  (~฿2 at 33.3 THB/USD)
   ai_qa: 0.0090,        // ~$0.0090 USD
   ai_qa_cached: 0,
   heatmap: 0.0300,      // ~$0.0300 USD

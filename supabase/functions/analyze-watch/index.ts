@@ -1,8 +1,57 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2"
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+}
+
+/**
+ * Persist a fresh price lookup into watch_price_cache.
+ *
+ * Why this lives server-side: migration 0004 deliberately hardened the table
+ * to SELECT-only for the anon role (an anon client could otherwise poison the
+ * shared cache with fake prices). The client therefore CANNOT write the cache
+ * — its writePriceCache() upsert was silently failing under RLS, so every
+ * scan of the same (brand, ref) re-paid the ~฿1.50 grounded price lookup.
+ *
+ * The edge function runs with the auto-injected SERVICE_ROLE key, which
+ * bypasses RLS, so it is the correct place to populate the cache. Best-effort:
+ * any failure here must never affect the price response the client receives.
+ * Row shape mirrors src/lib/geminiAi.ts writePriceCache() exactly.
+ */
+async function persistPriceCache(
+  key: { brand: string; ref: string },
+  payload: any
+): Promise<void> {
+  try {
+    const url = Deno.env.get("SUPABASE_URL")
+    const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")
+    if (!url || !serviceKey) return
+    const brandKey = String(key.brand || '').trim().toLowerCase()
+    const refKey = String(key.ref || '').trim().toLowerCase()
+    if (!brandKey || !refKey) return
+
+    const admin = createClient(url, serviceKey)
+    const now = new Date()
+    const expires = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000) // +30 days
+    await admin.from('watch_price_cache').upsert(
+      {
+        brand_key: brandKey,
+        ref_key: refKey,
+        brand: key.brand,
+        ref: key.ref,
+        market_price_usd: payload?.marketPrice ?? null,
+        price_payload: payload,
+        source: 'gemini-grounded',
+        cached_at: now.toISOString(),
+        expires_at: expires.toISOString(),
+      },
+      { onConflict: 'brand_key,ref_key' }
+    )
+  } catch (e: any) {
+    console.warn('[analyze-watch:price] cache persist failed:', e?.message)
+  }
 }
 
 serve(async (req) => {
@@ -11,7 +60,7 @@ serve(async (req) => {
   }
 
   try {
-    const { systemInstruction, parts, enableWebSearch, disableThinking, maxOutputTokens, label } = await req.json()
+    const { systemInstruction, parts, enableWebSearch, disableThinking, maxOutputTokens, label, priceCacheKey } = await req.json()
 
     const apiKey = Deno.env.get("GEMINI_API_KEY")
     if (!apiKey) {
@@ -145,6 +194,7 @@ serve(async (req) => {
 
     // Return parsed json or raw text based on content
     let parsedData = null
+    let parsedOk = false
     try {
       // Strip markdown code fences if present
       const cleanedText = text
@@ -152,8 +202,17 @@ serve(async (req) => {
         .replace(/\s*```\s*$/i, '')
         .trim()
       parsedData = JSON.parse(cleanedText)
+      parsedOk = true
     } catch {
       parsedData = { text }
+    }
+
+    // Populate the shared price cache server-side (service role). Only when we
+    // got a real structured payload — never cache the {text} JSON-parse
+    // fallback. Best-effort and awaited only briefly; failures are swallowed
+    // inside persistPriceCache so they can't affect the price response.
+    if (label === 'price' && parsedOk && priceCacheKey?.brand && priceCacheKey?.ref) {
+      await persistPriceCache(priceCacheKey, parsedData)
     }
 
     return new Response(

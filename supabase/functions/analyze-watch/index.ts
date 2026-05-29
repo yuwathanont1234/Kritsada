@@ -1,5 +1,8 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2"
+// NB: @supabase/supabase-js is imported lazily inside persistPriceCache (not at
+// module top) so the esm.sh fetch can never slow or break a cold-start of the
+// hot request path (identify / auth / price). It only loads when we actually
+// write the cache, in the background, after the response is sent.
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -32,6 +35,7 @@ async function persistPriceCache(
     const refKey = String(key.ref || '').trim().toLowerCase()
     if (!brandKey || !refKey) return
 
+    const { createClient } = await import("https://esm.sh/@supabase/supabase-js@2")
     const admin = createClient(url, serviceKey)
     const now = new Date()
     const expires = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000) // +30 days
@@ -212,7 +216,18 @@ serve(async (req) => {
     // fallback. Best-effort and awaited only briefly; failures are swallowed
     // inside persistPriceCache so they can't affect the price response.
     if (label === 'price' && parsedOk && priceCacheKey?.brand && priceCacheKey?.ref) {
-      await persistPriceCache(priceCacheKey, parsedData)
+      // Run the cache write in the BACKGROUND (after the response is sent) so it
+      // can never add latency to — or fail — the price response the client is
+      // waiting on. EdgeRuntime.waitUntil keeps the isolate alive until it
+      // settles; fall back to plain fire-and-forget if the global is absent.
+      const writePromise = persistPriceCache(priceCacheKey, parsedData)
+      // @ts-ignore — EdgeRuntime is a Supabase Edge global, not in Deno types
+      if (typeof EdgeRuntime !== 'undefined' && EdgeRuntime?.waitUntil) {
+        // @ts-ignore
+        EdgeRuntime.waitUntil(writePromise)
+      } else {
+        writePromise.catch(() => {})
+      }
     }
 
     return new Response(

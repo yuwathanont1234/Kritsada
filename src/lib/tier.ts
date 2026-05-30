@@ -238,7 +238,10 @@ export function effectiveCaps(status: {
   tier: MembershipTier;
   isTrialing: boolean;
 }): TierCapabilities {
-  if (status.isTrialing && status.tier === 'free') return PREMIUM_CAPS;
+  // Trial unlocks the full Premium feature set EXCEPT price data — market
+  // valuation + grade pricing is reserved for paid Pro/Premium subscribers
+  // (it's the conversion driver: trial users see the locked price CTA).
+  if (status.isTrialing && status.tier === 'free') return { ...PREMIUM_CAPS, priceData: false };
   return tierCaps(status.tier);
 }
 

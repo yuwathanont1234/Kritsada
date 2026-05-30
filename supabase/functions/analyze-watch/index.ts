@@ -101,6 +101,49 @@ serve(async (req) => {
       }
     }
 
+    // ── Server-side per-USER scan ledger (STAGE 1: SHADOW — audit C1/C3/C5) ──
+    // Record the AUTHENTICATED user's scan count server-side, keyed on the JWT
+    // `sub` (auth.users.id) — the count a reinstall / clear-data CANNOT reset.
+    // SHADOW: log only, do NOT block. Once the logs confirm real logged-in users
+    // are tracked, Stage 2 flips this to enforce the tier cap BEFORE the AI call.
+    // Count ONE scan per scan-flow: label === 'identify' fires once per scan;
+    // 'auth'/'price'/'heatmap' (and the embed-image calls) are part of the same
+    // scan and must not be double-counted.
+    if (label === 'identify') {
+      try {
+        const authHeader = req.headers.get('authorization') ?? ''
+        const jwt = authHeader.replace(/^Bearer\s+/i, '').trim()
+        const lUrl = Deno.env.get('SUPABASE_URL')
+        const lKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')
+        if (jwt && lUrl && lKey) {
+          const { createClient } = await import('https://esm.sh/@supabase/supabase-js@2')
+          const admin = createClient(lUrl, lKey)
+          // getUser(jwt) returns no user for the anon key, a service_role token,
+          // or an expired session → those fall through to the existing device
+          // cap unchanged (nothing breaks: keep-warm, tooling, logged-out).
+          const { data: u } = await admin.auth.getUser(jwt)
+          const userId = u?.user?.id
+          if (userId) {
+            const period = new Date().toISOString().slice(0, 7) // 'YYYY-MM'
+            const { data: led, error: ledErr } = await admin.rpc('record_user_scan', {
+              p_user_id: userId,
+              p_period: period,
+            })
+            const row = Array.isArray(led) ? led[0] : led
+            if (!ledErr && row) {
+              console.log(`[scan-ledger:shadow] user=${userId.slice(0, 8)} period=${period} period_used=${row.period_used} lifetime=${row.lifetime_used}`)
+            } else if (ledErr) {
+              console.warn(`[scan-ledger:shadow] rpc error: ${ledErr.message}`)
+            }
+          } else {
+            console.log('[scan-ledger:shadow] no authenticated user (anon/service/expired) — device cap only')
+          }
+        }
+      } catch (e) {
+        console.warn('[scan-ledger:shadow] skipped:', (e as any)?.message)
+      }
+    }
+
     const apiKey = Deno.env.get("GEMINI_API_KEY")
     if (!apiKey) {
       return new Response(

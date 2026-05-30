@@ -990,7 +990,11 @@ function AiMetricsPanel({
       <MetricRow
         label={lang === 'th' ? 'อ้างอิงจากฐานข้อมูล' : 'Reference DB Match'}
         value={
-          result.expertCertMatch
+          result.visualDbMatch
+            ? lang === 'th'
+              ? `✓ พบ (${Math.round(result.visualDbMatch.similarity * 100)}%)`
+              : `✓ Matched (${Math.round(result.visualDbMatch.similarity * 100)}%)`
+            : result.expertCertMatch
             ? lang === 'th'
               ? '✓ พบ Cert match'
               : '✓ Cert matched'
@@ -998,7 +1002,7 @@ function AiMetricsPanel({
             ? 'ไม่พบ'
             : 'Not found'
         }
-        valueColor={result.expertCertMatch ? '#22C55E' : '#94A3B8'}
+        valueColor={result.visualDbMatch || result.expertCertMatch ? '#22C55E' : '#94A3B8'}
       />
     </View>
   );

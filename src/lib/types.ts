@@ -110,6 +110,16 @@ export type ScanResult = {
     distance: number; // cosine — lower = stronger match
   };
 
+  // Main watch-DB (image_embeddings, 30k) corroboration — set when DINOv3
+  // visual similarity agrees with the identified brand+model. Drives the
+  // result UI's "Reference DB Match" field.
+  visualDbMatch?: {
+    name: string;
+    brand: string;
+    reference: string;
+    similarity: number; // 0..1, higher = stronger
+  };
+
   // Google Vision Web Detection — second opinion
   visionWebSuggestions?: {
     bestGuess?: string;

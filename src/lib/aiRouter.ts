@@ -499,6 +499,10 @@ export async function analyzeWatchByTier(
   // accuracy gain.
   let visualBrandCorroborated = false;
   let certMatchHit: any = null;
+  // The corroborating candidate from the MAIN watch DB (image_embeddings, 30k
+  // rows) — surfaced to the result UI's "Reference DB Match" field, which
+  // previously only reflected the tiny 100-row expert-cert store.
+  let visualDbMatchHit: SimilarWatch | null = null;
 
   if (enableVisualRag && identified.identified) {
     const DB_EMBED_TIMEOUT_MS = 12000;
@@ -568,6 +572,12 @@ export async function analyzeWatchByTier(
               `[aiRouter] Visual-corroborated ✓ AI + DINOv3 agree (light): "${identified.brand} ${identified.name}" vs top visual "${top.brand} ${top.name}" (sim=${top.similarity.toFixed(3)}) — will skip grounded retry`
             );
           }
+
+          // Capture the corroborating DB candidate (any validation tier) so the
+          // UI's "Reference DB Match" field reflects the main 30k watch DB.
+          if (dbValidated || visualBrandCorroborated) {
+            visualDbMatchHit = top;
+          }
         }
 
         // Cert visual match validation
@@ -594,6 +604,18 @@ export async function analyzeWatchByTier(
         console.warn('[aiRouter] DB/cert validation failed (non-fatal):', e?.message);
       }
     }
+  }
+
+  // Surface the main visual-DB corroboration (image_embeddings) to the UI's
+  // Reference-DB-Match field — so it shows "found" when DINOv3 agrees with
+  // Gemini's brand+model, instead of only reflecting the niche expert-cert store.
+  if (visualDbMatchHit) {
+    identified.visualDbMatch = {
+      name: visualDbMatchHit.name,
+      brand: visualDbMatchHit.brand,
+      reference: visualDbMatchHit.reference,
+      similarity: visualDbMatchHit.similarity,
+    };
   }
 
   // Enrich with expert cert metadata if validated

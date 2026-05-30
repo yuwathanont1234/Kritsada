@@ -77,8 +77,8 @@ jobs:
             -H "Authorization: Bearer $ANON_KEY" \
             -H "x-embed-secret: $EMBED_SECRET" \
             -H "Content-Type: application/json" \
-            --max-time 150 \
-            -d "{\"image\":\"$DATA_URL\"}" \
+            --max-time 30 \
+            -d "{\"image\":\"$DATA_URL\",\"warmOnly\":true}" \
             "$SUPABASE_URL/functions/v1/embed-image")
           CURL_EXIT=$?
           set -e

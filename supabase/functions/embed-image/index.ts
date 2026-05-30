@@ -23,6 +23,9 @@ serve(async (req) => {
   try {
     const body = await req.json()
     const image = body?.image
+    // Keep-warm pings set warmOnly — they only need to BOOT Replicate, not get
+    // an embedding back. See the warm-only branch below.
+    const warmOnly = body?.warmOnly === true
     const imgLen = typeof image === 'string' ? image.length : 0
     console.log(`[embed-image:${reqId}] received: imgLen=${imgLen} (${(imgLen / 1024).toFixed(1)}KB) hasImage=${!!image}`)
 
@@ -60,6 +63,49 @@ serve(async (req) => {
 
     const version = Deno.env.get("REPLICATE_EMBED_MODEL") || "1dcb6b130ac6ae0574282178705d0e219526ac6d9276c93eda065dfaacae772f"
     console.log(`[embed-image:${reqId}] model version=${version.slice(0, 12)}...`)
+
+    // ── Keep-warm fast path (create-and-forget) ──────────────────────────
+    // Real scans use Prefer:wait + polling to GET the embedding back, which on
+    // a cold start (30-90s) exceeds the 60s edge cap → the function is killed
+    // and it's unreliable whether the model actually finished warming.
+    //
+    // Keep-warm pings don't need the embedding — they only need to TRIGGER a
+    // boot. So create the prediction WITHOUT Prefer:wait and return immediately:
+    // the create returns in <1s, and Replicate boots an instance + runs the
+    // prediction to completion server-side (nothing aborts it), reliably warming
+    // the model. We never read the result.
+    if (warmOnly) {
+      const tWarm = Date.now()
+      let pid: string | undefined
+      let createStatus = 0
+      try {
+        const r = await fetch("https://api.replicate.com/v1/predictions", {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json",
+            // NOTE: deliberately NO `Prefer: wait` — fire-and-forget create.
+          },
+          body: JSON.stringify({ version, input: { image, inputs: image } }),
+          // A create (no wait) returns in <1s even when the model is cold; cap
+          // generously so a congested network still records a result.
+          signal: AbortSignal.timeout(15000),
+        })
+        createStatus = r.status
+        const txt = await r.text().catch(() => '')
+        try { pid = JSON.parse(txt)?.id } catch { /* non-JSON — ignore */ }
+        console.log(`[embed-image:${reqId}] warmOnly create status=${createStatus} id=${pid?.slice(0, 8) ?? '?'} in ${Date.now() - tWarm}ms`)
+      } catch (e: any) {
+        console.warn(`[embed-image:${reqId}] warmOnly create failed: ${e?.name ?? ''} ${e?.message ?? e}`)
+      }
+      // 200 when Replicate accepted the create (prediction now booting → model
+      // will warm). 502 only if the create itself failed.
+      const ok = createStatus >= 200 && createStatus < 300
+      return new Response(
+        JSON.stringify({ warmOnly: true, accepted: ok, predictionId: pid ?? null }),
+        { status: ok ? 200 : 502, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      )
+    }
 
     // Replicate POST — bounded by edge budget. AbortSignal.timeout
     // computes the remaining budget so each fetch can't drag past the

@@ -253,7 +253,13 @@ async function embedImageReal(uri: string): Promise<number[]> {
     // network) — embed-image returns 504 on a Replicate cold-start, which the
     // keep-warm boot usually clears within a few seconds, so a single retry
     // salvages RAG for that scan instead of going blind.
-    const MAX_EMBED_RETRIES = 1;
+    // 2 retries with graduated backoff. A 504 means Replicate is cold-booting
+    // (~60-89s). We can't wait the full boot inside a scan (UX), but a couple of
+    // short retries salvage the common "almost-warm" case (keep-warm fired
+    // recently, boot finishing) without hanging — and if it stays cold we fail
+    // fast and let Gemini carry the verdict (RAG/classifier degrade gracefully).
+    const MAX_EMBED_RETRIES = 2;
+    const BACKOFF_MS = [2500, 6000]; // before retry 1, before retry 2
     for (let attempt = 0; attempt <= MAX_EMBED_RETRIES; attempt++) {
       const { data, error } = await supabase.functions.invoke('embed-image', {
         body: { image: dataUrl, deviceId: await ensureCohortHash().catch(() => undefined) }
@@ -279,7 +285,7 @@ async function embedImageReal(uri: string): Promise<number[]> {
       );
 
       if (isTransient && attempt < MAX_EMBED_RETRIES) {
-        await new Promise((r) => setTimeout(r, 1500)); // let the cold-start boot finish
+        await new Promise((r) => setTimeout(r, BACKOFF_MS[attempt] ?? 6000)); // let the cold-start boot finish
         continue;
       }
       throw new Error('ระบบตรวจสอบภาพขัดข้องชั่วคราว (Edge Embed Error) กรุณาลองใหม่อีกครั้ง');

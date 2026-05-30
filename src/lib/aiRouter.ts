@@ -70,10 +70,13 @@ const GROUNDED_RETRY_TIMEOUT_MS = 25000;
 // race) to still produce DB validation. Total scan budget drops
 // 166s → ~50-60s on cold paths.
 const RAG_TIMEOUT_MS = 10000;
-// Prewarm wait similarly trimmed. The cron-job.org keep-warm should
-// keep Replicate hot; if it's cold despite that, the prewarm endpoint
-// is broken upstream and we shouldn't extend the user's scan to
-// compensate for an infrastructure issue.
+// Prewarm wait similarly trimmed. The pg_cron `replicate-keepwarm` (*/7,
+// warmOnly) should keep Replicate hot; if it's cold despite that, the prewarm
+// endpoint is broken upstream and we shouldn't extend the user's scan to
+// compensate for an infrastructure issue. (Keep-warm history: GitHub Actions
+// and a cron-job.org job were both retired 2026-05-30 — GH was throttled and
+// cron-job.org did wasteful non-warmOnly full embeds; pg_cron is the sole,
+// reliable channel now.)
 const PREWARM_WAIT_MS = 8000;
 
 /**

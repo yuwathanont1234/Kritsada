@@ -42,11 +42,8 @@ export type TierCapabilities = {
   highQualityPhoto: boolean;       // ✅ WIRED (ScanScreen capture quality)
   autoCrop: boolean;               // ✅ WIRED (ScanScreen auto-square crop)
 
-  // ⚠️ WON'T BUILD (decided 2026-05-30) — BG removal is not built and not
-  // planned. No remove-background action exists; advertising already removed.
-  // Safe to delete these fields + the unused feature_locked_bg_removal i18n key.
-  bgRemoval: boolean;
-  bgRemovalPerMonth: number;
+  // (bgRemoval, bgRemovalPerMonth removed 2026-05-30 — cut as an unbuilt
+  //  feature per product decision; not on the roadmap.)
 
   priceFetchPerMonth: number;      // ✅ WIRED (monthly grounded-price quota)
 
@@ -104,8 +101,6 @@ const FREE_CAPS: TierCapabilities = {
   collectionLimit: 0,             // Free = scan only; saving to the vault requires an upgrade
   highQualityPhoto: false,
   autoCrop: false,
-  bgRemoval: false,
-  bgRemovalPerMonth: 0,
   priceFetchPerMonth: 0,          // Pro+ only
   showAuthenticitySignals: true,  // Free taste of Auth (image-only signals)
   showFullPriceSourceUrls: false,
@@ -134,8 +129,6 @@ const STANDARD_CAPS: TierCapabilities = {
   collectionLimit: 20,            // matches monthly scan cap
   highQualityPhoto: true,
   autoCrop: false,
-  bgRemoval: false,
-  bgRemovalPerMonth: 0,
   priceFetchPerMonth: 0,
   showAuthenticitySignals: true,
   showFullPriceSourceUrls: false,
@@ -164,8 +157,6 @@ const PRO_CAPS: TierCapabilities = {
   collectionLimit: 50,            // matches monthly scan cap
   highQualityPhoto: true,
   autoCrop: false,
-  bgRemoval: true,
-  bgRemovalPerMonth: 30,
   priceFetchPerMonth: 30,
   showAuthenticitySignals: true,
   showFullPriceSourceUrls: false,
@@ -194,8 +185,6 @@ const PREMIUM_CAPS: TierCapabilities = {
   collectionLimit: 100,           // matches monthly scan cap
   highQualityPhoto: true,
   autoCrop: true,
-  bgRemoval: true,
-  bgRemovalPerMonth: 100,
   priceFetchPerMonth: 100,
   showAuthenticitySignals: true,
   showFullPriceSourceUrls: false,
@@ -239,7 +228,6 @@ const KEYS = {
   monthlyDeepSearch: '@luxuryauthenticator/monthly_deep_search',
   monthlyAuthenticity: '@luxuryauthenticator/monthly_authenticity',
   monthlyHeatmap: '@luxuryauthenticator/monthly_heatmap',
-  monthlyBgRemoval: '@luxuryauthenticator/monthly_bg_removal',
   monthlyPriceFetch: '@luxuryauthenticator/monthly_price_fetch',
   trialScans: '@luxuryauthenticator/trial_scans',
   dailyScans: '@luxuryauthenticator/daily_scans',
@@ -450,67 +438,6 @@ export async function checkHeatmapAllowed(
   return { allowed: true, remaining, quota };
 }
 
-// === Monthly BG removal counter ===
-async function readMonthlyBgRemovalState(): Promise<MonthlyState> {
-  const raw = await AsyncStorage.getItem(KEYS.monthlyBgRemoval);
-  if (!raw) return { yearMonth: currentYearMonth(), count: 0 };
-  try {
-    const parsed = JSON.parse(raw) as MonthlyState;
-    if (parsed.yearMonth !== currentYearMonth()) {
-      return { yearMonth: currentYearMonth(), count: 0 };
-    }
-    return parsed;
-  } catch {
-    return { yearMonth: currentYearMonth(), count: 0 };
-  }
-}
-
-export async function getMonthlyBgRemovalUsed(): Promise<number> {
-  return (await readMonthlyBgRemovalState()).count;
-}
-
-export async function incrementMonthlyBgRemoval(): Promise<number> {
-  const state = await readMonthlyBgRemovalState();
-  const next = { yearMonth: state.yearMonth, count: state.count + 1 };
-  await AsyncStorage.setItem(KEYS.monthlyBgRemoval, JSON.stringify(next));
-  return next.count;
-}
-
-export async function resetMonthlyBgRemoval(): Promise<void> {
-  await AsyncStorage.removeItem(KEYS.monthlyBgRemoval);
-}
-
-export async function checkBgRemovalAllowed(
-  tier: MembershipTier,
-  isTrialing: boolean
-): Promise<{ allowed: boolean; reason?: string; remaining: number; quota: number }> {
-  const caps = effectiveCaps({ tier, isTrialing });
-  const quota = caps.bgRemovalPerMonth;
-
-  if (quota === 0) {
-    return {
-      allowed: false,
-      reason: 'ฟีเจอร์ตัดพื้นหลัง AI เปิดให้เฉพาะแพ็คเกจ Pro ขึ้นไป',
-      remaining: 0,
-      quota: 0,
-    };
-  }
-
-  const used = await getMonthlyBgRemovalUsed();
-  const remaining = Math.max(0, quota - used);
-
-  if (remaining === 0) {
-    return {
-      allowed: false,
-      reason: `ใช้ครบโควต้าเดือนนี้แล้ว (${quota} ครั้ง) — เริ่มใหม่เดือนหน้า หรืออัปเกรดแพ็คเกจ`,
-      remaining: 0,
-      quota,
-    };
-  }
-
-  return { allowed: true, remaining, quota };
-}
-
 // === Monthly Live Price Fetch counter ===
 async function readMonthlyPriceFetchState(): Promise<MonthlyState> {
   const raw = await AsyncStorage.getItem(KEYS.monthlyPriceFetch);
@@ -583,7 +510,6 @@ export async function resetAllQuotas(): Promise<void> {
     resetMonthlyDeepSearch(),
     resetMonthlyAuthenticity(),
     resetMonthlyHeatmap(),
-    resetMonthlyBgRemoval(),
     resetMonthlyPriceFetch(),
     resetDailyScans(),
     resetTrialScans(),

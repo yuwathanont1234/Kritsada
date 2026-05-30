@@ -16,81 +16,82 @@ import {
  *
  * All AI features have concrete monthly caps to bound worst-case costs.
  */
+// ─────────────────────────────────────────────────────────────────────────
+// CAPABILITY WIRING STATUS  (audited 2026-05-30)
+//   ✅ WIRED   = the capability is actually read + drives real app behavior.
+//   ⚠️ ROADMAP = field exists + has per-tier values, but NOTHING reads it.
+//                The feature is NOT built. Do NOT advertise it as a tier
+//                benefit until it ships (refund/bait-and-switch risk).
+// Keep ⚠️ fields here (don't advertise) — they double as the build backlog.
+// ─────────────────────────────────────────────────────────────────────────
 export type TierCapabilities = {
   // === Scan limits (every tier has a hard cap to prevent runaway cost) ===
-  monthlyScanLimit: number;
-  /** Hard cap per calendar day. Catches abuse like "scan 500 in one night". */
+  monthlyScanLimit: number;        // ✅ WIRED (scan-gate + UI)
+  /** ⚠️ ROADMAP — never read. Per-day abuse cap is not enforced. */
   dailyScanLimit: number;
-  /** One-time bonus scans on first install. Free only. */
+  /** ⚠️ ROADMAP — never read. (0 on every tier anyway.) */
   welcomeScans: number;
-  /** Lifetime cap. Set to a very high number for non-Free tiers. */
+  /** ⚠️ ROADMAP — never read. Free's 5-scan window is enforced via the
+   *  FREE_SCAN_LIMIT constant directly, NOT this field. */
   lifetimeScanLimit: number | 'unlimited';
 
   // Collection
-  collectionLimit: number | 'unlimited';
+  collectionLimit: number | 'unlimited'; // ✅ WIRED (ResultScreen save-gate)
 
   // Camera
-  highQualityPhoto: boolean;
-  autoCrop: boolean;
+  highQualityPhoto: boolean;       // ✅ WIRED (ScanScreen capture quality)
+  autoCrop: boolean;               // ✅ WIRED (ScanScreen auto-square crop)
 
-  // BG removal — number of removals/month. Premium has its own counter.
+  // ⚠️ ROADMAP — BG removal is NOT built. No remove-background action exists;
+  // only an upgrade-lock string in UpgradeModal references it.
   bgRemoval: boolean;
   bgRemovalPerMonth: number;
 
-  // Live price fetch — monthly cap on grounded-search calls.
-  priceFetchPerMonth: number;
+  priceFetchPerMonth: number;      // ✅ WIRED (monthly grounded-price quota)
 
   // Result screen — what to show
-  showAuthenticitySignals: boolean;
-  showFullPriceSourceUrls: boolean;
-  showRealPrices: boolean;       // Free = false (blur prices)
-  showPriceHistory6Months: boolean;
-  // Live web_search refresh of cached prices (Pro+ only).
-  priceFetchLive: boolean;
-  // Price data as a whole — market valuation + grade pricing. Pro/Premium ONLY.
-  // When false (Free, Standard) the price is NOT fetched (saves the ฿1.50
-  // grounded-search call) and the result screen shows an upgrade CTA instead.
+  showAuthenticitySignals: boolean; // ✅ WIRED (ResultScreen)
+  showFullPriceSourceUrls: boolean; // ⚠️ ROADMAP — never read
+  showRealPrices: boolean;          // ⚠️ DEAD — superseded by priceData (no reads left)
+  showPriceHistory6Months: boolean; // ⚠️ ROADMAP — never read (false on all tiers)
+  priceFetchLive: boolean;          // ⚠️ ROADMAP — never read (live refresh not built)
+  // ✅ WIRED — market valuation + grade pricing, Pro/Premium ONLY. When false
+  // (Free, Standard, and trial) the price is NOT fetched (saves the ฿1.50
+  // grounded call) and the result screen shows an upgrade CTA instead.
   priceData: boolean;
-  // Recommendation panel (retired in current versions).
-  showRecommendation: boolean;
+  showRecommendation: boolean;      // ⚠️ DEAD — panel retired; never read
 
   // Sharing/Export
-  hasWatermark: boolean;          // true = show watermark on shared images
-  pdfExport: boolean;
+  hasWatermark: boolean;            // ⚠️ ROADMAP — never read. Watermark is NOT
+                                    // tier-gated, yet Premium advertises "no watermark".
+  pdfExport: boolean;               // ✅ WIRED (PdfExporter gate)
 
   // Other Premium perks
-  priorityAi: boolean;
-  cloudBackup: boolean;
+  priorityAi: boolean;              // ⚠️ ROADMAP — never read. No AI queue priority
+                                    // exists, yet Premium advertises "คิวด่วนพิเศษ".
+  cloudBackup: boolean;             // ⚠️ ROADMAP — never read. No cloud backup built.
 
-  // AI Q&A — questions/month limit
-  aiQuestionsPerMonth: number;
+  aiQuestionsPerMonth: number;      // ⚠️ ROADMAP — AI Q&A screen does not exist
+                                    // (route declared, no component, guards uncalled).
 
-  // Authenticity AI — monthly quota for cost control.
-  authenticityPerMonth: number;
+  authenticityPerMonth: number;     // ✅ WIRED (monthly auth quota)
 
-  // Heatmap pre-fire during auth — Standard+ gets this for accuracy boost.
-  useHeatmapInAuth: boolean;
+  useHeatmapInAuth: boolean;        // ⚠️ ROADMAP — never read (no accuracy pre-fire).
 
-  // AI Authenticity Heatmap (Premium only) — visual region-by-region.
+  // ⚠️ ROADMAP — Premium AI heatmap OVERLAY is not gated/built; only a comment
+  // in ResultScreen + an UpgradeModal advert reference it.
   authenticityHeatmap: boolean;
   heatmapPerMonth: number;
 
-  // Deep Search (Pro+)
-  deepSearchPerMonth: number;
+  deepSearchPerMonth: number;       // ⚠️ DEAD — 0 on all tiers, never read
 
-  // Number of photo slots shown on the scan template:
-  //   Free        = 1 (front dial only)
-  //   Standard    = 2 (front dial + caseback)
-  //   Pro         = 3 (front dial + caseback + side profile)
-  //   Premium     = 4 (front dial + caseback + 2 side profile/details)
+  // ✅ WIRED — photo slots on the scan template:
+  //   Free=1, Standard=2, Pro=3, Premium=4
   templatePhotoCount: 1 | 2 | 3 | 4;
 
-  // AI-Data Fusion: weight-discrepancy check (Premium only).
-  // The fusion engine catches the "real warranty card + counterfeit
-  // case" fraud pattern by cross-referencing the user's measured
-  // weight against the manufacturer-spec range for the identified
-  // reference. Gated to Premium because it's a defensible
-  // upgrade-driver — same tier that gets the AI heatmap overlay.
+  // ✅ WIRED (ResultScreen + aiRouter) — AI-Data Fusion weight-discrepancy
+  // check (Premium only): catches the "real warranty card + counterfeit case"
+  // fraud pattern by cross-referencing measured weight vs spec range.
   weightFusion: boolean;
 };
 

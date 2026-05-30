@@ -36,6 +36,7 @@ import { useLanguage } from '../lib/localization';
 
 import VerdictHeader from './result/VerdictHeader';
 import SpecsSection from './result/SpecsSection';
+import PriceCard from './result/PriceCard';
 import CollectionActions from './result/CollectionActions';
 import { exportWatchPDF } from './result/PdfExporter';
 import { usePriceFallback } from './result/usePriceFallback';
@@ -851,6 +852,19 @@ export function ResultScreen({ route, navigation }: Props) {
           );
         })()}
 
+        {/* Resale market valuation — moved ABOVE the action bar so the
+            headline price sits directly under the verdict, before share/PDF. */}
+        <PriceCard
+          authColor={authColor}
+          result={result}
+          caps={caps}
+          exchangeRate={exchangeRate}
+          savedId={savedState.id}
+          refreshingPrices={refreshingPrices}
+          handleUpgradePress={handleUpgradePress}
+          handleRefreshPrices={handleRefreshPrices}
+        />
+
         {/* 2. Glassmorphic Action Bar for Share and Premium PDF Export */}
         <View style={styles.actionContainer}>
           <Pressable
@@ -884,7 +898,7 @@ export function ResultScreen({ route, navigation }: Props) {
             <Text style={[styles.actionBtnText, { color: '#000', fontWeight: '700' }]}>
               {generatingPDF
                 ? (lang === 'th' ? 'กำลังส่งออก...' : 'Exporting...')
-                : (lang === 'th' ? 'ออกรายงานความแท้ PDF' : 'Export PDF Report')}
+                : (lang === 'th' ? 'รายงาน PDF' : 'PDF Report')}
             </Text>
           </Pressable>
         </View>

@@ -496,17 +496,23 @@ export async function analyzeWatchByTier(
   // the scale-up model (DINOv3 1024-d → 1024→128→1). Trained on studio+dealer
   // photos; THIS scan is a phone photo (the untested 3rd style), so we log to
   // see if it generalizes before wiring into the verdict. Non-blocking.
-  if (ragOutcome.embedding) {
+  if (!ragOutcome.embedding) {
+    console.log(
+      `[authClassifier:shadow] SKIPPED — no scan embedding ` +
+        `(RAG ${ragOutcome.skipped ? 'embed FAILED (likely cold-start 504)' : 'ran but no emb'}). Scan again when Replicate is warm.`
+    );
+  } else {
+    console.log(`[authClassifier:shadow] running — embedding len=${ragOutcome.embedding.length}`);
     predictAuthenticity(ragOutcome.embedding)
       .then((p) => {
-        if (p !== null) {
-          console.log(
-            `[authClassifier:shadow] P(real)=${p.toFixed(3)} bucket=${bucketAuthVerdict(p)} ` +
-              `(${identified?.brand ?? '?'} ${identified?.name ?? '?'})`
-          );
-        }
+        console.log(
+          p === null
+            ? `[authClassifier:shadow] P(real)=null (dim mismatch — got ${ragOutcome.embedding?.length}, model wants 1024)`
+            : `[authClassifier:shadow] P(real)=${p.toFixed(3)} bucket=${bucketAuthVerdict(p)} ` +
+                `(${identified?.brand ?? '?'} ${identified?.name ?? '?'})`
+        );
       })
-      .catch((e) => console.warn('[authClassifier:shadow] failed:', e?.message));
+      .catch((e) => console.warn('[authClassifier:shadow] ERROR:', e?.message));
   }
   // Inferred ragArg for any downstream consumer that wants candidates
   // (e.g. Pro retry below). Empty array → undefined keeps existing

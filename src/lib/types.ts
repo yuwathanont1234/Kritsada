@@ -30,6 +30,25 @@ export type ReproductionPrice = {
   notes: string;                    // e.g., "typical rep street price"
 };
 
+// AI Authenticity Heatmap — Gemini boxes 3-7 specific regions on the USER's
+// actual photo (crown, rehaut, cyclops, dial text, date, clasp...), each with a
+// green/yellow/red signal + observation/reasoning. Explainable visual layer;
+// NOT a certification. (Render via PhotoHeatmap; generated on-demand.)
+export type HeatmapSignal = 'green' | 'yellow' | 'red';
+export type HeatmapRegion = {
+  // Gemini bbox, normalized 0..1000: [ymin, xmin, ymax, xmax].
+  box: { ymin: number; xmin: number; ymax: number; xmax: number };
+  type: HeatmapSignal;
+  feature: string;       // short label, e.g. "มงกุฎ" / "Rehaut"
+  observation: string;   // what AI sees at that spot (1 sentence)
+  reasoning: string;     // why it matters for authenticity (1-2 sentences)
+};
+export type HeatmapResult = {
+  regions: HeatmapRegion[];
+  overallNote: string;
+  counts: { green: number; yellow: number; red: number };
+};
+
 export type ScanResult = {
   identified: boolean;
   confidence: number;               // Confidence in "identification" (not authenticity)

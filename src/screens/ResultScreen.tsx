@@ -37,6 +37,7 @@ import { useLanguage } from '../lib/localization';
 import VerdictHeader from './result/VerdictHeader';
 import SpecsSection from './result/SpecsSection';
 import PriceCard from './result/PriceCard';
+import PhotoHeatmap from './result/PhotoHeatmap';
 import CollectionActions from './result/CollectionActions';
 import { exportWatchPDF } from './result/PdfExporter';
 import { usePriceFallback } from './result/usePriceFallback';
@@ -513,6 +514,10 @@ export function ResultScreen({ route, navigation }: Props) {
           getVerdictLabel={getVerdictLabel}
           t={t}
         />
+
+        {/* AI inspection heatmap — on-demand; boxes expert-checked spots on the
+            user's real photo (explainable visual layer, not a certification). */}
+        <PhotoHeatmap frontUri={frontUri} />
 
         {/* ─────────────────────────────────────────────────────────
             Macro photo coverage warning.

@@ -13,8 +13,10 @@ import {
   buildAuthAssessmentPromptWithCert,
   buildCandidatesPrompt,
   buildPriceLookupPrompt,
+  WATCH_HEATMAP_SYSTEM_PROMPT,
+  WATCH_HEATMAP_USER_PROMPT,
 } from './prompts';
-import { ScanResult } from './types';
+import { ScanResult, HeatmapResult, HeatmapRegion, HeatmapSignal } from './types';
 import { fillScanResultDefaults } from './ai';
 import type { AuthPayload, PricePayload } from './ai';
 import { publishRetry } from './retryStatus';
@@ -1055,6 +1057,59 @@ async function writePriceCache(
   } catch (e: any) {
     console.warn('[gemini] price cache write failed:', e?.message);
   }
+}
+
+/**
+ * AI Authenticity Heatmap — ask Gemini (via the secure edge) to box 3-7
+ * specific inspection spots on the user's actual watch photo, each coloured
+ * green/yellow/red with an observation + reasoning. On-demand (1 Gemini call,
+ * ~฿0.06). Explainable visual layer — NOT a certification.
+ */
+export async function generateWatchHeatmap(
+  frontUri: string,
+  opts?: { signal?: AbortSignal }
+): Promise<HeatmapResult> {
+  const b64 = await compressAndEncode(frontUri, 1024);
+  const parts: any[] = [
+    { inline_data: { mime_type: 'image/jpeg', data: b64 } },
+    { text: WATCH_HEATMAP_USER_PROMPT },
+  ];
+  console.log('[gemini] generateWatchHeatmap: 1 image');
+  const raw = await callGeminiJson<any>({
+    systemInstruction: WATCH_HEATMAP_SYSTEM_PROMPT,
+    parts,
+    label: 'heatmap',
+    maxOutputTokens: 4000,
+    signal: opts?.signal,
+  });
+
+  const rawRegions: any[] = Array.isArray(raw?.regions) ? raw.regions : [];
+  const clamp = (n: any) => Math.max(0, Math.min(1000, Math.round(Number(n) || 0)));
+  const regions: HeatmapRegion[] = rawRegions
+    .map((r): HeatmapRegion | null => {
+      const box = Array.isArray(r?.box_2d) ? r.box_2d : Array.isArray(r?.box) ? r.box : null;
+      if (!box || box.length < 4) return null;
+      let [ymin, xmin, ymax, xmax] = box.map(clamp);
+      if (ymax < ymin) [ymin, ymax] = [ymax, ymin];
+      if (xmax < xmin) [xmin, xmax] = [xmax, xmin];
+      const type: HeatmapSignal =
+        r?.type === 'green' || r?.type === 'red' ? r.type : 'yellow';
+      return {
+        box: { ymin, xmin, ymax, xmax },
+        type,
+        feature: String(r?.feature ?? '').slice(0, 40),
+        observation: String(r?.observation ?? '').slice(0, 300),
+        reasoning: String(r?.reasoning ?? '').slice(0, 300),
+      };
+    })
+    .filter((r): r is HeatmapRegion => r !== null);
+
+  const counts = {
+    green: regions.filter((r) => r.type === 'green').length,
+    yellow: regions.filter((r) => r.type === 'yellow').length,
+    red: regions.filter((r) => r.type === 'red').length,
+  };
+  return { regions, overallNote: String(raw?.overallNote ?? ''), counts };
 }
 
 export async function fetchWatchPricesGemini(

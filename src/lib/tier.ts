@@ -47,6 +47,10 @@ export type TierCapabilities = {
   showPriceHistory6Months: boolean;
   // Live web_search refresh of cached prices (Pro+ only).
   priceFetchLive: boolean;
+  // Price data as a whole — market valuation + grade pricing. Pro/Premium ONLY.
+  // When false (Free, Standard) the price is NOT fetched (saves the ฿1.50
+  // grounded-search call) and the result screen shows an upgrade CTA instead.
+  priceData: boolean;
   // Recommendation panel (retired in current versions).
   showRecommendation: boolean;
 
@@ -108,6 +112,7 @@ const FREE_CAPS: TierCapabilities = {
   showRealPrices: false,          // blur prices for Free
   showPriceHistory6Months: false,
   priceFetchLive: false,
+  priceData: false,               // Pro/Premium only
   showRecommendation: false,
   hasWatermark: true,
   pdfExport: false,
@@ -140,6 +145,7 @@ const STANDARD_CAPS: TierCapabilities = {
   showRealPrices: true,
   showPriceHistory6Months: false,
   priceFetchLive: false,
+  priceData: false,               // Standard: price gated to Pro/Premium
   showRecommendation: false,
   hasWatermark: true,
   pdfExport: false,
@@ -172,6 +178,7 @@ const PRO_CAPS: TierCapabilities = {
   showRealPrices: true,
   showPriceHistory6Months: false,
   priceFetchLive: true,
+  priceData: true,                // Pro: full price data
   showRecommendation: false,
   hasWatermark: true,
   pdfExport: true,
@@ -204,6 +211,7 @@ const PREMIUM_CAPS: TierCapabilities = {
   showRealPrices: true,
   showPriceHistory6Months: false,
   priceFetchLive: true,
+  priceData: true,                // Premium: full price data
   showRecommendation: false,
   hasWatermark: false,            // Premium removes watermark
   pdfExport: true,

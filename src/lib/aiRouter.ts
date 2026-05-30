@@ -1,4 +1,5 @@
 import { MembershipTier } from './auth';
+import { effectiveCaps } from './tier';
 import {
   AuthPayload,
   PricePayload,
@@ -822,6 +823,15 @@ export async function analyzeWatchByTier(
       // auth assessment is fundamentally limited to front/back silhouette
       // analysis and we cap the displayed confidence downstream.
       const extraUris = (extraImages ?? []).filter(Boolean);
+      // Price data (market valuation + grade pricing) is a Pro/Premium-only
+      // feature. For Free/Standard we skip the grounded-search price call
+      // entirely (saves ~฿1.50/scan) — the result screen shows an upgrade
+      // CTA, and the merge below falls back to a brand-based estimate for
+      // internal use (e.g. collection value), which the UI keeps hidden.
+      const wantsPriceData = effectiveCaps({ tier, isTrialing }).priceData;
+      if (!wantsPriceData) {
+        console.log(`[aiRouter] price fetch SKIPPED — tier "${tier}" has no price-data access (Pro/Premium only). Saving ~฿1.50.`);
+      }
       const [authPayload, priceData] = await Promise.all([
         assessAuthenticityByTier(
           tier,
@@ -839,15 +849,17 @@ export async function analyzeWatchByTier(
           console.warn('[aiRouter] authenticity assessment failed, falling back:', err?.message);
           return null;
         }),
-        fetchPricesByTier(
-          tier,
-          { name: identified.name, brand: identified.brand, reference: identified.reference, confidence: identified.confidence },
-          signal
-        ).catch((err) => {
-          if (err?.name === 'AbortError') throw err;
-          console.warn('[aiRouter] price fetching failed, falling back:', err?.message);
-          return null;
-        })
+        wantsPriceData
+          ? fetchPricesByTier(
+              tier,
+              { name: identified.name, brand: identified.brand, reference: identified.reference, confidence: identified.confidence },
+              signal
+            ).catch((err) => {
+              if (err?.name === 'AbortError') throw err;
+              console.warn('[aiRouter] price fetching failed, falling back:', err?.message);
+              return null;
+            })
+          : Promise.resolve(null)
       ]);
 
 function getBrandFallbackPrice(brand?: string, name?: string): number {

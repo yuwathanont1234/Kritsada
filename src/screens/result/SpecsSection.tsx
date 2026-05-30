@@ -183,7 +183,7 @@ export default function SpecsSection({
         <View style={styles.marketValCard}>
           <View style={styles.marketValHeader}>
             <Text style={styles.marketValTitle}>{lang === 'th' ? 'ราคาตลาดรองประเมิน: ' : 'Market Value: '} </Text>
-            {caps.showRealPrices ? (
+            {caps.priceData ? (
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
                 <Text style={styles.marketValPrice}>
                   {formatTHB(result.marketPrice, exchangeRate)}
@@ -228,7 +228,7 @@ export default function SpecsSection({
               <Text style={styles.gradeTextSubLabel}>{lang === 'th' ? 'ระดับดีเลิศ' : 'Condition'}</Text>
               <Text style={styles.gradeColorLabel}>{lang === 'th' ? 'ทองคำ' : 'Gold'}</Text>
               <Text style={styles.gradePriceGold}>
-                {caps.showRealPrices
+                {caps.priceData
                   ? formatTHB(result.priceByGrade?.excellent || Math.round((result.marketPrice || getBrandFallbackPrice(result.brand, result.name)) * 1.1), exchangeRate)
                   : formatTHB(Math.round(getBrandFallbackPrice(result.brand, result.name) * 1.1), exchangeRate)}
               </Text>
@@ -243,7 +243,7 @@ export default function SpecsSection({
               <Text style={styles.gradeTextSubLabel}>{lang === 'th' ? 'ระดับทั่วไป' : 'Condition'}</Text>
               <Text style={styles.gradeColorLabel}>{lang === 'th' ? 'สีขาว' : 'White'}</Text>
               <Text style={styles.gradePriceWhite}>
-                {caps.showRealPrices
+                {caps.priceData
                   ? formatTHB(result.priceByGrade?.good || (result.marketPrice || getBrandFallbackPrice(result.brand, result.name)), exchangeRate)
                   : formatTHB(getBrandFallbackPrice(result.brand, result.name), exchangeRate)}
               </Text>
@@ -258,14 +258,14 @@ export default function SpecsSection({
               <Text style={styles.gradeTextSubLabel}>{lang === 'th' ? 'ระดับผ่านเกณฑ์' : 'Condition'}</Text>
               <Text style={styles.gradeColorLabel}>{lang === 'th' ? 'สีเทา' : 'Grey'}</Text>
               <Text style={styles.gradePriceGrey}>
-                {caps.showRealPrices
+                {caps.priceData
                   ? formatTHB(result.priceByGrade?.fair || Math.round((result.marketPrice || getBrandFallbackPrice(result.brand, result.name)) * 0.9), exchangeRate)
                   : formatTHB(Math.round(getBrandFallbackPrice(result.brand, result.name) * 0.9), exchangeRate)}
               </Text>
             </View>
           </View>
 
-          {!caps.showRealPrices && (
+          {!caps.priceData && (
             <View style={styles.marketValUpgradeOverlay}>
               <Pressable
                 style={styles.marketValUpgradeBtn}

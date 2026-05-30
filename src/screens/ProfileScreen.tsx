@@ -18,6 +18,7 @@ import { getAllWatches, deleteWatch } from '../lib/collection';
 import { getExchangeRate } from '../lib/currency';
 import { useLanguage } from '../lib/localization';
 import { styles } from './AppStyles';
+import WatchWinder from './collection/WatchWinder';
 
 const getSavedWatches = getAllWatches;
 const deleteSavedWatch = deleteWatch;
@@ -209,6 +210,9 @@ export default function CollectionScreen({ navigation }: any) {
   const [filter, setFilter] = useState<'all' | 'active' | 'sold'>('all');
   const [selectedBrand, setSelectedBrand] = useState<string | null>(null);
   const [exchangeRate, setExchangeRate] = useState<number>(36.5);
+  // Vault display mode: the automatic winder cabinet (default — the "showcase"
+  // look) vs the existing brand-tray list for detailed management.
+  const [viewMode, setViewMode] = useState<'winder' | 'list'>('winder');
 
   const loadData = async () => {
     try {
@@ -412,6 +416,45 @@ export default function CollectionScreen({ navigation }: any) {
                 </View>
               </View>
 
+              {/* View-mode toggle: automatic winder cabinet ⇄ brand list */}
+              <View style={{ flexDirection: 'row', gap: 8, marginBottom: spacing.md }}>
+                {(['winder', 'list'] as const).map((mode) => {
+                  const active = viewMode === mode;
+                  return (
+                    <Pressable
+                      key={mode}
+                      onPress={() => setViewMode(mode)}
+                      style={{
+                        flexDirection: 'row',
+                        alignItems: 'center',
+                        gap: 6,
+                        paddingVertical: 8,
+                        paddingHorizontal: 14,
+                        borderRadius: 999,
+                        borderWidth: 1,
+                        borderColor: active ? colors.amber : 'rgba(236,200,122,0.25)',
+                        backgroundColor: active ? 'rgba(236,200,122,0.14)' : 'transparent',
+                      }}
+                    >
+                      <Feather
+                        name={mode === 'winder' ? 'refresh-cw' : 'grid'}
+                        size={13}
+                        color={active ? colors.amber : colors.textMuted}
+                      />
+                      <Text style={{ color: active ? colors.amber : colors.textMuted, fontSize: 12, fontWeight: '700' }}>
+                        {mode === 'winder'
+                          ? (lang === 'th' ? 'ตู้หมุน' : 'Winder')
+                          : (lang === 'th' ? 'รายการ' : 'List')}
+                      </Text>
+                    </Pressable>
+                  );
+                })}
+              </View>
+
+              {viewMode === 'winder' ? (
+                <WatchWinder watches={filteredWatches} onOpen={openWatch} lang={lang} />
+              ) : (
+              <>
               {/* ─── Recent Added carousel ─── */}
               {recentWatches.length > 0 && (
                 <View style={{ marginBottom: spacing.md }}>
@@ -647,6 +690,8 @@ export default function CollectionScreen({ navigation }: any) {
                     />
                   ))}
                 </View>
+              )}
+              </>
               )}
             </>
           )}

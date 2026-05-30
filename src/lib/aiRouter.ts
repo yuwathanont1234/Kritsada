@@ -18,6 +18,7 @@ import {
   awaitPrewarm,
   embedFrontAndBack,
   findSimilarWatches,
+  scoreConformity,
   findSimilarExpertCerts,
   isVisualRagConfigured,
   SimilarWatch,
@@ -93,6 +94,8 @@ type RagOutcome = {
   skipped: boolean;
   /** True when embed succeeded but candidates failed quality gates. */
   rejected: boolean;
+  /** Raw DINOv3 embedding (when embed succeeded) — for the A2 conformity shadow. */
+  embedding?: number[];
 };
 
 async function getVisualCandidates(
@@ -126,26 +129,26 @@ async function getVisualCandidates(
       console.log(
         `[aiRouter] Visual RAG: REJECTED — global spread ${globalSpread.toFixed(3)} < ${RAG_MIN_GLOBAL_SPREAD}. Falling back to image-only.`
       );
-      return { candidates: [], skipped: false, rejected: true };
+      return { candidates: [], skipped: false, rejected: true, embedding };
     }
     if (topMargin < RAG_MIN_TOP_MARGIN) {
       console.log(
         `[aiRouter] Visual RAG: REJECTED — top margin ${topMargin.toFixed(3)} < ${RAG_MIN_TOP_MARGIN}. Falling back to image-only.`
       );
-      return { candidates: [], skipped: false, rejected: true };
+      return { candidates: [], skipped: false, rejected: true, embedding };
     }
     if (topSimilarity < RAG_MIN_SIMILARITY) {
       console.log(
         `[aiRouter] Visual RAG: REJECTED — top sim ${topSimilarity.toFixed(3)} < ${RAG_MIN_SIMILARITY}`
       );
-      return { candidates: [], skipped: false, rejected: true };
+      return { candidates: [], skipped: false, rejected: true, embedding };
     }
 
     const filtered = candidates.filter((c) => c.similarity >= RAG_MIN_SIMILARITY);
     console.log(
       `[aiRouter] Visual RAG: ${filtered.length}/${candidates.length} above ${RAG_MIN_SIMILARITY}, top=${filtered[0]?.id} (sim=${topSimilarity.toFixed(3)})`
     );
-    return { candidates: filtered, skipped: false, rejected: false };
+    return { candidates: filtered, skipped: false, rejected: false, embedding };
   } catch (e: any) {
     console.warn(
       `[aiRouter] Visual RAG SKIPPED (${Date.now() - ragT0}ms):`,
@@ -456,7 +459,7 @@ export async function analyzeWatchByTier(
     undefined,
     { disableThinking, imageMaxWidth, maxOutputTokens, signal }
   );
-  const ragPromise: Promise<{ candidates: SimilarWatch[]; skipped: boolean; rejected: boolean }> =
+  const ragPromise: Promise<RagOutcome> =
     enableVisualRag
       ? getVisualCandidates(frontUri, backUri)
       : Promise.resolve({ candidates: [], skipped: true, rejected: false });
@@ -467,6 +470,24 @@ export async function analyzeWatchByTier(
   candidates = ragOutcome.candidates;
   let ragSkipped = ragOutcome.skipped;
   let ragRejected = ragOutcome.rejected;
+
+  // A2 conformity (SHADOW, 2026-05-30) — log how close the scan sits to
+  // AUTHENTIC catalog examples of the identified ref. Non-blocking; does NOT
+  // touch the verdict yet (256-d probe space is identification-tuned — we're
+  // collecting real numbers to decide if a 1024-d / real+fake upgrade is worth
+  // it). See migration 0009_conformity_to_reference.sql.
+  if (ragOutcome.embedding && identified?.brand) {
+    scoreConformity(ragOutcome.embedding, identified.brand, identified.reference || '')
+      .then((c) => {
+        if (c) {
+          console.log(
+            `[conformity:shadow] ${identified.brand} ${identified.reference || ''} → ` +
+              `maxSim=${c.maxSim.toFixed(3)} meanTop8=${c.meanTopk.toFixed(3)} (scope=${c.scope}, n=${c.n})`
+          );
+        }
+      })
+      .catch(() => {});
+  }
   // Inferred ragArg for any downstream consumer that wants candidates
   // (e.g. Pro retry below). Empty array → undefined keeps existing
   // call sites that null-check on truthiness happy.

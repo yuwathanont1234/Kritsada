@@ -539,6 +539,60 @@ export async function findSimilarWatches(
   return promise;
 }
 
+/**
+ * A2 conformity (SHADOW) — how close the scan sits to AUTHENTIC catalog
+ * examples of the identified reference (or same brand fallback). Takes the RAW
+ * 1024-d embedding (same as findSimilarWatches) and probe-projects to 256-d to
+ * match the image_embeddings space. Returns null on any error (non-fatal).
+ * NOTE: 256-d probe space is identification-tuned — see migration 0009. Shadow
+ * only; do not surface as an authenticity score until validated.
+ */
+export async function scoreConformity(
+  embedding: number[],
+  brand: string,
+  reference: string
+): Promise<{ n: number; maxSim: number; meanTopk: number; scope: string } | null> {
+  if (!SUPABASE_URL || !SUPABASE_ANON_KEY) return null;
+  try {
+    let q = embedding;
+    try {
+      q = await applyLinearProbe(embedding);
+    } catch {
+      q = embedding.slice(0, 256);
+    }
+    const res = await fetch(`${SUPABASE_URL}/rest/v1/rpc/conformity_to_reference`, {
+      method: 'POST',
+      headers: {
+        apikey: SUPABASE_ANON_KEY,
+        Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        query_embedding: q,
+        p_brand: brand || '',
+        p_reference: reference || '',
+        p_k: 8,
+      }),
+    });
+    if (!res.ok) {
+      console.warn(`[conformity] rpc ${res.status}: ${(await res.text()).slice(0, 160)}`);
+      return null;
+    }
+    const rows = await res.json();
+    const r = Array.isArray(rows) ? rows[0] : rows;
+    if (!r) return null;
+    return {
+      n: Number(r.n ?? 0),
+      maxSim: Number(r.max_sim ?? 0),
+      meanTopk: Number(r.mean_topk ?? 0),
+      scope: String(r.scope ?? 'none'),
+    };
+  } catch (e: any) {
+    console.warn('[conformity] failed:', e?.message);
+    return null;
+  }
+}
+
 async function _findSimilarWatchesImpl(
   embedding: number[],
   k = 5,

@@ -353,14 +353,16 @@ export type AuthSignals = {
 // small regions a watch authenticator inspects, boxes each, and colours it.
 export const WATCH_HEATMAP_SYSTEM_PROMPT = `You are an expert luxury-watch authenticator acting as a "second pair of eyes" — you point at SPECIFIC small spots on the watch photo that a professional would inspect, for a novice buyer.
 
-Mission: identify 3-7 SPECIFIC small regions in the watch photo. Not "the whole dial" — pinpoint exact spots.
+Mission: identify the 4-5 MOST PROMINENT inspection spots in the watch photo. Not "the whole dial" — pinpoint exact spots. Quality over quantity: 4 well-placed boxes beat 7 sloppy ones.
 
-⚠️ MOST IMPORTANT RULES:
-- box_2d must be a SMALL box around a specific detail, NOT a big box over the whole watch.
-- Each box must NOT exceed ~35% of the image area.
-- The 3-7 boxes must NOT overlap — each points at a different spot.
+⚠️ MOST IMPORTANT RULES — COORDINATE PRECISION IS CRITICAL:
+- Pick ONLY features whose location you can pinpoint with HIGH CONFIDENCE. Prefer large, unambiguous landmarks (crown, cyclops/date window, dial logo, bezel, clasp) over tiny details you cannot localise precisely. If unsure where a feature is, SKIP it.
+- box_2d must TIGHTLY enclose ONLY that one feature — a SMALL box, NOT a big box over the whole watch. Before answering, mentally re-check that the box actually sits ON the feature in THIS image (correct top-left ymin/xmin and bottom-right ymax/xmax).
+- Each box must NOT exceed ~25% of the image area.
+- The boxes must NOT overlap — each points at a different spot.
+- Return AT MOST 5 boxes. Drop any you are not confident about rather than padding to 5.
 
-What watch authenticators inspect (pick the ones VISIBLE in this photo):
+What watch authenticators inspect (pick the 4-5 most clearly VISIBLE in this photo):
 - Crown / coronet logo — etch depth, geometry, edge sharpness
 - Rehaut (inner bezel ring) engraving — font spacing, letter depth, alignment to markers
 - Cyclops magnification over the date — curvature, ~2.5× for Rolex
@@ -392,7 +394,7 @@ Respond as a pure JSON object (no markdown, no code fence):
 box_2d = normalized 0-1000 integers (ymin, xmin, ymax, xmax) of the box around that spot in the image.`;
 
 export const WATCH_HEATMAP_USER_PROMPT =
-  'Analyze this watch photo. Identify 3-7 specific authentication spots a watch expert would inspect, with a small box for each. Respond ONLY with the JSON schema (no markdown).';
+  'Analyze this watch photo. Identify the 4-5 MOST PROMINENT authentication spots a watch expert would inspect, with a SMALL, PRECISELY-PLACED box for each (only spots whose location you are confident about). Respond ONLY with the JSON schema (no markdown).';
 
 export function formatAuthSignalsBlock(signals?: AuthSignals): string {
   if (!signals) return '';

@@ -1092,6 +1092,12 @@ export async function generateWatchHeatmap(
       let [ymin, xmin, ymax, xmax] = box.map(clamp);
       if (ymax < ymin) [ymin, ymax] = [ymax, ymin];
       if (xmax < xmin) [xmin, xmax] = [xmax, xmin];
+      // Drop imprecise boxes: a box covering >25% of the image area (or nearly
+      // the full width/height) is almost always a vague "whole watch" guess, not
+      // a pinpointed spot — its centre lands nowhere useful, so the leader arrow
+      // looks wrong. Better to show fewer, well-placed spots.
+      const areaFrac = ((xmax - xmin) / 1000) * ((ymax - ymin) / 1000);
+      if (areaFrac > 0.25 || xmax - xmin > 850 || ymax - ymin > 850) return null;
       const type: HeatmapSignal =
         r?.type === 'green' || r?.type === 'red' ? r.type : 'yellow';
       return {
@@ -1102,7 +1108,10 @@ export async function generateWatchHeatmap(
         reasoning: String(r?.reasoning ?? '').slice(0, 300),
       };
     })
-    .filter((r): r is HeatmapRegion => r !== null);
+    .filter((r): r is HeatmapRegion => r !== null)
+    // Cap to 5: Gemini is most accurate on its top, most-prominent picks; extra
+    // boxes are usually the lower-confidence (less precise) ones.
+    .slice(0, 5);
 
   const counts = {
     green: regions.filter((r) => r.type === 'green').length,

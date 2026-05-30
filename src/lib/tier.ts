@@ -42,8 +42,9 @@ export type TierCapabilities = {
   highQualityPhoto: boolean;       // ✅ WIRED (ScanScreen capture quality)
   autoCrop: boolean;               // ✅ WIRED (ScanScreen auto-square crop)
 
-  // ⚠️ ROADMAP — BG removal is NOT built. No remove-background action exists;
-  // only an upgrade-lock string in UpgradeModal references it.
+  // ⚠️ WON'T BUILD (decided 2026-05-30) — BG removal is not built and not
+  // planned. No remove-background action exists; advertising already removed.
+  // Safe to delete these fields + the unused feature_locked_bg_removal i18n key.
   bgRemoval: boolean;
   bgRemovalPerMonth: number;
 
@@ -78,8 +79,11 @@ export type TierCapabilities = {
 
   useHeatmapInAuth: boolean;        // ⚠️ ROADMAP — never read (no accuracy pre-fire).
 
-  // ⚠️ ROADMAP — Premium AI heatmap OVERLAY is not gated/built; only a comment
-  // in ResultScreen + an UpgradeModal advert reference it.
+  // ⚠️ CAP UNUSED — but the FEATURE IS LIVE. The "Hallmark Diagnostic Map"
+  // toggle (formerly "AI Heatmap") is built in VerdictHeader and shown via
+  // showAuthenticitySignals, with a Free-tier upsell popup driving conversion.
+  // These two caps specifically are never read: the map isn't gated on them
+  // and there's no per-use quota (toggling precomputed landmark data is free).
   authenticityHeatmap: boolean;
   heatmapPerMonth: number;
 

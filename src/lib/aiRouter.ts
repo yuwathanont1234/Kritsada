@@ -70,7 +70,7 @@ const GROUNDED_RETRY_TIMEOUT_MS = 25000;
 // race) to still produce DB validation. Total scan budget drops
 // 166s → ~50-60s on cold paths.
 const RAG_TIMEOUT_MS = 10000;
-// Prewarm wait similarly trimmed. The pg_cron `replicate-keepwarm` (*/7,
+// Prewarm wait similarly trimmed. The pg_cron `replicate-keepwarm` (*/5,
 // warmOnly) should keep Replicate hot; if it's cold despite that, the prewarm
 // endpoint is broken upstream and we shouldn't extend the user's scan to
 // compensate for an infrastructure issue. (Keep-warm history: GitHub Actions

@@ -82,7 +82,7 @@ export default function HomeScreen({ navigation }: any) {
   useEffect(() => {
     // Fire-and-forget Replicate prewarm on HomeScreen mount.
     // This is a client-side insurance layer that complements the server-side
-    // pg_cron `replicate-keepwarm` (*/7). Pattern stolen from songphra/visualRag.ts
+    // pg_cron `replicate-keepwarm` (*/5). Pattern stolen from songphra/visualRag.ts
     // which also has a 10-min cooldown to avoid burning Replicate $ on
     // every screen focus. By the time the user finishes browsing Home,
     // taps Scan, frames the photo, and hits Analyze (~15-30s typical),

@@ -19,7 +19,7 @@
 --   The May 2026 scan log showed a 55,942ms Replicate prewarm,
 --   confirming the GH Actions ping had been silent for ≥10 minutes.
 --
--- Fix: add a pg_cron job that also pings embed-image every 7 minutes
+-- Fix: add a pg_cron job that also pings embed-image every 5 minutes
 -- from inside Postgres itself. pg_net handles the HTTP. This runs
 -- independently of GH Actions — even if Actions silently dies, the
 -- DB heartbeat keeps Replicate warm.
@@ -120,8 +120,11 @@ $$;
 
 
 -- ── 3. Schedule via pg_cron ─────────────────────────────────
--- Every 7 minutes — interleaves with GH Actions' every-5-min cadence.
--- If GH Actions silently dies, this alone keeps the model warm.
+-- Every 5 minutes. This is the SOLE keep-warm channel now (GitHub Actions and
+-- a cron-job.org job were both retired 2026-05-30). Tightened */7 → */5 after
+-- observing a 60s cold-start: warmOnly pings only TRIGGER a boot (they return
+-- 200 immediately, "succeeded" ≠ model warm), and Replicate scales the instance
+-- down in under 7 min, so a */7 cadence left recurring cold gaps.
 DO $$
 BEGIN
   IF NOT EXISTS (SELECT 1 FROM pg_extension WHERE extname = 'pg_cron') THEN
@@ -132,15 +135,15 @@ BEGIN
   -- Drop any previous schedule with the same name (idempotent).
   BEGIN PERFORM cron.unschedule('replicate-keepwarm'); EXCEPTION WHEN OTHERS THEN NULL; END;
 
-  -- Every 7 minutes, all day. ~205 pings/day = ~$0.23/day Replicate cost.
-  -- That's ~฿245/month — well worth the UX win of consistent <3s scans.
+  -- Every 5 minutes, all day. ~288 pings/day = ~$0.32/day Replicate cost
+  -- (~฿320/month) — worth it for consistent <3s scans with no cold gaps.
   PERFORM cron.schedule(
     'replicate-keepwarm',
-    '*/7 * * * *',
+    '*/5 * * * *',
     $cron$SELECT public.ping_replicate_keepwarm();$cron$
   );
 
-  RAISE NOTICE 'replicate-keepwarm scheduled (every 7 min).';
+  RAISE NOTICE 'replicate-keepwarm scheduled (every 5 min).';
 END;
 $$;
 

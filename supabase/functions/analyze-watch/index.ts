@@ -64,7 +64,42 @@ serve(async (req) => {
   }
 
   try {
-    const { systemInstruction, parts, enableWebSearch, disableThinking, maxOutputTokens, label, priceCacheKey } = await req.json()
+    const { systemInstruction, parts, enableWebSearch, disableThinking, maxOutputTokens, label, priceCacheKey, deviceId } = await req.json()
+
+    // ── Server-side abuse cap (defense-in-depth) ────────────────────────────
+    // Every product quota is enforced client-side; this is the ONLY server-side
+    // ceiling on how much a single device identity can burn. Keyed on the
+    // client cohortHash, IP fallback. Fail-OPEN: a ledger hiccup must never
+    // break a legitimate scan. See migration 0008_edge_quota.sql.
+    {
+      const DEVICE_DAILY_CAP = Number(Deno.env.get("EDGE_DEVICE_DAILY_CAP") ?? "400")
+      const ip = (req.headers.get("x-forwarded-for") ?? "").split(",")[0]?.trim()
+      const quotaKey = (typeof deviceId === "string" && deviceId.length >= 8)
+        ? deviceId
+        : (ip ? `ip:${ip}` : "")
+      if (quotaKey) {
+        try {
+          const qUrl = Deno.env.get("SUPABASE_URL")
+          const qKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")
+          if (qUrl && qKey) {
+            const { createClient } = await import("https://esm.sh/@supabase/supabase-js@2")
+            const admin = createClient(qUrl, qKey)
+            const { data: q, error: qErr } = await admin.rpc("consume_edge_quota", {
+              p_device_id: quotaKey,
+              p_cap: DEVICE_DAILY_CAP,
+            })
+            const row = Array.isArray(q) ? q[0] : q
+            if (!qErr && row && row.allowed === false) {
+              console.warn(`[analyze-watch:${label}] device quota exceeded key=${quotaKey.slice(0, 12)} used=${row.used}/${row.cap}`)
+              return new Response(
+                JSON.stringify({ error: "ใช้สแกนครบโควต้าสูงสุดของอุปกรณ์นี้แล้ว กรุณาลองใหม่พรุ่งนี้หรืออัปเกรดสมาชิก", quotaExceeded: true }),
+                { status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+              )
+            }
+          }
+        } catch (_e) { /* fail-open — never block a scan on a ledger error */ }
+      }
+    }
 
     const apiKey = Deno.env.get("GEMINI_API_KEY")
     if (!apiKey) {

@@ -19,6 +19,7 @@ import { fillScanResultDefaults } from './ai';
 import type { AuthPayload, PricePayload } from './ai';
 import { publishRetry } from './retryStatus';
 import { supabase, USE_EDGE_FUNCTIONS } from './supabase';
+import { ensureCohortHash } from './dataConsent';
 
 // Model strings are env-overridable
 const GEMINI_FLASH_MODEL =
@@ -351,6 +352,8 @@ async function callGeminiJson<T = any>(opts: GeminiCallOptions): Promise<T> {
           disableThinking: opts.disableThinking,
           maxOutputTokens: opts.maxOutputTokens,
           label: opts.label,
+          // Anonymous per-install id → server-side abuse cap (edge quota).
+          deviceId: await ensureCohortHash().catch(() => undefined),
           ...(opts.priceCacheKey ? { priceCacheKey: opts.priceCacheKey } : {}),
         },
         // supabase-js threads this to the underlying fetch so the

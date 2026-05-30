@@ -11,6 +11,7 @@
 import * as ImageManipulator from 'expo-image-manipulator';
 import { applyLinearProbe } from './linearProbe';
 import { supabase, USE_EDGE_FUNCTIONS } from './supabase';
+import { ensureCohortHash } from './dataConsent';
 
 const REPLICATE_TOKEN = process.env.EXPO_PUBLIC_REPLICATE_API_TOKEN || '';
 const SUPABASE_URL = process.env.EXPO_PUBLIC_SUPABASE_URL || '';
@@ -255,7 +256,7 @@ async function embedImageReal(uri: string): Promise<number[]> {
     const MAX_EMBED_RETRIES = 1;
     for (let attempt = 0; attempt <= MAX_EMBED_RETRIES; attempt++) {
       const { data, error } = await supabase.functions.invoke('embed-image', {
-        body: { image: dataUrl }
+        body: { image: dataUrl, deviceId: await ensureCohortHash().catch(() => undefined) }
       });
 
       if (!error) {

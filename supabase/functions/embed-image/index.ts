@@ -26,6 +26,7 @@ serve(async (req) => {
     // Keep-warm pings set warmOnly — they only need to BOOT Replicate, not get
     // an embedding back. See the warm-only branch below.
     const warmOnly = body?.warmOnly === true
+    const deviceId = body?.deviceId
     const imgLen = typeof image === 'string' ? image.length : 0
     console.log(`[embed-image:${reqId}] received: imgLen=${imgLen} (${(imgLen / 1024).toFixed(1)}KB) hasImage=${!!image}`)
 
@@ -105,6 +106,40 @@ serve(async (req) => {
         JSON.stringify({ warmOnly: true, accepted: ok, predictionId: pid ?? null }),
         { status: ok ? 200 : 502, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       )
+    }
+
+    // ── Server-side abuse cap (defense-in-depth) ────────────────────────────
+    // Shares the per-device daily ceiling with analyze-watch (see migration
+    // 0008_edge_quota.sql). Only real embeds count — warmOnly returned above.
+    // Fail-OPEN: a ledger error must never block a legitimate scan.
+    {
+      const DEVICE_DAILY_CAP = Number(Deno.env.get("EDGE_DEVICE_DAILY_CAP") ?? "400")
+      const ip = (req.headers.get("x-forwarded-for") ?? "").split(",")[0]?.trim()
+      const quotaKey = (typeof deviceId === "string" && deviceId.length >= 8)
+        ? deviceId
+        : (ip ? `ip:${ip}` : "")
+      if (quotaKey) {
+        try {
+          const qUrl = Deno.env.get("SUPABASE_URL")
+          const qKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")
+          if (qUrl && qKey) {
+            const { createClient } = await import("https://esm.sh/@supabase/supabase-js@2")
+            const admin = createClient(qUrl, qKey)
+            const { data: q, error: qErr } = await admin.rpc("consume_edge_quota", {
+              p_device_id: quotaKey,
+              p_cap: DEVICE_DAILY_CAP,
+            })
+            const row = Array.isArray(q) ? q[0] : q
+            if (!qErr && row && row.allowed === false) {
+              console.warn(`[embed-image:${reqId}] device quota exceeded key=${quotaKey.slice(0, 12)} used=${row.used}/${row.cap}`)
+              return new Response(
+                JSON.stringify({ error: "ใช้สแกนครบโควต้าสูงสุดของอุปกรณ์นี้แล้ว กรุณาลองใหม่พรุ่งนี้หรืออัปเกรดสมาชิก", quotaExceeded: true }),
+                { status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+              )
+            }
+          }
+        } catch (_e) { /* fail-open */ }
+      }
     }
 
     // Replicate POST — bounded by edge budget. AbortSignal.timeout

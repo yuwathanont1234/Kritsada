@@ -244,20 +244,47 @@ async function embedImageReal(uri: string): Promise<number[]> {
 
   if (USE_EDGE_FUNCTIONS) {
     console.log(`[visualRag:${uri.slice(-15)}] Secure Edge Routing: Calling serverless embed-image backend`);
-    const { data, error } = await supabase.functions.invoke('embed-image', {
-      body: { image: dataUrl }
-    });
 
-    if (error) {
-      console.warn('[visualRag:edge] secure backend invocation failed:', error);
+    // supabase-js wraps non-2xx in a generic FunctionsHttpError whose REAL
+    // status + body live on error.context (a Response). The old code swallowed
+    // both, so a cold-start 504 was indistinguishable from a 500 token error in
+    // the logs. Surface them, and retry ONCE on transient failures (504/5xx/
+    // network) — embed-image returns 504 on a Replicate cold-start, which the
+    // keep-warm boot usually clears within a few seconds, so a single retry
+    // salvages RAG for that scan instead of going blind.
+    const MAX_EMBED_RETRIES = 1;
+    for (let attempt = 0; attempt <= MAX_EMBED_RETRIES; attempt++) {
+      const { data, error } = await supabase.functions.invoke('embed-image', {
+        body: { image: dataUrl }
+      });
+
+      if (!error) {
+        if (!data || !Array.isArray(data.embedding)) {
+          throw new Error('ระบบตรวจสอบภาพส่งข้อมูลรูปแบบไม่ถูกต้อง');
+        }
+        return data.embedding as number[];
+      }
+
+      // Pull the real HTTP status + body off the wrapped Response for diagnosis.
+      const ctx = (error as any)?.context;
+      const status: number | undefined = ctx?.status;
+      let bodyText = '';
+      try {
+        if (ctx && typeof ctx.text === 'function') bodyText = (await ctx.text())?.slice(0, 200) ?? '';
+      } catch { /* body already consumed / not a Response */ }
+      const isTransient = !status || status >= 500; // 504 cold-start, 5xx, or network (no status)
+      console.warn(
+        `[visualRag:edge] embed-image failed (status=${status ?? 'network'}, attempt ${attempt + 1}/${MAX_EMBED_RETRIES + 1}, transient=${isTransient}): ${bodyText || (error as any)?.message || error}`
+      );
+
+      if (isTransient && attempt < MAX_EMBED_RETRIES) {
+        await new Promise((r) => setTimeout(r, 1500)); // let the cold-start boot finish
+        continue;
+      }
       throw new Error('ระบบตรวจสอบภาพขัดข้องชั่วคราว (Edge Embed Error) กรุณาลองใหม่อีกครั้ง');
     }
-
-    if (!data || !Array.isArray(data.embedding)) {
-      throw new Error('ระบบตรวจสอบภาพส่งข้อมูลรูปแบบไม่ถูกต้อง');
-    }
-
-    return data.embedding as number[];
+    // unreachable — loop either returns or throws
+    throw new Error('ระบบตรวจสอบภาพขัดข้องชั่วคราว (Edge Embed Error) กรุณาลองใหม่อีกครั้ง');
   }
 
   console.warn(`[SECURITY WARNING] Direct client-side Replicate calls active. Enable Edge Functions in production!`);

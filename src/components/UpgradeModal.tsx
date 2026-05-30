@@ -23,7 +23,7 @@ import { useLanguage } from '../lib/localization';
 
 export type UpgradeReason =
   | { kind: 'auth_quota_exhausted'; used: number; cap: number; windowDays: number }
-  | { kind: 'feature_locked'; feature: 'heatmap' | 'ai_qa' | 'bg_removal' }
+  | { kind: 'feature_locked'; feature: 'heatmap' }
   | { kind: 'tier_lock'; required: 'standard' | 'pro' | 'premium' };
 
 export type UpgradeBenefit = {
@@ -87,10 +87,6 @@ export function UpgradeModal({
       case 'feature_locked':
         if (reason.feature === 'heatmap') {
           text = t('upgradeReason.feature_locked_heatmap');
-        } else if (reason.feature === 'ai_qa') {
-          text = t('upgradeReason.feature_locked_ai_qa');
-        } else if (reason.feature === 'bg_removal') {
-          text = t('upgradeReason.feature_locked_bg_removal');
         }
         break;
       case 'tier_lock':

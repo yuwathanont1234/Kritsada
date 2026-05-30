@@ -433,11 +433,11 @@ export default function MembershipScreen({ navigation, route }: any) {
 
             <View style={styles.featuresList}>
               {[
-                lang === 'th' ? 'ตรวจสอบสิทธิ์ด้วยระบบ AI พรีเมียม 8 ระบบย่อย (สูงสุด 100 สแกน, คิวสแกนด่วนพิเศษ)' : 'Premium 8-Engine AI verification (up to 100 scans, highest queue priority)',
+                lang === 'th' ? 'ตรวจสอบสิทธิ์ด้วยระบบ AI พรีเมียม 8 ระบบย่อย (สูงสุด 100 สแกนต่อเดือน)' : 'Premium 8-Engine AI verification (up to 100 scans per month)',
                 lang === 'th' ? 'ความแม่นยำสูงระดับสุดยอดมาตรฐานสถาบันประมูล (Executive 99.2% Accuracy)' : 'Ultimate high-fidelity auction-grade accuracy (99.2% Executive Accuracy)',
                 lang === 'th' ? 'ความละเอียดระดับกล้องขยายไมโครสโคป 4 มุมกล้อง (วิเคราะห์เนื้อโลหะและกลไกแกนล้อ)' : 'Microscopic 4-angle resolution (adds millimeter caliber finishes & movement gear micro-shots)',
                 lang === 'th' ? 'Hallmark Diagnostic Map ระดับลึก: ตราประทับโลหะจิ๋ว, ตราสลักทองคำ และรหัสขอบเลเซอร์' : 'Deep Hallmark Diagnostic Map: micro-hallmarks, laser etchings & gold stamps',
-                lang === 'th' ? 'ตู้นิรภัยสะสมสูงสุด 100 เรือน พร้อมส่งออกรายงาน PDF ในนามแบรนด์ตนเองโดยไม่มีลายน้ำ' : 'Up to 100-watch collection vault & brand-customized PDF reports without watermarks'
+                lang === 'th' ? 'ตู้นิรภัยสะสมสูงสุด 100 เรือน พร้อมส่งออกรายงานผลสแกน PDF ระดับพรีเมียม' : 'Up to 100-watch collection vault & premium PDF scan report exporting'
               ].map((feat, idx) => (
                 <View key={idx} style={styles.featureRow}>
                   <Feather name="check" size={14} color={colors.amber} style={styles.featureIcon} />

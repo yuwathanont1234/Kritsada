@@ -275,7 +275,6 @@ export default function App() {
             <Stack.Screen name="ManageAccount" component={DummyScreen('Collector Profile Credentials')} />
             <Stack.Screen name="Profile" component={DummyScreen('User Portfolio Profile')} />
             <Stack.Screen name="ImageCredits" component={DummyScreen('Scan Credits & Entitlements')} />
-            <Stack.Screen name="AIQA" component={DummyScreen('AI Horology Inquiries')} />
             <Stack.Screen name="AuthGuide" component={DummyScreen('Authenticity Reference Library')} />
             <Stack.Screen name="AuthGuideList" component={DummyScreen('Reference Library Index')} />
             <Stack.Screen name="AdminDashboard" component={DummyScreen('System Administrator Console')} />

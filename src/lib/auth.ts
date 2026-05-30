@@ -380,14 +380,13 @@ async function runPostTrialCleanupIfNeeded(trialStart: string): Promise<void> {
     const tier = await import('./tier');
     await Promise.all([
       tier.resetMonthlyAuthenticity(),
-      tier.resetMonthlyAIQuestions(),
       tier.resetMonthlyHeatmap(),
     ]);
     await AsyncStorage.setItem(KEYS.trialPostCleanupDoneFor, trialStart);
     // eslint-disable-next-line no-console
     console.log(
       `[auth] post-trial cleanup done for trialStart=${trialStart} — ` +
-        `reset monthlyAuthenticity/AIQuestions/Heatmap counters`
+        `reset monthlyAuthenticity/Heatmap counters`
     );
   } catch (e) {
     // eslint-disable-next-line no-console

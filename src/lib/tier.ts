@@ -67,13 +67,8 @@ export type TierCapabilities = {
                                     // tier-gated, yet Premium advertises "no watermark".
   pdfExport: boolean;               // ✅ WIRED (PdfExporter gate)
 
-  // Other Premium perks
-  priorityAi: boolean;              // ⚠️ ROADMAP — never read. No AI queue priority
-                                    // exists, yet Premium advertises "คิวด่วนพิเศษ".
-  cloudBackup: boolean;             // ⚠️ ROADMAP — never read. No cloud backup built.
-
-  aiQuestionsPerMonth: number;      // ⚠️ ROADMAP — AI Q&A screen does not exist
-                                    // (route declared, no component, guards uncalled).
+  // (priorityAi, cloudBackup, aiQuestionsPerMonth removed 2026-05-30 — cut as
+  //  unbuilt features per product decision; not on the roadmap.)
 
   authenticityPerMonth: number;     // ✅ WIRED (monthly auth quota)
 
@@ -121,9 +116,6 @@ const FREE_CAPS: TierCapabilities = {
   showRecommendation: false,
   hasWatermark: true,
   pdfExport: false,
-  priorityAi: false,
-  cloudBackup: false,
-  aiQuestionsPerMonth: 30,        // FAQ cache only — 0 cost (no LLM fallback)
   authenticityPerMonth: 3,        // 3 auth tries / 30-day window
   useHeatmapInAuth: false,        // Free auth runs WITHOUT heatmap signals
   authenticityHeatmap: false,
@@ -154,9 +146,6 @@ const STANDARD_CAPS: TierCapabilities = {
   showRecommendation: false,
   hasWatermark: true,
   pdfExport: false,
-  priorityAi: false,
-  cloudBackup: false,
-  aiQuestionsPerMonth: 30,
   authenticityPerMonth: 20,       // 20 auth tries (1:1 with scans)
   useHeatmapInAuth: true,         // heatmap pre-fire ON for accuracy
   authenticityHeatmap: false,
@@ -187,9 +176,6 @@ const PRO_CAPS: TierCapabilities = {
   showRecommendation: false,
   hasWatermark: true,
   pdfExport: true,
-  priorityAi: false,
-  cloudBackup: true,
-  aiQuestionsPerMonth: 100,
   authenticityPerMonth: 50,        // 50 auth tries (1:1 with scans)
   useHeatmapInAuth: true,
   authenticityHeatmap: false,
@@ -220,9 +206,6 @@ const PREMIUM_CAPS: TierCapabilities = {
   showRecommendation: false,
   hasWatermark: false,            // Premium removes watermark
   pdfExport: true,
-  priorityAi: true,
-  cloudBackup: true,
-  aiQuestionsPerMonth: 300,
   authenticityPerMonth: 100,      // 100 auth tries (1:1 with scans)
   useHeatmapInAuth: true,
   authenticityHeatmap: true,      // AI heatmap UI overlay
@@ -253,7 +236,6 @@ export function effectiveCaps(status: {
 // === Monthly counters (scans + AI Q&A + BG removal + etc.) ===
 const KEYS = {
   monthlyScans: '@luxuryauthenticator/monthly_scans',
-  monthlyAIQuestions: '@luxuryauthenticator/monthly_ai_questions',
   monthlyDeepSearch: '@luxuryauthenticator/monthly_deep_search',
   monthlyAuthenticity: '@luxuryauthenticator/monthly_authenticity',
   monthlyHeatmap: '@luxuryauthenticator/monthly_heatmap',
@@ -345,36 +327,6 @@ export async function incrementDailyScans(): Promise<number> {
 export async function getRemainingDailyScans(): Promise<number> {
   const used = await getDailyScansUsed();
   return Math.max(0, PREMIUM_DAILY_SCAN_LIMIT - used);
-}
-
-// === Monthly AI Q&A counter ===
-async function readMonthlyAIState(): Promise<MonthlyState> {
-  const raw = await AsyncStorage.getItem(KEYS.monthlyAIQuestions);
-  if (!raw) return { yearMonth: currentYearMonth(), count: 0 };
-  try {
-    const parsed = JSON.parse(raw) as MonthlyState;
-    if (parsed.yearMonth !== currentYearMonth()) {
-      return { yearMonth: currentYearMonth(), count: 0 };
-    }
-    return parsed;
-  } catch {
-    return { yearMonth: currentYearMonth(), count: 0 };
-  }
-}
-
-export async function getMonthlyAIQuestionsUsed(): Promise<number> {
-  return (await readMonthlyAIState()).count;
-}
-
-export async function incrementMonthlyAIQuestions(): Promise<number> {
-  const state = await readMonthlyAIState();
-  const next = { yearMonth: state.yearMonth, count: state.count + 1 };
-  await AsyncStorage.setItem(KEYS.monthlyAIQuestions, JSON.stringify(next));
-  return next.count;
-}
-
-export async function resetMonthlyAIQuestions(): Promise<void> {
-  await AsyncStorage.removeItem(KEYS.monthlyAIQuestions);
 }
 
 // === Monthly Deep Search counter ===
@@ -628,7 +580,6 @@ export async function resetDailyScans(): Promise<void> {
 export async function resetAllQuotas(): Promise<void> {
   await Promise.all([
     resetMonthlyScans(),
-    resetMonthlyAIQuestions(),
     resetMonthlyDeepSearch(),
     resetMonthlyAuthenticity(),
     resetMonthlyHeatmap(),
@@ -663,38 +614,6 @@ export async function checkDeepSearchAllowed(
     return {
       allowed: false,
       reason: `ใช้ครบโควต้าเดือนนี้แล้ว (${quota} ครั้ง) — เริ่มใหม่เดือนหน้า หรืออัปเกรดแพ็คเกจ`,
-      remaining: 0,
-      quota,
-    };
-  }
-
-  return { allowed: true, remaining, quota };
-}
-
-/** Check if user can ask another AI question this month. */
-export async function checkAIQuestionAllowed(
-  tier: MembershipTier,
-  isTrialing: boolean = false
-): Promise<{ allowed: boolean; reason?: string; remaining: number; quota: number }> {
-  const caps = effectiveCaps({ tier, isTrialing });
-  const quota = caps.aiQuestionsPerMonth;
-
-  if (quota === 0) {
-    return {
-      allowed: false,
-      reason: 'บริการ AI ผู้ช่วยตอบคำถาม เปิดให้เฉพาะแพ็คเกจ Standard ขึ้นไป',
-      remaining: 0,
-      quota: 0,
-    };
-  }
-
-  const used = await getMonthlyAIQuestionsUsed();
-  const remaining = Math.max(0, quota - used);
-
-  if (remaining === 0) {
-    return {
-      allowed: false,
-      reason: `ใช้ครบโควต้า AI ตอบคำถามเดือนนี้แล้ว (${quota} คำถาม) — เริ่มใหม่เดือนหน้า หรืออัปเกรดแพ็คเกจ`,
       remaining: 0,
       quota,
     };

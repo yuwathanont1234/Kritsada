@@ -201,8 +201,6 @@ export const translations = {
     upgradeReason: {
       auth_quota_exhausted: 'You have used {used} of {cap} scans. Your monthly scan quota is exhausted. Scan quota resets in {windowDays} days.',
       feature_locked_heatmap: 'The Hallmark Diagnostic Map (brand-specific landmark analysis) is reserved for Pro and Premium members. Upgrade to unlock.',
-      feature_locked_ai_qa: 'AI Chat Q&A with Horology consensus expert is reserved for Premium members.',
-      feature_locked_bg_removal: 'Studio Background Removal is reserved for Pro and Premium members.',
       tier_lock_standard: 'Standard features are locked for your active tier.',
       tier_lock_pro: 'Pro features are locked for your active tier.',
       tier_lock_premium: 'Premium features are locked for your active tier.',
@@ -404,8 +402,6 @@ export const translations = {
     upgradeReason: {
       auth_quota_exhausted: 'คุณใช้สิทธิ์สแกนไปแล้ว {used} จาก {cap} ครั้ง โควต้าการสแกนรายเดือนของคุณหมดแล้ว โควต้าจะเริ่มใหม่ใน {windowDays} วัน',
       feature_locked_heatmap: 'แผนภาพตราประจำการตรวจสอบ (Hallmark Diagnostic Map) เปิดให้ใช้งานเฉพาะสมาชิก Pro และ Premium อัปเกรดเพื่อปลดล็อก',
-      feature_locked_ai_qa: 'การพูดคุยถามตอบเกี่ยวกับนาฬิกากับผู้เชี่ยวชาญ AI สงวนไว้สำหรับสมาชิกระดับ Premium เท่านั้น',
-      feature_locked_bg_removal: 'การลบพื้นหลังสตูดิโอแบบพรีเมียมเปิดให้ใช้งานเฉพาะสมาชิกระดับ Pro และ Premium เท่านั้น',
       tier_lock_standard: 'ฟีเจอร์ระดับ Standard ถูกล็อกอยู่สำหรับระดับสมาชิกปัจจุบันของคุณ',
       tier_lock_pro: 'ฟีเจอร์ระดับ Pro ถูกล็อกอยู่สำหรับระดับสมาชิกปัจจุบันของคุณ',
       tier_lock_premium: 'ฟีเจอร์ระดับ Premium ถูกล็อกอยู่สำหรับระดับสมาชิกปัจจุบันของคุณ',

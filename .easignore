@@ -1,0 +1,46 @@
+# Files & folders excluded from EAS Build upload.
+# Default is the project root minus node_modules; we add more to keep the
+# tarball under 200 MB and under the EAS 400 MB upload ceiling.
+#
+# Keep in mind: anything NOT in this list IS sent to EAS Build servers.
+# The build runs `expo prebuild` then `npm install` again on their side, so
+# we don't need to include build artifacts.
+
+# Build artifacts & local outputs
+dist/
+.expo/
+
+# Dev / research scripts (not needed at runtime)
+scripts/
+financial_model/
+marketing_assets/
+docs/
+
+# Test fixtures
+tests/
+__tests__/
+*.test.ts
+*.test.tsx
+
+# Web landing page
+landing/
+
+# Backend FastAPI service (separate deploy)
+app/
+supabase/
+
+# Python venv
+.venv/
+
+# Local data & secrets
+.env
+.env.local
+*.env.local
+
+# OS junk
+.DS_Store
+**/.DS_Store
+
+# Large local data dumps that aren't needed inside the mobile app
+scripts/output/
+amulet_db_v2/

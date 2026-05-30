@@ -212,7 +212,6 @@ export type RootStackParamList = {
   Subscription: { trigger?: string } | undefined;
   Membership: { trigger?: string } | undefined;
   ImageCredits: undefined;
-  AIQA: undefined;
   Game: undefined;
   AuthGuide: { watchId: string };
   AuthGuideList: undefined;

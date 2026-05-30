@@ -6,6 +6,10 @@ export type AuthenticitySignal = {
   // shows `signalTh` (falling back to `signal`) when lang === 'th'.
   signalTh?: string;
   weight: 'positive' | 'negative' | 'neutral';
+  // Optional 0-10 conformity score for this checkpoint (10 = matches an
+  // authentic example, 0 = clear counterfeit marker). Display-only — does not
+  // affect the verdict math. Undefined for older payloads / unscored signals.
+  score?: number;
 };
 
 export type PriceByGrade = {
@@ -50,6 +54,7 @@ export type ScanResult = {
   authenticityProbability?: number; // 0-100 — Chance of being authentic
   authenticityVerdict?: 'likely-authentic' | 'uncertain' | 'likely-reproduction' | 'cannot-assess';
   authenticityReasoning?: string;   // Reason for the verdict
+  serialNumber?: string;            // Serial/ref engraving read from a photo (only if legible; never guessed)
 
   // Set by the macro-coverage gate in aiRouter when the scan had
   // fewer than 4 photos and the raw verdict would otherwise have
@@ -155,6 +160,9 @@ export type RootStackParamList = {
     frontUri: string;
     backUri?: string;
     extraImages?: string[];
+    // Parallel to extraImages — each entry labels what that macro shot is
+    // ('crown' | 'clasp'), so the auth prompt can direct Gemini per image.
+    extraImageRoles?: string[];
   };
   Result: {
     result: ScanResult;

@@ -490,7 +490,7 @@ const AI_COUNT_BY_TIER: Record<string, number> = {
 
 export function LoadingScreen({ route, navigation }: Props) {
   const { t, lang } = useLanguage();
-  const { frontUri, backUri, extraImages } = route.params;
+  const { frontUri, backUri, extraImages, extraImageRoles } = route.params;
   const [tipIdx, setTipIdx] = useState(0);
   const [elapsed, setElapsed] = useState(0);
   const [error, setError] = useState<string | null>(null);
@@ -634,7 +634,8 @@ export function LoadingScreen({ route, navigation }: Props) {
             extraImages,
             undefined,
             abortController.signal,
-            lang
+            lang,
+            extraImageRoles
           );
           result = out.result;
           provider = out.provider;

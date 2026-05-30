@@ -688,6 +688,9 @@ export async function assessAuthenticityGemini(
     signals?: import('./prompts').AuthSignals;
     certExemplarUrls?: string[];
     extraAngleUris?: string[];
+    // Parallel to extraAngleUris — labels each macro shot ('crown' | 'clasp')
+    // so the prompt can tell Gemini what each extra image is.
+    extraAngleRoles?: string[];
     signal?: AbortSignal;
     language?: 'th' | 'en';
   }
@@ -937,7 +940,8 @@ export async function assessAuthenticityGemini(
           backB64 !== null,
           opts?.signals,
           extraB64s.length,
-          opts?.language ?? 'en'
+          opts?.language ?? 'en',
+          opts?.extraAngleRoles?.slice(0, extraB64s.length)
         )
       : buildAuthAssessmentPrompt(
           identified.name,
@@ -946,7 +950,8 @@ export async function assessAuthenticityGemini(
           opts?.signals,
           backB64 !== null,
           extraB64s.length,
-          opts?.language ?? 'en'
+          opts?.language ?? 'en',
+          opts?.extraAngleRoles?.slice(0, extraB64s.length)
         );
 
   const parts: any[] = [{ inline_data: { mime_type: 'image/jpeg', data: frontB64 } }];

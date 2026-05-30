@@ -694,16 +694,19 @@ export function ScanScreen({ navigation }: Props) {
       return;
     }
 
-    const extras: string[] =
-      caps.templatePhotoCount === 4
-        ? ([topUri, bottomUri].filter(Boolean) as string[])
-        : caps.templatePhotoCount === 3
-          ? ([topUri].filter(Boolean) as string[])
-          : [];
+    // Build extras with their role so the auth prompt can tell Gemini exactly
+    // which image is the crown vs the clasp (keeps uri↔role in sync — a plain
+    // filter(Boolean) would lose the mapping when an earlier slot is empty).
+    const extraPairs: { uri: string; role: 'crown' | 'clasp' }[] = [];
+    if (caps.templatePhotoCount >= 3 && topUri) extraPairs.push({ uri: topUri, role: 'crown' });
+    if (caps.templatePhotoCount >= 4 && bottomUri) extraPairs.push({ uri: bottomUri, role: 'clasp' });
+    const extras = extraPairs.map((p) => p.uri);
+    const extraRoles = extraPairs.map((p) => p.role);
     navigation.replace('Loading', {
       frontUri,
       backUri: backUri ?? undefined,
       extraImages: extras.length > 0 ? extras : undefined,
+      extraImageRoles: extraRoles.length > 0 ? extraRoles : undefined,
     });
   }
 
@@ -1046,7 +1049,7 @@ export function ScanScreen({ navigation }: Props) {
                 // back. Label kept generic ("Macro") so user can shoot
                 // whichever micro-detail is most informative for their
                 // watch.
-                label={lang === 'th' ? 'รายละเอียด' : 'Macro'}
+                label={lang === 'th' ? 'ตัวล็อก & สาย' : 'Clasp'}
                 uri={bottomUri}
                 onPress={() => reset('bottom')}
                 optional

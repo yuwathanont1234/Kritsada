@@ -8,7 +8,10 @@ export type AuthPayload = {
     | 'likely-reproduction'
     | 'cannot-assess';
   authenticityReasoning: string;
-  authenticitySignals: { signal: string; weight: 'positive' | 'negative' | 'neutral' }[];
+  // Serial/reference engraving read from a photo — undefined unless clearly
+  // legible. Gemini is instructed never to guess one (see WATCH_AUTH_SYSTEM_PROMPT).
+  serialNumber?: string;
+  authenticitySignals: { signal: string; weight: 'positive' | 'negative' | 'neutral'; score?: number }[];
   checklist: string[];
   reproductionPrice: {
     typical: number;
@@ -88,6 +91,21 @@ export function calibrateConfidenceForAmbiguous(
     );
   }
   return capped;
+}
+
+// Reject non-serials the model might still emit despite the "return null"
+// instruction: literal "null"/"none"/"n/a", Thai "not found" phrasings, empty
+// strings, or absurdly short tokens. Returns undefined unless it looks like a
+// real engraving (≥4 alphanumerics).
+function normalizeSerial(raw: unknown): string | undefined {
+  if (typeof raw !== 'string') return undefined;
+  const s = raw.trim();
+  if (!s) return undefined;
+  const lower = s.toLowerCase();
+  const rejects = ['null', 'none', 'n/a', 'na', 'unknown', 'not visible', 'not legible', 'ตรวจไม่พบ', 'ไม่พบ', 'ไม่ระบุ', '-', '—'];
+  if (rejects.some((r) => lower === r || lower.includes(r))) return undefined;
+  if (s.replace(/[^a-z0-9]/gi, '').length < 4) return undefined;
+  return s;
 }
 
 export function fillScanResultDefaults(partial: any): ScanResult {
@@ -196,7 +214,9 @@ export function fillScanResultDefaults(partial: any): ScanResult {
     authenticityProbability: partial.authenticityProbability ?? partial.authenticity_probability,
     authenticityVerdict: partial.authenticityVerdict ?? partial.authenticity_verdict,
     authenticityReasoning: partial.authenticityReasoning ?? partial.authenticity_reasoning,
+    serialNumber: normalizeSerial(partial.serialNumber ?? partial.serial_number),
     reproductionPrice,
+    // Passes through any per-signal `score` (0-10) the model attached.
     authenticitySignals: partial.authenticitySignals ?? partial.authenticity_signals ?? [],
     checklist: partial.checklist ?? [],
     recommendation: partial.recommendation ?? '',

@@ -610,11 +610,13 @@ export type LandmarkSignalMatch = {
   /** Thai display string (present only for scans run in Thai mode). */
   signalTh?: string;
   weight: 'positive' | 'negative' | 'neutral';
+  /** Optional 0-10 checkpoint score from the model (display badge). */
+  score?: number;
 };
 
 export function matchSignalToLandmark(
   landmark: LandmarkPoint,
-  signals: Array<{ signal: string; signalTh?: string; weight: 'positive' | 'negative' | 'neutral' }>
+  signals: Array<{ signal: string; signalTh?: string; weight: 'positive' | 'negative' | 'neutral'; score?: number }>
 ): LandmarkSignalMatch | null {
   if (!signals?.length) return null;
   const lowerKeywords = landmark.signalKeywords.map((k) => k.toLowerCase());
@@ -623,7 +625,12 @@ export function matchSignalToLandmark(
   for (const s of signals) {
     const sl = (s.signal || '').toLowerCase();
     if (lowerKeywords.some((kw) => sl.includes(kw))) {
-      return { signal: s.signal, signalTh: s.signalTh, weight: s.weight };
+      // Clamp to a sane 0-10 integer; drop out-of-range / non-numeric scores.
+      const score =
+        typeof s.score === 'number' && isFinite(s.score)
+          ? Math.max(0, Math.min(10, Math.round(s.score)))
+          : undefined;
+      return { signal: s.signal, signalTh: s.signalTh, weight: s.weight, score };
     }
   }
   return null;

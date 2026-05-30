@@ -100,7 +100,9 @@ export async function exportWatchPDF({
     const brand = result.brand || 'TAG HEUER';
     const name = result.name || 'CARRERA CALIBRE 1887 CHRONOGRAPH';
     const reference = result.reference || 'CAR2A10.BA0799';
-    const serial = result.expertCertMatch?.certId || 'O_4NRB3X';
+    // Real serial only when Gemini read one off a photo; never a fabricated
+    // placeholder (the old expertCertMatch.certId is a DB match id, not a serial).
+    const serial = result.serialNumber || '—';
     const caseMaterial = result.caseMaterial || 'STAINLESS STEEL';
     const caliber = result.movementFamily || 'CALIBRE 1887';
     const probability = result.authenticityProbability ?? 85;

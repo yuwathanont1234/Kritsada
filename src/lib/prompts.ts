@@ -307,12 +307,20 @@ Replica Valuation Calibration (USD):
 - High-end AAA or early clones: $100 - $350
 - Super Clone (Clean/VS Factory 904L steel cloning 1:1 mechanical calibers): $350 - $1,000+
 
+Serial-number policy (STRICT — anti-hallucination):
+- Extract a serial/reference engraving into "serialNumber" ONLY if it is clearly legible in one of the submitted photos (e.g. rehaut, caseback, or between the lugs).
+- If no serial is legible, return null. NEVER guess, infer, fabricate, or output a "typical" serial — a wrong serial is worse than none.
+
 Respond as a pure JSON object. No commentary, no markdown.
 {
   "authenticityProbability": number (0-100),
   "authenticityVerdict": "likely-authentic" | "uncertain" | "likely-reproduction" | "cannot-assess",
   "authenticityReasoning": string,  // 1-2 concise sentences explaining specific physical findings.
-  "authenticitySignals": [{"signal": string, "weight": "positive" | "negative" | "neutral"}],
+  "serialNumber": string | null,    // Only if clearly legible in a photo; otherwise null. NEVER guess.
+  // Each signal gets a 0-10 "score": 10 = checkpoint perfectly matches an authentic example,
+  // 5 = inconclusive/cannot tell from the photo, 0 = clear counterfeit marker. Be honest — do not
+  // inflate scores when image detail is insufficient.
+  "authenticitySignals": [{"signal": string, "weight": "positive" | "negative" | "neutral", "score": number}],
   "checklist": [string],             // 5-7 targeted physical check items.
   "reproductionPrice": {
     "typical": number,
@@ -413,6 +421,19 @@ const THAI_OUTPUT_DIRECTIVE =
   'AND add a "signalTh" field holding the Thai translation of that signal. ' +
   'Keep ALL JSON keys and ALL enumerated values (e.g. authenticityVerdict, weight) in English — never translate keys or enums.';
 
+// Per-image description for a labeled macro shot, telling Gemini exactly what
+// the photo shows and which authenticity details to inspect on it.
+function macroAngleLine(imgNum: number, role: string | undefined): string {
+  switch (role) {
+    case 'crown':
+      return `- Image ${imgNum} = **Crown & Coronet** — inspect coronet/logo engraving sharpness, knurling-teeth regularity, tube threading, crown-guard proportions, and any Triplock/screw-down seal cues.\n`;
+    case 'clasp':
+      return `- Image ${imgNum} = **Clasp & Bracelet** — inspect clasp logo stamping depth, link tolerances/gaps, spring-bar fit, end-link alignment, and satin/polish finishing transitions.\n`;
+    default:
+      return `- Image ${imgNum} = **Macro detail** — flank thickness, steel polish grain, micro-finishing.\n`;
+  }
+}
+
 export function buildAuthAssessmentPrompt(
   name: string,
   brand: string,
@@ -420,20 +441,29 @@ export function buildAuthAssessmentPrompt(
   signals?: AuthSignals,
   hasBackPhoto: boolean = true,
   extraAngleCount: number = 0,
-  language: 'th' | 'en' = 'en'
+  language: 'th' | 'en' = 'en',
+  extraAngleRoles?: string[]
 ): string {
   const signalsBlock = formatAuthSignalsBlock(signals);
   let imageGuide = '';
   if (extraAngleCount > 0) {
     const userStart = 1;
     const userEnd = 1 + (hasBackPhoto ? 1 : 0) + extraAngleCount;
+    const extraStart = hasBackPhoto ? 3 : 2;
+    // When we know each macro shot's role (crown/clasp), label them per-image
+    // so Gemini targets the right details; otherwise fall back to a generic line.
+    const extraLines = extraAngleRoles && extraAngleRoles.length
+      ? Array.from({ length: extraAngleCount }, (_, i) =>
+          macroAngleLine(extraStart + i, extraAngleRoles[i])
+        ).join('')
+      : `- Image ${extraStart}-${userEnd} = **Additional Inspection Angles (${extraAngleCount} photos)** (Flank thickness, steel polish grain, macro details)\n`;
     imageGuide =
       `\n📸 Photos submitted for review (total ${userEnd} images):\n` +
       `- Image ${userStart} = **Front View** (Dial layout, logo transfer, bezel markings, hands stack, cyclops lens)\n` +
       (hasBackPhoto
         ? `- Image 2 = **Back View** (Caseback engravings, markings, lug junctions, and crown details)\n`
         : '') +
-      `- Image ${hasBackPhoto ? 3 : 2}-${userEnd} = **Additional Inspection Angles (${extraAngleCount} photos)** (Flank thickness, steel polish grain, macro details)\n` +
+      extraLines +
       `\n👁 Please cross-reference all angles — additional side/macro photos are critical for identifying clone case profiles.\n`;
   }
   return (
@@ -457,15 +487,21 @@ export function buildAuthAssessmentPromptWithCert(
   hasBackPhoto: boolean,
   signals?: AuthSignals,
   extraAngleCount: number = 0,
-  language: 'th' | 'en' = 'en'
+  language: 'th' | 'en' = 'en',
+  extraAngleRoles?: string[]
 ): string {
   const signalsBlock = formatAuthSignalsBlock(signals);
   const userImageCount = (hasBackPhoto ? 2 : 1) + extraAngleCount;
   const certStart = userImageCount + 1;
   const certEnd = userImageCount + certCount;
+  const extraStart = hasBackPhoto ? 3 : 2;
   const extrasLine =
     extraAngleCount > 0
-      ? `- Image ${hasBackPhoto ? 3 : 2}-${userImageCount} = **User additional macro/angle photos (${extraAngleCount} images)** (bezel profile, case thickness)\n`
+      ? (extraAngleRoles && extraAngleRoles.length
+          ? Array.from({ length: extraAngleCount }, (_, i) =>
+              macroAngleLine(extraStart + i, extraAngleRoles[i])
+            ).join('')
+          : `- Image ${extraStart}-${userImageCount} = **User additional macro/angle photos (${extraAngleCount} images)** (bezel profile, case thickness)\n`)
       : '';
   return (
     (signalsBlock ? signalsBlock + '\n' : '') +

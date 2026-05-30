@@ -732,6 +732,22 @@ function LandmarkCardsSection({
                 >
                   {lang === 'th' ? landmark.labelTh : landmark.labelEn}
                 </Text>
+                {!isMuted && match?.score != null && (
+                  <View
+                    style={{
+                      paddingHorizontal: 6,
+                      paddingVertical: 1,
+                      borderRadius: 6,
+                      borderWidth: 1,
+                      borderColor: statusColor,
+                      marginRight: 6,
+                    }}
+                  >
+                    <Text style={{ color: statusColor, fontSize: 11, fontWeight: '800' }}>
+                      {`${match.score}/10`}
+                    </Text>
+                  </View>
+                )}
                 <Feather
                   name={statusIcon}
                   size={14}

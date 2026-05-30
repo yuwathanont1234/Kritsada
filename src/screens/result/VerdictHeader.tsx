@@ -182,6 +182,9 @@ export default function VerdictHeader({
         <Text style={styles.watchBrand}>{result.brand?.toUpperCase() || 'ROLEX'}</Text>
         <Text style={styles.watchName}>{customName || result.name || 'Cosmograph Daytona'}</Text>
         <Text style={styles.watchRef}>{result.reference ? `Ref: ${result.reference}` : 'Ref: 116500LN'}</Text>
+        {!!result.serialNumber && (
+          <Text style={styles.watchSpecs}>{`Serial: ${result.serialNumber}`}</Text>
+        )}
         <Text style={styles.watchSpecs}>{specsText}</Text>
       </View>
     </View>

@@ -238,7 +238,8 @@ export async function assessAuthenticityByTier(
   certExemplarUrls?: string[],
   extraAngleUris?: string[],
   signal?: AbortSignal,
-  language: 'th' | 'en' = 'en'
+  language: 'th' | 'en' = 'en',
+  extraAngleRoles?: string[]
 ): Promise<AuthPayload> {
   const imageMaxWidth = imageWidthForTier(tier);
   const t0 = Date.now();
@@ -247,6 +248,7 @@ export async function assessAuthenticityByTier(
     signals,
     certExemplarUrls,
     extraAngleUris,
+    extraAngleRoles,
     disableThinking: true,
     signal,
     language,
@@ -366,7 +368,10 @@ export async function analyzeWatchByTier(
   extraImages?: string[],
   userWeightG?: number,
   signal?: AbortSignal,
-  language: 'th' | 'en' = 'en'
+  language: 'th' | 'en' = 'en',
+  // Roles for each entry of extraImages ('crown' | 'clasp' | ...) so the auth
+  // prompt can label macro shots per image. Parallel array; optional.
+  extraImageRoles?: string[]
 ): Promise<{
   result: ScanResult;
   provider: 'gemini';
@@ -792,7 +797,8 @@ export async function analyzeWatchByTier(
           certMatchHit?.certUrl ? [certMatchHit.certUrl] : undefined,
           extraUris.length > 0 ? extraUris : undefined,
           signal,
-          language
+          language,
+          extraImageRoles && extraImageRoles.length > 0 ? extraImageRoles : undefined
         ).catch((err) => {
           if (err?.name === 'AbortError') throw err;
           console.warn('[aiRouter] authenticity assessment failed, falling back:', err?.message);

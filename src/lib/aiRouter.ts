@@ -677,13 +677,25 @@ export async function analyzeWatchByTier(
     (!!identified.reference || !!identified.name) &&
     identified.confidence >= 60;
 
+  // RAG gave no usable signal for THIS watch — either it ran and REJECTED (no
+  // candidate cleared the spread/margin/similarity gates → candidates=[]) or
+  // its top candidates are all a different brand than Flash's claim (DB gap).
+  // In BOTH cases the Pro grounded retry empirically just echoes Flash's same
+  // answer (it can't read our DB, and Google rarely resolves the exact
+  // reference any better) — e.g. a Rolex Oyster Perpetual green dial returns
+  // 65 → 65, ~฿2 + ~5s of pure waste. So when Flash already has a confident
+  // brand+model, skip the retry. (T3 2026-05-30: the original T2 only covered
+  // the brand-mismatch-with-candidates case; Premium's higher 85 threshold +
+  // RAG-rejected scans slipped through and kept paying for the wasted retry.)
+  const ragNoUsableSignal = ragRejected || ragHasBrandMismatch;
+
   const proRetryUseful =
     identified.confidence < groundedRetryThreshold &&
     !dbValidated &&
     !certValidated &&
     !visualBrandCorroborated &&
-    !ragSkipped && // ← key change: skipped (timeout) != rejected (mismatch)
-    !(ragHasBrandMismatch && flashHasStructuredAnswer); // T2 short-circuit
+    !ragSkipped && // skipped (timeout) != rejected/mismatch
+    !(ragNoUsableSignal && flashHasStructuredAnswer); // T2+T3 short-circuit
 
   if (proRetryUseful) {
     console.log(
@@ -709,14 +721,15 @@ export async function analyzeWatchByTier(
     );
   } else if (
     identified.confidence < groundedRetryThreshold &&
-    ragHasBrandMismatch &&
+    ragNoUsableSignal &&
     flashHasStructuredAnswer
   ) {
-    // T2 short-circuit branch — RAG ran but DB clearly doesn't know
-    // this watch (all top-3 are different brands), and Flash gave a
-    // structured Brand+Reference at confidence ≥ 60. Accept it.
+    // T2+T3 short-circuit branch — RAG gave no usable signal (it rejected, or
+    // all top candidates are a different brand = DB gap) AND Flash gave a
+    // confident brand+model. The grounded retry would just echo Flash
+    // (e.g. 65 → 65), so accept Flash's result and skip the ~฿2 / ~5s retry.
     console.log(
-      `[aiRouter] Low confidence (${identified.confidence} < ${groundedRetryThreshold}) but DB has no candidates in brand="${identified.brand}" — skipping Pro retry (DB index gap, not a Flash error). Saving ~฿3.68.`
+      `[aiRouter] Low confidence (${identified.confidence} < ${groundedRetryThreshold}) but RAG gave no usable signal (${ragRejected ? 'rejected' : 'brand-mismatch'}) and Flash is confident on "${identified.brand} ${identified.name}" — skipping Pro grounded retry (would echo Flash). Saving ~฿2.`
     );
   }
 

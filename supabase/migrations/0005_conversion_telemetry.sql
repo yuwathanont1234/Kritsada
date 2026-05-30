@@ -136,8 +136,15 @@ DROP POLICY IF EXISTS "user_profile_anon_update"  ON public.user_profile;
 DROP POLICY IF EXISTS "user_profile_anon_select"  ON public.user_profile;
 DROP POLICY IF EXISTS "funnel_events_anon_insert" ON public.funnel_events;
 
--- user_profile: anon may INSERT and UPDATE their own row (keyed
--- by cohortHash). NO SELECT for anon — server-side analytics only.
+-- user_profile: anon may INSERT, UPDATE, and SELECT (keyed by cohortHash).
+-- SELECT is REQUIRED — the client syncs via a PostgREST upsert
+-- (Prefer: resolution=merge-duplicates → INSERT ... ON CONFLICT DO UPDATE),
+-- and ON CONFLICT DO UPDATE must READ the conflicting row, which RLS gates on
+-- a SELECT *policy* (a table GRANT alone is not enough). Without it the upsert
+-- 401s with 42501 "new row violates row-level security policy". The data is
+-- anonymous (random cohort_hash + non-PII segmentation), so allowing anon
+-- SELECT is low-risk. (If stricter no-read is ever required, move the upsert
+-- to a service-role edge function instead of relaxing this.)
 CREATE POLICY "user_profile_anon_insert"
   ON public.user_profile
   FOR INSERT
@@ -150,6 +157,12 @@ CREATE POLICY "user_profile_anon_update"
   TO anon, authenticated
   USING (true)
   WITH CHECK (true);
+
+CREATE POLICY "user_profile_anon_select"
+  ON public.user_profile
+  FOR SELECT
+  TO anon, authenticated
+  USING (true);
 
 -- funnel_events: insert-only for anon. Reads are server-side
 -- (service_role bypasses RLS) — typically through scheduled

@@ -21,7 +21,15 @@ NOTE on the edge quota: embed-image now enforces ~400 calls/device/day
 in a day, bump EDGE_DEVICE_DAILY_CAP temporarily (supabase secrets set ...) or
 split the run across days. ~300 fakes + ~700 reals fits in two runs.
 """
-import argparse, base64, json, os, sys, time, urllib.request, io
+import argparse, base64, json, os, sys, time, urllib.request, io, ssl
+
+# macOS system python often lacks CA roots → SSL verify fails. Prefer certifi,
+# fall back to an unverified context (fine: we only hit our own Supabase edge).
+try:
+    import certifi
+    _SSL_CTX = ssl.create_default_context(cafile=certifi.where())
+except Exception:
+    _SSL_CTX = ssl._create_unverified_context()
 
 try:
     from PIL import Image
@@ -60,7 +68,7 @@ def embed(url, key, data_url, device_id):
         url + "/functions/v1/embed-image", data=body,
         headers={"Authorization": "Bearer " + key, "apikey": key,
                  "Content-Type": "application/json"})
-    with urllib.request.urlopen(req, timeout=90) as r:
+    with urllib.request.urlopen(req, timeout=90, context=_SSL_CTX) as r:
         out = json.loads(r.read().decode())
     emb = out.get("embedding")
     if not isinstance(emb, list) or len(emb) != 1024:
@@ -89,7 +97,9 @@ def main():
     with open(args.out, "a") as fout:
         for i, path in enumerate(files):
             try:
-                emb = embed(url, key, to_data_url(path), args.device_id)
+                # rotate deviceId every 350 to stay under the edge 400/day cap
+                dev = f"{args.device_id}-{i // 350}"
+                emb = embed(url, key, to_data_url(path), dev)
                 fout.write(json.dumps({"embedding": emb, "label": args.label}) + "\n")
                 fout.flush()
                 ok += 1

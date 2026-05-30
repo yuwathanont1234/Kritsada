@@ -19,6 +19,9 @@ import {
   embedFrontAndBack,
   findSimilarWatches,
   scoreConformity,
+} from './visualRag';
+import { predictAuthenticity, bucketAuthVerdict } from './authenticityClassifier';
+import {
   findSimilarExpertCerts,
   isVisualRagConfigured,
   SimilarWatch,
@@ -487,6 +490,23 @@ export async function analyzeWatchByTier(
         }
       })
       .catch(() => {});
+  }
+
+  // A1 real-vs-fake classifier (SHADOW, 2026-05-30) — independent P(real) from
+  // the scale-up model (DINOv3 1024-d → 1024→128→1). Trained on studio+dealer
+  // photos; THIS scan is a phone photo (the untested 3rd style), so we log to
+  // see if it generalizes before wiring into the verdict. Non-blocking.
+  if (ragOutcome.embedding) {
+    predictAuthenticity(ragOutcome.embedding)
+      .then((p) => {
+        if (p !== null) {
+          console.log(
+            `[authClassifier:shadow] P(real)=${p.toFixed(3)} bucket=${bucketAuthVerdict(p)} ` +
+              `(${identified?.brand ?? '?'} ${identified?.name ?? '?'})`
+          );
+        }
+      })
+      .catch((e) => console.warn('[authClassifier:shadow] failed:', e?.message));
   }
   // Inferred ragArg for any downstream consumer that wants candidates
   // (e.g. Pro retry below). Empty array → undefined keeps existing

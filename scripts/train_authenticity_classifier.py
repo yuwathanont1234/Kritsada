@@ -130,7 +130,9 @@ def main():
     model = Head(1024, args.hidden)
     # class weight: fakes are rarer → up-weight the positive-for-fake term
     n_real = float((ytr == 1).sum()); n_fake = float((ytr == 0).sum())
-    pos_weight = torch.tensor([max(1.0, n_real / max(1.0, n_fake))])  # weight on "real" logit
+    # BCEWithLogitsLoss pos_weight multiplies the POSITIVE (real) term. To balance
+    # classes use n_neg/n_pos (down-weights whichever class is the majority).
+    pos_weight = torch.tensor([n_fake / max(1.0, n_real)])
     loss_fn = nn.BCEWithLogitsLoss(pos_weight=pos_weight)
     opt = torch.optim.Adam(model.parameters(), lr=args.lr, weight_decay=1e-4)
 

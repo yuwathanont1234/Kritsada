@@ -492,28 +492,51 @@ export async function analyzeWatchByTier(
       .catch(() => {});
   }
 
-  // A1 real-vs-fake classifier (SHADOW, 2026-05-30) — independent P(real) from
-  // the scale-up model (DINOv3 1024-d → 1024→128→1). Trained on studio+dealer
-  // photos; THIS scan is a phone photo (the untested 3rd style), so we log to
-  // see if it generalizes before wiring into the verdict. Non-blocking.
-  if (!ragOutcome.embedding) {
+  // A1 real-vs-fake classifier (SHADOW, 2026-05-30; v2 resilient embed) —
+  // independent P(real) from the scale-up model (DINOv3 1024-d → 1024→128→1).
+  // v2: no longer coupled to the RAG embed. If the RAG path's embed timed out
+  // (cold-start), reuse the independent front+back embed already in flight
+  // (embedPromise) and, failing that, do ONE retry after a short pause — so the
+  // shadow survives a cold Replicate instead of silently SKIPPING. Non-blocking;
+  // does NOT touch the verdict (still validating phone-photo generalization +
+  // fake scans). embedFrontAndBack returns an L2-normalized 1024-d (matches the
+  // training-time normalization), so it's fed straight in.
+  const authClassifierPromise: Promise<number | null> = (async () => {
+    let emb: number[] | null = ragOutcome.embedding ?? null;
+    let src = 'rag';
+    if (!emb && enableVisualRag) {
+      emb = await embedPromise.catch(() => null); // independent embed already running
+      if (emb) src = 'fallback';
+    }
+    if (!emb && enableVisualRag) {
+      await new Promise((r) => setTimeout(r, 1500)); // let a cold Replicate finish booting
+      emb = await embedFrontAndBack(frontUri, backUri).catch(() => null);
+      if (emb) src = 'retry';
+    }
+    if (!emb) {
+      console.log(
+        `[authClassifier:shadow] SKIPPED — no embedding after fallback+retry ` +
+          `(visualRag=${enableVisualRag}, ragSkipped=${ragOutcome.skipped}). Replicate likely still cold.`
+      );
+      return null;
+    }
     console.log(
-      `[authClassifier:shadow] SKIPPED — no scan embedding ` +
-        `(RAG ${ragOutcome.skipped ? 'embed FAILED (likely cold-start 504)' : 'ran but no emb'}). Scan again when Replicate is warm.`
+      `[authClassifier:shadow] running (resilient) — embedding len=${emb.length} src=${src}`
     );
-  } else {
-    console.log(`[authClassifier:shadow] running — embedding len=${ragOutcome.embedding.length}`);
-    predictAuthenticity(ragOutcome.embedding)
-      .then((p) => {
-        console.log(
-          p === null
-            ? `[authClassifier:shadow] P(real)=null (dim mismatch — got ${ragOutcome.embedding?.length}, model wants 1024)`
-            : `[authClassifier:shadow] P(real)=${p.toFixed(3)} bucket=${bucketAuthVerdict(p)} ` +
-                `(${identified?.brand ?? '?'} ${identified?.name ?? '?'})`
-        );
-      })
-      .catch((e) => console.warn('[authClassifier:shadow] ERROR:', e?.message));
-  }
+    try {
+      const p = await predictAuthenticity(emb);
+      console.log(
+        p === null
+          ? `[authClassifier:shadow] P(real)=null (dim mismatch — got ${emb.length}, model wants 1024)`
+          : `[authClassifier:shadow] P(real)=${p.toFixed(3)} bucket=${bucketAuthVerdict(p)} ` +
+              `(${identified?.brand ?? '?'} ${identified?.name ?? '?'})`
+      );
+      return p;
+    } catch (e: any) {
+      console.warn('[authClassifier:shadow] ERROR:', e?.message);
+      return null;
+    }
+  })();
   // Inferred ragArg for any downstream consumer that wants candidates
   // (e.g. Pro retry below). Empty array → undefined keeps existing
   // call sites that null-check on truthiness happy.
@@ -1148,6 +1171,36 @@ function getBrandFallbackPrice(brand?: string, name?: string): number {
       ' (Confidence capped at 70% due to limited photo coverage — add macro shots of crown, rehaut engraving, and caseback for higher confidence.)';
     identified.authenticityReasoning =
       (identified.authenticityReasoning || '') + note;
+  }
+
+  // ── A1 classifier verdict integration (LOW-WEIGHT, ASYMMETRIC) ─────────
+  // 2026-05-30. The real-vs-fake DINOv3 classifier ran in parallel (shadow log
+  // above; by now it has resolved — the await is free because Gemini auth took
+  // ~7s). We let it influence the verdict, but ONE DIRECTION ONLY: it may ADD
+  // caution when it's confident a watch is FAKE (low P(real)); a HIGH P(real)
+  // does NOTHING. Rationale: the classifier false-positives on studio-style
+  // fakes (a CONFIRMED-fake Daytona scored 0.993 real), so its "real" signal
+  // can't be trusted to reassure — but its "fake" signal can only ever make us
+  // MORE cautious, the safe direction for an authenticator. Low weight: the
+  // reduction is capped so Gemini stays the primary verdict (never flips it).
+  const pReal = await authClassifierPromise;
+  if (pReal !== null && pReal < 0.5) {
+    const before = identified.authenticityProbability ?? 0;
+    const MAX_PENALTY = 20; // points; keeps Gemini primary, never flips verdict
+    const penalty = Math.round((MAX_PENALTY * (0.5 - pReal)) / 0.5); // 0..20
+    const after = Math.max(5, before - penalty);
+    if (after < before) {
+      identified.authenticityProbability = after;
+      const bucket = pReal < 0.3 ? 'fake_strong' : 'fake_weak';
+      console.log(
+        `[aiRouter] A1 classifier (${bucket}, P(real)=${pReal.toFixed(3)}) → ` +
+          `auth confidence ${before}% → ${after}% (-${penalty}, low-weight asymmetric)`
+      );
+      const note =
+        ` (การคัดกรองด้วย AI real-vs-fake โน้มไปทางของเลียนแบบ: P(แท้)=${(pReal * 100).toFixed(0)}% — โปรดใช้ความระมัดระวังเพิ่มเติม นี่เป็นสัญญาณรอง ไม่ใช่คำตัดสินหลัก)`;
+      identified.authenticityReasoning =
+        (identified.authenticityReasoning || '') + note;
+    }
   }
 
   console.log(

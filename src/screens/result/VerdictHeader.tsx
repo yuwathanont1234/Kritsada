@@ -1,17 +1,12 @@
-import React, { useState } from 'react';
-import { View, ScrollView, Text, Image, Pressable, StyleSheet, Dimensions } from 'react-native';
+import React, { useEffect, useState } from 'react';
+import { View, Text, Image, Pressable, ActivityIndicator, StyleSheet } from 'react-native';
+import Svg, { Line, Polygon } from 'react-native-svg';
 import { Feather } from '@expo/vector-icons';
 import { colors, radius, spacing } from '../../lib/theme';
 import { AuthColor } from '../../lib/authVerdictColor';
-import { ScanResult } from '../../lib/types';
+import { ScanResult, HeatmapResult, HeatmapSignal } from '../../lib/types';
 import { useLanguage } from '../../lib/localization';
-import {
-  getLandmarksForWatch,
-  matchSignalToLandmark,
-  LandmarkPoint,
-} from '../../lib/data/watchLandmarks';
-
-const { width: SCREEN_WIDTH } = Dimensions.get('window');
+import { generateWatchHeatmap } from '../../lib/geminiAi';
 
 interface VerdictHeaderProps {
   images: string[];
@@ -24,10 +19,21 @@ interface VerdictHeaderProps {
   t: (key: string, options?: any) => string;
 }
 
+const colorFor = (s: HeatmapSignal) =>
+  s === 'green' ? '#2ECC71' : s === 'red' ? '#E74C3C' : '#ECC87A';
+
+/**
+ * VerdictHeader — the single hero. Shows ONE main watch image (aspect-preserved
+ * so the AI Hallmark overlay coordinates line up), the verdict badge, a small
+ * thumbnail strip to switch angles, and the on-demand AI Hallmark overlay
+ * (Gemini boxes inspection spots; numbers sit in a right-edge column with
+ * leader arrows to the real spots). The overlay only renders on the FRONT photo
+ * — that's the one Gemini boxed — so switching to a back/macro thumbnail hides
+ * it. Replaces the old duplicate (carousel hero + separate PhotoHeatmap card).
+ */
 export default function VerdictHeader({
   images,
   authColor,
-  probability,
   result,
   customName,
   specsText,
@@ -35,28 +41,47 @@ export default function VerdictHeader({
   t,
 }: VerdictHeaderProps) {
   const { lang } = useLanguage();
-  const [activeImageIdx, setActiveImageIdx] = useState(0);
-  const [showHeatmap, setShowHeatmap] = useState(false);
+  const [activeIdx, setActiveIdx] = useState(0);
+  const [boxW, setBoxW] = useState(0);
+  const [ratio, setRatio] = useState(1); // natural h / w of the active image
 
-  // ── Brand-aware landmark resolution + signal matching ──
-  // Pull 5-7 landmark coordinates for this watch's brand (or generic
-  // fallback). Match each landmark against Gemini's auth signals so
-  // pins inherit the correct colour. `greenCount` powers the pass-
-  // ratio header text ("6/7 PASS").
-  const landmarks: LandmarkPoint[] = React.useMemo(
-    () => getLandmarksForWatch(result.brand, result.name, result.reference),
-    [result.brand, result.name, result.reference]
-  );
-  const signals = result.authenticitySignals ?? [];
-  const greenCount = React.useMemo(() => {
-    let c = 0;
-    for (const lm of landmarks) {
-      const m = matchSignalToLandmark(lm, signals);
-      if (m && m.weight === 'positive') c++;
+  // AI Hallmark (on-demand heatmap) state
+  const [heatmap, setHeatmap] = useState<HeatmapResult | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
+  const [sel, setSel] = useState<number | null>(null);
+
+  const isFront = activeIdx === 0;
+  const mainUri = images[activeIdx] ?? images[0];
+
+  useEffect(() => {
+    let alive = true;
+    Image.getSize(
+      mainUri,
+      (w, h) => alive && w > 0 && setRatio(h / w),
+      () => alive && setRatio(1)
+    );
+    return () => {
+      alive = false;
+    };
+  }, [mainUri]);
+
+  const runHeatmap = async () => {
+    setLoading(true);
+    setErr(null);
+    setSel(null);
+    try {
+      const r = await generateWatchHeatmap(images[0]);
+      setHeatmap(r);
+      if (!r.regions.length) {
+        setErr(lang === 'th' ? 'ไม่พบจุดเด่นที่ชี้ได้จากภาพนี้ ลองถ่ายชัด/ใกล้ขึ้น' : 'No notable spots detected — try a sharper / closer photo.');
+      }
+    } catch (e: any) {
+      setErr(e?.message || (lang === 'th' ? 'วิเคราะห์ไม่สำเร็จ' : 'Analysis failed'));
+    } finally {
+      setLoading(false);
     }
-    return c;
-  }, [landmarks, signals]);
-  const landmarkBrandLabel = (result.brand || (lang === 'th' ? 'ทั่วไป' : 'GENERIC')).toUpperCase();
+  };
 
   const getVerdictBorderColor = (color: AuthColor) => {
     switch (color) {
@@ -67,314 +92,215 @@ export default function VerdictHeader({
     }
   };
 
+  const displayH = boxW * ratio;
+  const regions = isFront ? heatmap?.regions ?? [] : [];
+  const selRegion = sel != null && heatmap ? heatmap.regions[sel] : null;
+
+  // overlay geometry (right-edge column of numbers + leader arrows)
+  const BADGE = 22;
+  const INSET = 6;
+  const railCX = boxW - INSET - BADGE / 2;
+  const lineStartX = railCX - BADGE / 2;
+  const badgeCY = (i: number, n: number) =>
+    n <= 1 ? displayH / 2 : BADGE / 2 + 4 + (i * (displayH - BADGE - 8)) / (n - 1);
+  const spotX = (r: HeatmapResult['regions'][number]) => ((r.box.xmin + r.box.xmax) / 2 / 1000) * boxW;
+  const spotY = (r: HeatmapResult['regions'][number]) => ((r.box.ymin + r.box.ymax) / 2 / 1000) * displayH;
+
   return (
     <View style={styles.container}>
-      {/* Elegant Image Gallery Carousel with overlapping Verdict Badge */}
-      <View style={styles.galleryContainer}>
-        <ScrollView
-          horizontal
-          pagingEnabled
-          showsHorizontalScrollIndicator={false}
-          onScroll={(e) => {
-            const x = e.nativeEvent.contentOffset.x;
-            const idx = Math.round(x / e.nativeEvent.layoutMeasurement.width);
-            setActiveImageIdx(idx);
-          }}
-          scrollEventThrottle={16}
-          style={styles.galleryScroller}
-        >
-          {images.map((uri, idx) => (
-            <View key={idx} style={styles.gallerySlide}>
-              <View style={styles.imageWrapper}>
-                <Image
-                  source={{ uri }}
-                  style={styles.galleryImg}
-                  resizeMode="cover"
-                />
-                {/* Hallmark landmark pins are intentionally NOT overlaid on
-                    the user's photo: fixed % coordinates can't track an
-                    arbitrarily tilted / off-centre / cropped shot, so pins
-                    floated onto the wrong parts. Instead the numbered pins
-                    live on an upright reference schematic (HallmarkSchematic)
-                    rendered below the toggle — where each landmark's canonical
-                    position is always correct and matches the cards 1:1. */}
-              </View>
+      {/* ── Hero: single aspect-preserved image + overlay + verdict badge ── */}
+      <View onLayout={(e) => setBoxW(e.nativeEvent.layout.width)} style={styles.heroWrap}>
+        {boxW > 0 && displayH > 0 && (
+          <View style={{ width: boxW, height: displayH }}>
+            <View style={styles.heroImageBox}>
+              <Image source={{ uri: mainUri }} style={{ width: boxW, height: displayH }} resizeMode="cover" />
             </View>
+
+            {/* AI Hallmark overlay — front photo only */}
+            {regions.length > 0 && (
+              <>
+                <Svg pointerEvents="none" width={boxW} height={displayH} style={StyleSheet.absoluteFill}>
+                  {regions.map((r, i) => {
+                    const sx = spotX(r);
+                    const sy = spotY(r);
+                    const bx = lineStartX;
+                    const by = badgeCY(i, regions.length);
+                    const c = colorFor(r.type);
+                    const active = sel === i;
+                    const dx = sx - bx;
+                    const dy = sy - by;
+                    const len = Math.max(1, Math.hypot(dx, dy));
+                    const ux = dx / len;
+                    const uy = dy / len;
+                    const AH = 8;
+                    const AW = 4.5;
+                    const baseX = sx - ux * AH;
+                    const baseY = sy - uy * AH;
+                    const px = -uy;
+                    const py = ux;
+                    return (
+                      <React.Fragment key={`l${i}`}>
+                        <Line x1={bx} y1={by} x2={baseX} y2={baseY} stroke={c} strokeWidth={active ? 2.5 : 1.5} strokeOpacity={active ? 1 : 0.7} />
+                        <Polygon points={`${sx},${sy} ${baseX + px * AW},${baseY + py * AW} ${baseX - px * AW},${baseY - py * AW}`} fill={c} fillOpacity={active ? 1 : 0.85} />
+                      </React.Fragment>
+                    );
+                  })}
+                </Svg>
+
+                {/* tappable spot markers */}
+                {regions.map((r, i) => {
+                  const active = sel === i;
+                  const D = active ? 16 : 12;
+                  const c = colorFor(r.type);
+                  return (
+                    <Pressable
+                      key={`m${i}`}
+                      onPress={() => setSel(active ? null : i)}
+                      hitSlop={8}
+                      style={{ position: 'absolute', left: spotX(r) - D / 2, top: spotY(r) - D / 2, width: D, height: D, borderRadius: D / 2, backgroundColor: c + (active ? 'FF' : 'AA'), borderWidth: 2, borderColor: '#0A0805' }}
+                    />
+                  );
+                })}
+
+                {/* right-edge numbered column */}
+                {regions.map((r, i) => {
+                  const active = sel === i;
+                  const c = colorFor(r.type);
+                  const cy = badgeCY(i, regions.length);
+                  return (
+                    <Pressable
+                      key={`b${i}`}
+                      onPress={() => setSel(active ? null : i)}
+                      hitSlop={6}
+                      style={{ position: 'absolute', left: railCX - BADGE / 2, top: cy - BADGE / 2, width: BADGE, height: BADGE, borderRadius: BADGE / 2, backgroundColor: c, alignItems: 'center', justifyContent: 'center', borderWidth: active ? 2 : 1, borderColor: active ? '#fff' : 'rgba(0,0,0,0.45)' }}
+                    >
+                      <Text style={styles.railNumText}>{i + 1}</Text>
+                    </Pressable>
+                  );
+                })}
+              </>
+            )}
+
+            {/* Verdict badge */}
+            {authColor && (
+              <View style={styles.absoluteVerdictContainer}>
+                <View style={[styles.verdictOuterBorder, { borderColor: 'rgba(236, 200, 122, 0.35)', shadowColor: getVerdictBorderColor(authColor) }]}>
+                  <View style={[styles.verdictInnerBorder, { borderColor: getVerdictBorderColor(authColor) }]}>
+                    <Text style={styles.verdictMiniText}>{t('result.verdict')}</Text>
+                    <Text style={[styles.verdictMainText, { color: getVerdictBorderColor(authColor) }]}>
+                      {getVerdictLabel(authColor)}
+                    </Text>
+                  </View>
+                </View>
+              </View>
+            )}
+          </View>
+        )}
+      </View>
+
+      {/* ── Thumbnail strip (switch angle) ── */}
+      {images.length > 1 && (
+        <View style={styles.thumbRow}>
+          {images.map((uri, i) => (
+            <Pressable key={i} onPress={() => setActiveIdx(i)} style={[styles.thumb, activeIdx === i && styles.thumbActive]}>
+              <Image source={{ uri }} style={styles.thumbImg} resizeMode="cover" />
+            </Pressable>
           ))}
-        </ScrollView>
-
-        {images.length > 1 && (
-          <View style={styles.galleryIndicator}>
-            {images.map((_, i) => (
-              <View
-                key={i}
-                style={[
-                  styles.indicatorDot,
-                  activeImageIdx === i && styles.indicatorDotActive,
-                ]}
-              />
-            ))}
-          </View>
-        )}
-
-        {/* Luxury double-bordered Verdict capsule Badge with soft aura glow */}
-        {authColor && (
-          <View style={styles.absoluteVerdictContainer}>
-            <View
-              style={[
-                styles.verdictOuterBorder,
-                {
-                  borderColor: 'rgba(236, 200, 122, 0.35)',
-                  shadowColor: getVerdictBorderColor(authColor),
-                },
-              ]}
-            >
-              <View style={[styles.verdictInnerBorder, { borderColor: getVerdictBorderColor(authColor) }]}>
-                <Text style={styles.verdictMiniText}>{t('result.verdict')}</Text>
-                <Text style={[styles.verdictMainText, { color: getVerdictBorderColor(authColor) }]}>
-                  {getVerdictLabel(authColor)}
-                </Text>
-              </View>
-            </View>
-          </View>
-        )}
-      </View>
-
-      {/* Hallmark Diagnostic Map Toggle (was "AI Heatmap" — renamed
-          to use horology-native vocabulary that signals expert-grade
-          authentication. "Hallmark" is the RSC/Sotheby's word for a
-          maker's authenticity mark; "Diagnostic Map" frames the
-          numbered landmark grid as medical-precision analysis. */}
-      <View style={styles.heatmapToggleRow}>
-        <View style={styles.heatmapTextContainer}>
-          <Text style={styles.heatmapTitle}>{lang === 'th' ? 'แผนภาพตราประจำการตรวจสอบ' : 'Hallmark Diagnostic Map'}</Text>
-          <Text style={styles.heatmapDesc}>{lang === 'th' ? 'แสดงตำแหน่งจุดตรวจสอบเฉพาะของแบรนด์ พร้อมรายงานสัญญาณ AI ต่อจุด' : 'Brand-specific authentication points with per-landmark AI signal report'}</Text>
-        </View>
-        <Pressable
-          onPress={() => setShowHeatmap(!showHeatmap)}
-          style={[styles.switchContainer, showHeatmap && styles.switchActive]}
-        >
-          <View style={[styles.switchKnob, showHeatmap && styles.switchKnobActive]} />
-        </Pressable>
-      </View>
-
-      {/* Hallmark Diagnostic Map — numbered checkpoints on an upright
-          reference schematic. Positions are canonical (not tied to the
-          user's photo angle), so pin ↔ number ↔ card always agree. */}
-      {showHeatmap && (
-        <View style={styles.schematicCard}>
-          <Text style={styles.schematicHeader}>
-            {lang === 'th'
-              ? `${greenCount}/${landmarks.length} ผ่าน • ${landmarkBrandLabel} HALLMARK`
-              : `${greenCount}/${landmarks.length} PASS • ${landmarkBrandLabel} HALLMARK`}
-          </Text>
-          <HallmarkSchematic landmarks={landmarks} signals={signals} />
-          <Text style={styles.schematicCaption}>
-            {lang === 'th'
-              ? 'ผังตำแหน่งจุดตรวจมาตรฐานของรุ่น — หมายเลขตรงกับการ์ดด้านล่าง (ไม่ใช่พิกัดบนรูปถ่ายจริง)'
-              : 'Reference schematic of checkpoints — numbers match the cards below (not your exact photo)'}
-          </Text>
         </View>
       )}
 
-      {/* Center-aligned Luxury Watch Details Section */}
+      {/* ── AI Hallmark controls (front photo only) ── */}
+      {isFront && (
+        <View style={styles.hallmarkCard}>
+          <View style={styles.hallmarkHeader}>
+            <Feather name="crosshair" size={14} color={colors.amber} style={{ marginRight: 7 }} />
+            <Text style={styles.hallmarkTitle}>AI HALLMARK</Text>
+          </View>
+          <Text style={styles.hallmarkDesc}>
+            {lang === 'th'
+              ? 'AI ชี้จุดที่ผู้เชี่ยวชาญตรวจบนรูปจริงของคุณ — เพื่อ "ดูประกอบ" ไม่ใช่การรับประกันความแท้'
+              : 'AI marks the spots an expert inspects on your photo — guidance only, NOT a certification.'}
+          </Text>
+
+          {!heatmap && !loading && (
+            <Pressable style={styles.genBtn} onPress={runHeatmap}>
+              <Feather name="zap" size={14} color="#1A1410" style={{ marginRight: 6 }} />
+              <Text style={styles.genBtnText}>{lang === 'th' ? 'วิเคราะห์จุดตรวจด้วย AI' : 'Analyze spots with AI'}</Text>
+            </Pressable>
+          )}
+          {loading && (
+            <View style={styles.loadingRow}>
+              <ActivityIndicator color={colors.amber} />
+              <Text style={styles.loadingText}>{lang === 'th' ? 'AI กำลังชี้จุดตรวจ...' : 'AI is marking inspection spots...'}</Text>
+            </View>
+          )}
+          {err && <Text style={styles.errText}>{err}</Text>}
+
+          {heatmap && heatmap.regions.length > 0 && (
+            <>
+              <View style={styles.legendRow}>
+                <Legend color="#2ECC71" label={lang === 'th' ? `ผ่าน ${heatmap.counts.green}` : `OK ${heatmap.counts.green}`} />
+                <Legend color="#ECC87A" label={lang === 'th' ? `ตรวจซ้ำ ${heatmap.counts.yellow}` : `Check ${heatmap.counts.yellow}`} />
+                <Legend color="#E74C3C" label={lang === 'th' ? `น่าสงสัย ${heatmap.counts.red}` : `Flag ${heatmap.counts.red}`} />
+                <Pressable onPress={runHeatmap} hitSlop={10} style={{ marginLeft: 'auto' }}>
+                  <Feather name="refresh-cw" size={13} color={colors.textMuted} />
+                </Pressable>
+              </View>
+              {!!heatmap.overallNote && <Text style={styles.overall}>{heatmap.overallNote}</Text>}
+              <Text style={styles.tapHint}>{lang === 'th' ? 'แตะหมายเลขหรือจุดบนรูปเพื่อดูรายละเอียด' : 'Tap a number or marker to see details.'}</Text>
+            </>
+          )}
+
+          {selRegion && (
+            <View style={[styles.detail, { borderLeftColor: colorFor(selRegion.type) }]}>
+              <Text style={[styles.detailFeature, { color: colorFor(selRegion.type) }]}>
+                {sel != null ? sel + 1 : ''}. {selRegion.feature}
+              </Text>
+              <Text style={styles.detailObs}>{selRegion.observation}</Text>
+              {!!selRegion.reasoning && <Text style={styles.detailReason}>{selRegion.reasoning}</Text>}
+            </View>
+          )}
+        </View>
+      )}
+
+      {/* ── Watch details ── */}
       <View style={styles.watchDetailsBox}>
         <Text style={styles.watchBrand}>{result.brand?.toUpperCase() || 'ROLEX'}</Text>
         <Text style={styles.watchName}>{customName || result.name || 'Cosmograph Daytona'}</Text>
         <Text style={styles.watchRef}>{result.reference ? `Ref: ${result.reference}` : 'Ref: 116500LN'}</Text>
-        {!!result.serialNumber && (
-          <Text style={styles.watchSpecs}>{`Serial: ${result.serialNumber}`}</Text>
-        )}
+        {!!result.serialNumber && <Text style={styles.watchSpecs}>{`Serial: ${result.serialNumber}`}</Text>}
         <Text style={styles.watchSpecs}>{specsText}</Text>
       </View>
     </View>
   );
 }
 
-/**
- * HallmarkSchematic — draws an upright, stylised watch (bezel + dial +
- * crown + bracelet stubs) and overlays the brand's numbered checkpoint
- * pins at their canonical xPct/yPct. Because the diagram is always upright
- * and centred, every pin lands on the correct anatomical zone and stays in
- * lock-step with the cards below (same array index → same number). Pin
- * colour reflects the matched Gemini signal: green pass / red fail /
- * amber neutral / gray = no signal mentioned this landmark.
- */
-function HallmarkSchematic({
-  landmarks,
-  signals,
-}: {
-  landmarks: LandmarkPoint[];
-  signals: Array<{ signal: string; weight: 'positive' | 'negative' | 'neutral' }>;
-}) {
-  const size = Math.min(SCREEN_WIDTH - 88, 300);
-  const markers = [
-    { l: 0.485, t: 0.21 },
-    { l: 0.485, t: 0.74 },
-    { l: 0.74, t: 0.485 },
-    { l: 0.215, t: 0.485 },
-  ];
+function Legend({ color, label }: { color: string; label: string }) {
   return (
-    <View style={{ width: size, height: size, alignSelf: 'center', position: 'relative' }}>
-      {/* bracelet stubs (top + bottom) */}
-      <View style={{ position: 'absolute', left: size * 0.35, top: 0, width: size * 0.3, height: size * 0.16, backgroundColor: '#241D14', borderTopLeftRadius: 10, borderTopRightRadius: 10, borderWidth: 1, borderColor: 'rgba(236,200,122,0.22)' }} />
-      <View style={{ position: 'absolute', left: size * 0.35, bottom: 0, width: size * 0.3, height: size * 0.16, backgroundColor: '#241D14', borderBottomLeftRadius: 10, borderBottomRightRadius: 10, borderWidth: 1, borderColor: 'rgba(236,200,122,0.22)' }} />
-      {/* crown (right) */}
-      <View style={{ position: 'absolute', right: size * 0.04, top: size * 0.44, width: size * 0.07, height: size * 0.12, backgroundColor: '#3A2F1E', borderRadius: 3, borderWidth: 1, borderColor: 'rgba(236,200,122,0.3)' }} />
-      {/* bezel ring */}
-      <View style={{ position: 'absolute', left: size * 0.11, top: size * 0.11, width: size * 0.78, height: size * 0.78, borderRadius: size * 0.39, backgroundColor: '#15100B', borderWidth: 3, borderColor: 'rgba(236,200,122,0.4)' }} />
-      {/* dial */}
-      <View style={{ position: 'absolute', left: size * 0.18, top: size * 0.18, width: size * 0.64, height: size * 0.64, borderRadius: size * 0.32, backgroundColor: '#0E0B07', borderWidth: 1, borderColor: 'rgba(236,200,122,0.18)' }} />
-      {/* hour markers + centre hub */}
-      {markers.map((m, i) => (
-        <View key={i} style={{ position: 'absolute', left: size * m.l, top: size * m.t, width: size * 0.03, height: size * 0.03, borderRadius: size * 0.015, backgroundColor: 'rgba(236,200,122,0.5)' }} />
-      ))}
-      <View style={{ position: 'absolute', left: size * 0.485, top: size * 0.485, width: size * 0.03, height: size * 0.03, borderRadius: size * 0.015, backgroundColor: 'rgba(236,200,122,0.85)' }} />
-
-      {/* Numbered checkpoint pins — canonical positions on the schematic */}
-      {landmarks.map((lm, idx) => {
-        const match = matchSignalToLandmark(lm, signals);
-        const bg = match
-          ? match.weight === 'positive'
-            ? '#22C55E'
-            : match.weight === 'negative'
-            ? '#EF4444'
-            : '#F59E0B'
-          : '#94A3B8';
-        return (
-          <View
-            key={lm.id}
-            style={{
-              position: 'absolute',
-              left: (lm.xPct / 100) * size - 14,
-              top: (lm.yPct / 100) * size - 14,
-              width: 28,
-              height: 28,
-              borderRadius: 14,
-              backgroundColor: bg,
-              borderWidth: 2,
-              borderColor: 'rgba(255,255,255,0.9)',
-              justifyContent: 'center',
-              alignItems: 'center',
-              shadowColor: bg,
-              shadowOffset: { width: 0, height: 2 },
-              shadowOpacity: 0.6,
-              shadowRadius: 4,
-              elevation: 5,
-            }}
-          >
-            <Text style={{ color: '#0A0805', fontSize: 13, fontWeight: '900' }}>{idx + 1}</Text>
-          </View>
-        );
-      })}
+    <View style={{ flexDirection: 'row', alignItems: 'center', marginRight: 12 }}>
+      <View style={{ width: 9, height: 9, borderRadius: 5, backgroundColor: color, marginRight: 4 }} />
+      <Text style={{ color: '#B5AFA5', fontSize: 11, fontWeight: '600' }}>{label}</Text>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
+  container: { width: '100%' },
+  heroWrap: {
     width: '100%',
-  },
-  schematicCard: {
-    backgroundColor: 'rgba(18, 14, 10, 0.6)',
-    borderRadius: radius.lg,
-    borderWidth: 1,
-    borderColor: 'rgba(236, 200, 122, 0.2)',
-    padding: spacing.md,
-    marginTop: spacing.sm,
+    paddingHorizontal: spacing.md,
+    paddingTop: spacing.md,
     alignItems: 'center',
   },
-  schematicHeader: {
-    color: colors.amber,
-    fontSize: 13,
-    fontWeight: '800',
-    letterSpacing: 0.5,
-    textAlign: 'center',
-    marginBottom: spacing.sm,
-  },
-  schematicCaption: {
-    color: '#8A8278',
-    fontSize: 11,
-    textAlign: 'center',
-    marginTop: spacing.md,
-    lineHeight: 16,
-    paddingHorizontal: spacing.sm,
-  },
-  galleryContainer: {
-    width: '100%',
-    height: 380,
-    backgroundColor: 'transparent',
-    position: 'relative',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  galleryScroller: {
-    flex: 1,
-    width: '100%',
-  },
-  gallerySlide: {
-    width: SCREEN_WIDTH,
-    height: 330,
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingHorizontal: 20,
-    overflow: 'visible',
-  },
-  imageWrapper: {
-    width: '100%',
-    height: '100%',
-    borderRadius: 24,
+  heroImageBox: {
+    ...StyleSheet.absoluteFillObject,
+    borderRadius: 20,
     overflow: 'hidden',
-    position: 'relative',
-  },
-  galleryImg: {
-    width: '100%',
-    height: '100%',
-    borderRadius: 24,
     backgroundColor: '#1E1814',
     borderWidth: 1.5,
     borderColor: 'rgba(236, 200, 122, 0.12)',
   },
-  heatmapOverlay: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(10, 8, 5, 0.35)',
-  },
-  heatmapLabelContainer: {
-    position: 'absolute',
-    top: 12,
-    alignSelf: 'center',
-    backgroundColor: 'rgba(15, 11, 8, 0.85)',
-    borderColor: '#ECC87A',
-    borderWidth: 0.75,
-    borderRadius: 4,
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-  },
-  heatmapLabel: {
-    fontSize: 8,
-    fontWeight: '900',
-    color: '#ECC87A',
-    letterSpacing: 1,
-  },
-  galleryIndicator: {
-    position: 'absolute',
-    bottom: spacing.md,
-    left: 0,
-    right: 0,
-    flexDirection: 'row',
-    justifyContent: 'center',
-    gap: 6,
-  },
-  indicatorDot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-    backgroundColor: 'rgba(255,255,255,0.4)',
-  },
-  indicatorDotActive: {
-    width: 14,
-    backgroundColor: colors.amber,
-  },
+  railNumText: { color: '#1A1410', fontSize: 11, fontWeight: '900' },
   absoluteVerdictContainer: {
     position: 'absolute',
     bottom: 8,
@@ -424,57 +350,64 @@ const styles = StyleSheet.create({
     lineHeight: 16,
     textAlign: 'center',
   },
-  heatmapToggleRow: {
+  thumbRow: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    backgroundColor: 'rgba(236, 200, 122, 0.04)',
-    borderColor: 'rgba(236, 200, 122, 0.1)',
-    borderWidth: 1,
-    borderRadius: radius.md,
-    padding: 12,
-    marginHorizontal: spacing.md,
-    marginTop: spacing.sm,
-  },
-  heatmapTextContainer: {
-    flex: 1,
-    paddingRight: 8,
-  },
-  heatmapTitle: {
-    fontSize: 11,
-    fontWeight: '800',
-    color: '#FFF',
-    letterSpacing: 0.5,
-  },
-  heatmapDesc: {
-    fontSize: 9,
-    color: colors.textMuted,
-    marginTop: 2,
-  },
-  switchContainer: {
-    width: 38,
-    height: 20,
-    borderRadius: 10,
-    backgroundColor: 'rgba(255,255,255,0.08)',
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.1)',
-    padding: 2,
     justifyContent: 'center',
+    flexWrap: 'wrap',
+    gap: 8,
+    marginTop: spacing.sm,
+    paddingHorizontal: spacing.md,
   },
-  switchActive: {
-    backgroundColor: colors.amber,
+  thumb: {
+    width: 46,
+    height: 46,
+    borderRadius: 8,
+    overflow: 'hidden',
+    borderWidth: 1.5,
+    borderColor: 'rgba(255,255,255,0.12)',
+  },
+  thumbActive: {
     borderColor: colors.amber,
   },
-  switchKnob: {
-    width: 14,
-    height: 14,
-    borderRadius: 7,
-    backgroundColor: '#B5AFA5',
+  thumbImg: { width: '100%', height: '100%' },
+  hallmarkCard: {
+    marginHorizontal: spacing.md,
+    marginTop: spacing.md,
+    backgroundColor: 'rgba(30, 24, 20, 0.35)',
+    borderRadius: radius.lg,
+    borderWidth: 1,
+    borderColor: 'rgba(236, 200, 122, 0.12)',
+    padding: spacing.md,
   },
-  switchKnobActive: {
-    backgroundColor: '#0A0805',
-    transform: [{ translateX: 18 }],
+  hallmarkHeader: { flexDirection: 'row', alignItems: 'center' },
+  hallmarkTitle: { color: colors.amber, fontSize: 12, fontWeight: '800', letterSpacing: 1 },
+  hallmarkDesc: { color: '#8A8076', fontSize: 11, lineHeight: 16, marginTop: 4 },
+  genBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.amber,
+    borderRadius: radius.md,
+    paddingVertical: 11,
+    marginTop: spacing.md,
   },
+  genBtnText: { color: '#1A1410', fontSize: 13, fontWeight: '800' },
+  loadingRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, marginTop: spacing.md },
+  loadingText: { color: '#B5AFA5', fontSize: 12 },
+  errText: { color: '#E0A0A0', fontSize: 12, marginTop: spacing.sm, textAlign: 'center' },
+  legendRow: { flexDirection: 'row', alignItems: 'center', marginTop: spacing.md },
+  overall: { color: '#CFC7BB', fontSize: 12, lineHeight: 18, marginTop: spacing.sm },
+  tapHint: { color: '#7A736A', fontSize: 10, marginTop: 6, fontStyle: 'italic' },
+  detail: {
+    marginTop: spacing.sm,
+    backgroundColor: 'rgba(10,8,5,0.5)',
+    borderRadius: radius.sm,
+    borderLeftWidth: 3,
+    padding: spacing.sm,
+  },
+  detailFeature: { fontSize: 13, fontWeight: '800', marginBottom: 3 },
+  detailObs: { color: '#E8DCC0', fontSize: 12, lineHeight: 18 },
+  detailReason: { color: '#9A9088', fontSize: 11, lineHeight: 16, marginTop: 4 },
   watchDetailsBox: {
     paddingHorizontal: spacing.md,
     paddingTop: 24,

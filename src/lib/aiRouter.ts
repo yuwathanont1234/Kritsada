@@ -1,10 +1,6 @@
 import { MembershipTier } from './auth';
 import { effectiveCaps } from './tier';
-import {
-  AuthPayload,
-  PricePayload,
-  fillScanResultDefaults,
-} from './ai';
+import { AuthPayload, PricePayload } from './ai';
 import {
   isGeminiConfigured,
   imageWidthForTier,
@@ -29,7 +25,7 @@ import {
 } from './visualRag';
 import { logCostEvent, COST_PER_CALL } from './costBreaker';
 import { getDataConsent } from './dataConsent';
-import { scanBreadcrumb, captureScanError } from './sentry';
+import { scanBreadcrumb } from './sentry';
 
 /**
  * Tier-based AI routing for Luxury Watch Authenticator.
@@ -407,7 +403,6 @@ export async function analyzeWatchByTier(
   const enableVisualRag = !(tier === 'free' && !isTrialing) && isVisualRagConfigured();
   const embedCached = enableVisualRag ? isEmbeddingCached(frontUri, backUri) : false;
   
-  let embedding: number[] | null = null;
   const embedPromise = enableVisualRag
     ? embedFrontAndBack(frontUri, backUri).catch((e) => {
         console.warn('[aiRouter] RAG embed failed (non-fatal):', e?.message);

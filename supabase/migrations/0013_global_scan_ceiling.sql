@@ -39,8 +39,10 @@ DECLARE
   v_current int;
   v_used    int;
 BEGIN
-  SELECT scans_used INTO v_current
-    FROM public.global_scan_daily WHERE day = p_day;
+  -- alias the table so `scans_used` can't be read as the OUT column of the same
+  -- name (would be "ambiguous column reference").
+  SELECT g.scans_used INTO v_current
+    FROM public.global_scan_daily g WHERE g.day = p_day;
   v_current := COALESCE(v_current, 0);
 
   IF p_enforce AND v_current >= p_cap THEN

@@ -503,6 +503,10 @@ export async function analyzeWatchByTier(
   // does NOT touch the verdict (still validating phone-photo generalization +
   // fake scans). embedFrontAndBack returns an L2-normalized 1024-d (matches the
   // training-time normalization), so it's fed straight in.
+  // Capture the resilient embedding so a COLD scan (where Phase 1B's 12s embed
+  // wait already timed out) can still SALVAGE the Reference DB match below — the
+  // scan already awaits this classifier, so the late embed is free to reuse.
+  let classifierEmbedding: number[] | null = null;
   const authClassifierPromise: Promise<number | null> = (async () => {
     let emb: number[] | null = ragOutcome.embedding ?? null;
     let src = 'rag';
@@ -532,6 +536,7 @@ export async function analyzeWatchByTier(
       );
       return null;
     }
+    classifierEmbedding = emb; // expose for the cold-scan DB-match salvage below
     console.log(
       `[authClassifier:shadow] running (resilient) — embedding len=${emb.length} src=${src}`
     );
@@ -1207,6 +1212,38 @@ export async function analyzeWatchByTier(
         ` (การคัดกรองด้วย AI real-vs-fake โน้มไปทางของเลียนแบบ: P(แท้)=${(pReal * 100).toFixed(0)}% — โปรดใช้ความระมัดระวังเพิ่มเติม นี่เป็นสัญญาณรอง ไม่ใช่คำตัดสินหลัก)`;
       identified.authenticityReasoning =
         (identified.authenticityReasoning || '') + note;
+    }
+  }
+
+  // ── Cold-scan DB-match salvage ────────────────────────────────────────
+  // Phase 1B's "Reference DB Match" needs the embed within 12s, but a cold
+  // Replicate boot (~67-89s) makes that wait time out → the first scan after
+  // idle loses its DB corroboration even though the model has it (proven: a
+  // GMT-Master still pulls a Rolex GMT at sim 0.76). The classifier's RESILIENT
+  // embed eventually lands AND the scan already awaited it above, so reuse it
+  // here — basically free — to run the 1024-d match and surface the DB match we
+  // would otherwise drop. Brand-agreement gated (same 0.13 floor as Phase 1B's
+  // light corroboration) so it can never false-corroborate. This makes the RAG
+  // fix resilient to cold-starts WITHOUT paying for an always-warm instance.
+  if (!identified.visualDbMatch && classifierEmbedding) {
+    try {
+      const late = await findSimilarWatches(classifierEmbedding, 3, 0.0);
+      const top = late.candidates[0];
+      const ib = (identified.brand || '').toLowerCase().trim();
+      const tb = (top?.brand || '').toLowerCase().trim();
+      if (top && ib && tb && (tb.includes(ib) || ib.includes(tb)) && top.similarity >= 0.13) {
+        identified.visualDbMatch = {
+          name: top.name,
+          brand: top.brand,
+          reference: top.reference,
+          similarity: top.similarity,
+        };
+        console.log(
+          `[aiRouter] DB-match SALVAGED (1024d, late embed, cold scan): "${top.brand} ${top.name}" (sim=${top.similarity.toFixed(3)})`
+        );
+      }
+    } catch (e: any) {
+      console.warn('[aiRouter] cold-scan DB-match salvage failed (non-fatal):', e?.message);
     }
   }
 

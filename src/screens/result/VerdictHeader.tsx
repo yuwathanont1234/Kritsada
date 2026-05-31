@@ -143,6 +143,7 @@ export default function VerdictHeader({
   };
   type Dot = { region: HeatmapResult['regions'][number]; num: number; color: string; kind: 'ok' | 'check' | 'flag' | 'none' };
   const rawRegions = isFront ? heatmap?.regions ?? [] : [];
+  const seenLandmarkNums = new Set<number>();
   const mappedDots: Dot[] = rawRegions
     .map((r): Dot | null => {
       const li = regionLandmarkIdx(r.feature);
@@ -152,7 +153,17 @@ export default function VerdictHeader({
       const kind: Dot['kind'] = muted ? 'none' : m.weight === 'positive' ? 'ok' : m.weight === 'negative' ? 'flag' : 'check';
       return { region: r, num: li + 1, color: weightColor(m?.weight, muted), kind };
     })
-    .filter((d): d is Dot => d !== null);
+    .filter((d): d is Dot => d !== null)
+    // Dedupe to ONE dot per landmark — Gemini sometimes boxes the same feature
+    // twice, which mapped to the same landmark → duplicate numbers on the photo.
+    // Keep the first (Gemini orders by prominence), then sort by number so the
+    // right-edge column reads in order (1,2,4,5…) and lines up with the list.
+    .filter((d) => {
+      if (seenLandmarkNums.has(d.num)) return false;
+      seenLandmarkNums.add(d.num);
+      return true;
+    })
+    .sort((a, b) => a.num - b.num);
   // Fallback: if NOTHING mapped (unexpected vocab gap), keep all regions with
   // their own heatmap colour so the overlay never goes blank.
   const dots: Dot[] = mappedDots.length > 0

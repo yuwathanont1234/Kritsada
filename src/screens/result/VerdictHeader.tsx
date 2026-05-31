@@ -7,6 +7,7 @@ import { AuthColor } from '../../lib/authVerdictColor';
 import { ScanResult, HeatmapResult, HeatmapSignal } from '../../lib/types';
 import { useLanguage } from '../../lib/localization';
 import { generateWatchHeatmap } from '../../lib/geminiAi';
+import { getLandmarksForWatch, matchSignalToLandmark } from '../../lib/data/watchLandmarks';
 
 interface VerdictHeaderProps {
   images: string[];
@@ -105,8 +106,60 @@ export default function VerdictHeader({
   };
 
   const displayH = boxW * ratio;
-  const regions = isFront ? heatmap?.regions ?? [] : [];
-  const selRegion = sel != null && heatmap ? heatmap.regions[sel] : null;
+
+  // ── Unify the on-photo AI Hallmark dots with the "จุดตรวจสอบ Hallmark"
+  //    checklist below. Both describe the same watch features but came from
+  //    two INDEPENDENT AI passes — the on-demand heatmap (regions, with their
+  //    own green/yellow/red) and the main auth signals (landmarks + weight).
+  //    Numbered + coloured separately, image-dot #3 (green) could contradict
+  //    checklist-#3 (red). Fix: map each heatmap region to its checklist
+  //    landmark by feature keyword, then number + colour the dot from the SAME
+  //    landmark/signal the list (SpecsSection) uses → #3 = #3, same colour.
+  const signals = result.authenticitySignals ?? [];
+  const landmarks = getLandmarksForWatch(result.brand, result.name, result.reference);
+  // SpecsSection mutes EVERY checkpoint when a weight-mismatch override fired
+  // (the Gemini signals are superseded); mirror that so the dots stay faithful.
+  const overridden = result.weightCheck?.grade === 'mismatch';
+  // Exactly the SpecsSection palette so the two views match pixel-for-pixel.
+  const weightColor = (w?: string, muted?: boolean): string =>
+    muted || !w ? '#94A3B8'
+      : w === 'positive' ? '#22C55E'
+      : w === 'negative' ? '#EF4444'
+      : '#F59E0B';
+  const regionLandmarkIdx = (feature: string): number => {
+    const f = (feature || '').toLowerCase().trim();
+    if (!f) return -1;
+    for (let i = 0; i < landmarks.length; i++) {
+      const lm = landmarks[i];
+      const terms = [lm.labelEn.toLowerCase(), lm.labelTh.toLowerCase(), ...lm.signalKeywords.map((k) => k.toLowerCase())];
+      if (terms.some((tm) => tm && (f.includes(tm) || tm.includes(f)))) return i;
+    }
+    return -1;
+  };
+  type Dot = { region: HeatmapResult['regions'][number]; num: number; color: string; kind: 'ok' | 'check' | 'flag' | 'none' };
+  const rawRegions = isFront ? heatmap?.regions ?? [] : [];
+  const mappedDots: Dot[] = rawRegions
+    .map((r): Dot | null => {
+      const li = regionLandmarkIdx(r.feature);
+      if (li < 0) return null;
+      const m = matchSignalToLandmark(landmarks[li], signals);
+      const muted = overridden || !m;
+      const kind: Dot['kind'] = muted ? 'none' : m.weight === 'positive' ? 'ok' : m.weight === 'negative' ? 'flag' : 'check';
+      return { region: r, num: li + 1, color: weightColor(m?.weight, muted), kind };
+    })
+    .filter((d): d is Dot => d !== null);
+  // Fallback: if NOTHING mapped (unexpected vocab gap), keep all regions with
+  // their own heatmap colour so the overlay never goes blank.
+  const dots: Dot[] = mappedDots.length > 0
+    ? mappedDots
+    : rawRegions.map((r, i): Dot => ({ region: r, num: i + 1, color: colorFor(r.type), kind: r.type === 'green' ? 'ok' : r.type === 'red' ? 'flag' : 'check' }));
+  const selDot = sel != null ? dots[sel] ?? null : null;
+  const dotCounts = {
+    ok: dots.filter((d) => d.kind === 'ok').length,
+    check: dots.filter((d) => d.kind === 'check').length,
+    flag: dots.filter((d) => d.kind === 'flag').length,
+    none: dots.filter((d) => d.kind === 'none').length,
+  };
 
   // overlay geometry (right-edge column of numbers + leader arrows)
   const BADGE = 22;
@@ -129,15 +182,15 @@ export default function VerdictHeader({
             </View>
 
             {/* AI Hallmark overlay — front photo only */}
-            {regions.length > 0 && (
+            {dots.length > 0 && (
               <>
                 <Svg pointerEvents="none" width={boxW} height={displayH} style={StyleSheet.absoluteFill}>
-                  {regions.map((r, i) => {
-                    const sx = spotX(r);
-                    const sy = spotY(r);
+                  {dots.map((d, i) => {
+                    const sx = spotX(d.region);
+                    const sy = spotY(d.region);
                     const bx = lineStartX;
-                    const by = badgeCY(i, regions.length);
-                    const c = colorFor(r.type);
+                    const by = badgeCY(i, dots.length);
+                    const c = d.color;
                     const active = sel === i;
                     const dx = sx - bx;
                     const dy = sy - by;
@@ -160,25 +213,25 @@ export default function VerdictHeader({
                 </Svg>
 
                 {/* tappable spot markers */}
-                {regions.map((r, i) => {
+                {dots.map((d, i) => {
                   const active = sel === i;
                   const D = active ? 16 : 12;
-                  const c = colorFor(r.type);
+                  const c = d.color;
                   return (
                     <Pressable
                       key={`m${i}`}
                       onPress={() => setSel(active ? null : i)}
                       hitSlop={8}
-                      style={{ position: 'absolute', left: spotX(r) - D / 2, top: spotY(r) - D / 2, width: D, height: D, borderRadius: D / 2, backgroundColor: c + (active ? 'FF' : 'AA'), borderWidth: 2, borderColor: '#0A0805' }}
+                      style={{ position: 'absolute', left: spotX(d.region) - D / 2, top: spotY(d.region) - D / 2, width: D, height: D, borderRadius: D / 2, backgroundColor: c + (active ? 'FF' : 'AA'), borderWidth: 2, borderColor: '#0A0805' }}
                     />
                   );
                 })}
 
                 {/* right-edge numbered column */}
-                {regions.map((r, i) => {
+                {dots.map((d, i) => {
                   const active = sel === i;
-                  const c = colorFor(r.type);
-                  const cy = badgeCY(i, regions.length);
+                  const c = d.color;
+                  const cy = badgeCY(i, dots.length);
                   return (
                     <Pressable
                       key={`b${i}`}
@@ -186,7 +239,7 @@ export default function VerdictHeader({
                       hitSlop={6}
                       style={{ position: 'absolute', left: railCX - BADGE / 2, top: cy - BADGE / 2, width: BADGE, height: BADGE, borderRadius: BADGE / 2, backgroundColor: c, alignItems: 'center', justifyContent: 'center', borderWidth: active ? 2 : 1, borderColor: active ? '#fff' : 'rgba(0,0,0,0.45)' }}
                     >
-                      <Text style={styles.railNumText}>{i + 1}</Text>
+                      <Text style={styles.railNumText}>{d.num}</Text>
                     </Pressable>
                   );
                 })}
@@ -259,12 +312,14 @@ export default function VerdictHeader({
           )}
           {err && <Text style={styles.errText}>{err}</Text>}
 
-          {heatmap && heatmap.regions.length > 0 && (
+          {heatmap && dots.length > 0 && (
             <>
+              {/* Counts derived from the UNIFIED dot colours (checklist weights),
+                  so the legend matches the dots on the photo AND the list below. */}
               <View style={styles.legendRow}>
-                <Legend color="#2ECC71" label={lang === 'th' ? `ผ่าน ${heatmap.counts.green}` : `OK ${heatmap.counts.green}`} />
-                <Legend color="#ECC87A" label={lang === 'th' ? `ตรวจซ้ำ ${heatmap.counts.yellow}` : `Check ${heatmap.counts.yellow}`} />
-                <Legend color="#E74C3C" label={lang === 'th' ? `น่าสงสัย ${heatmap.counts.red}` : `Flag ${heatmap.counts.red}`} />
+                <Legend color="#22C55E" label={lang === 'th' ? `ผ่าน ${dotCounts.ok}` : `OK ${dotCounts.ok}`} />
+                <Legend color="#F59E0B" label={lang === 'th' ? `ตรวจซ้ำ ${dotCounts.check}` : `Check ${dotCounts.check}`} />
+                <Legend color="#EF4444" label={lang === 'th' ? `น่าสงสัย ${dotCounts.flag}` : `Flag ${dotCounts.flag}`} />
                 {runCount < MAX_HEATMAP_RUNS && !loading && (
                   <Pressable onPress={runHeatmap} hitSlop={10} style={{ marginLeft: 'auto' }}>
                     <Feather name="refresh-cw" size={13} color={colors.textMuted} />
@@ -276,13 +331,13 @@ export default function VerdictHeader({
             </>
           )}
 
-          {selRegion && (
-            <View style={[styles.detail, { borderLeftColor: colorFor(selRegion.type) }]}>
-              <Text style={[styles.detailFeature, { color: colorFor(selRegion.type) }]}>
-                {sel != null ? sel + 1 : ''}. {selRegion.feature}
+          {selDot && (
+            <View style={[styles.detail, { borderLeftColor: selDot.color }]}>
+              <Text style={[styles.detailFeature, { color: selDot.color }]}>
+                {selDot.num}. {selDot.region.feature}
               </Text>
-              <Text style={styles.detailObs}>{selRegion.observation}</Text>
-              {!!selRegion.reasoning && <Text style={styles.detailReason}>{selRegion.reasoning}</Text>}
+              <Text style={styles.detailObs}>{selDot.region.observation}</Text>
+              {!!selDot.region.reasoning && <Text style={styles.detailReason}>{selDot.region.reasoning}</Text>}
             </View>
           )}
         </View>

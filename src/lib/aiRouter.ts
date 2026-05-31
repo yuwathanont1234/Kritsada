@@ -1103,16 +1103,15 @@ export async function analyzeWatchByTier(
   }
 
   // ─────────────────────────────────────────────────────────
-  // AI-Data Fusion: Weight discrepancy check.
-  // See applyWeightFusion() for full doc — extracted into a helper
-  // so ResultScreen can re-apply fusion when the user adds weight
-  // after the initial scan without re-running Gemini.
+  // AI-Data Fusion: Weight discrepancy check (LEGACY / DEAD PATH).
+  // The weight-input UI was replaced by SERIAL validation (see the
+  // serial-number screening block below + tier cap `serialFusion`).
+  // applyWeightFusion() still exists and only fires if a userWeightG
+  // somehow reaches the API; the UI no longer collects weight, so in
+  // practice this is inert. Kept for back-compat / defence-in-depth.
   //
-  // Premium-only gate: this matches the tier-capability flag
-  // `weightFusion` and the UI gate in ResultScreen. Free/Standard/
-  // Pro tiers don't get the fusion override even if a weight value
-  // somehow slips through to the API (defence-in-depth — the UI
-  // already gates the input modal).
+  // Premium-only gate — `premiumLike` is REUSED below to gate the live
+  // serial screening (both are the Premium AI-Data Fusion differentiator).
   const premiumLike = tier === 'premium' || isTrialing;
   if (premiumLike && identified.identified && userWeightG && userWeightG > 0) {
     identified = applyWeightFusion(identified, userWeightG);
@@ -1248,23 +1247,27 @@ export async function analyzeWatchByTier(
     }
   }
 
-  // ── Serial-number screening (ASYMMETRIC, flag-only) ───────────────────
-  // The new physical-evidence signal that REPLACES the weight-input AI-Data
+  // ── Serial-number screening (ASYMMETRIC, flag-only) — PREMIUM ONLY ─────
+  // The physical-evidence signal that REPLACES the weight-input AI-Data
   // Fusion. Validates the photo-read serial against the identified brand/model:
   // L1 format/charset + L2 production-era cross-check. Like the A1 classifier,
   // it can ONLY add caution — a clean serial does nothing (fakes copy real
-  // serials). It's free (rule-based, no AI call) so it runs on EVERY tier as a
-  // safety net — no scale required, unlike weight. See data/serialValidation.ts.
-  const serialCheck = validateSerial(identified.brand, identified.serialNumber, identified.year);
-  identified.serialCheck = serialCheck;
-  if (serialCheck.penalty > 0) {
-    const before = identified.authenticityProbability ?? 0;
-    const after = Math.max(5, before - serialCheck.penalty);
-    if (after < before) {
-      identified.authenticityProbability = after;
-      console.log(
-        `[aiRouter] Serial check (${serialCheck.status}, "${serialCheck.serial}") → auth confidence ${before}% → ${after}% (-${serialCheck.penalty}, asymmetric flag-only)`
-      );
+  // serials). It's rule-based (no AI call, no scale) but gated to Premium/trial
+  // as the paid AI-Data Fusion differentiator (tier cap `serialFusion`). For
+  // non-Premium tiers we attach NO serialCheck, so the ResultScreen serial
+  // banner stays hidden and the verdict isn't touched. See data/serialValidation.ts.
+  if (premiumLike) {
+    const serialCheck = validateSerial(identified.brand, identified.serialNumber, identified.year);
+    identified.serialCheck = serialCheck;
+    if (serialCheck.penalty > 0) {
+      const before = identified.authenticityProbability ?? 0;
+      const after = Math.max(5, before - serialCheck.penalty);
+      if (after < before) {
+        identified.authenticityProbability = after;
+        console.log(
+          `[aiRouter] Serial check (${serialCheck.status}, "${serialCheck.serial}") → auth confidence ${before}% → ${after}% (-${serialCheck.penalty}, asymmetric flag-only)`
+        );
+      }
     }
   }
 

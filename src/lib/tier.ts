@@ -85,10 +85,13 @@ export type TierCapabilities = {
   //   Free=1, Standard=2, Pro=3, Premium=4
   templatePhotoCount: 1 | 2 | 3 | 4;
 
-  // ✅ WIRED (ResultScreen + aiRouter) — AI-Data Fusion weight-discrepancy
-  // check (Premium only): catches the "real warranty card + counterfeit case"
-  // fraud pattern by cross-referencing measured weight vs spec range.
-  weightFusion: boolean;
+  // ✅ WIRED (ResultScreen + aiRouter) — AI-Data Fusion SERIAL validation
+  // (Premium only): the photo-read serial is screened for format/charset (L1)
+  // and production-era plausibility (L2). Asymmetric flag-only — a clean serial
+  // confirms nothing, a malformed/era-mismatched one lowers confidence. Replaced
+  // the old weight-discrepancy check (rule-based, no scale needed). Gates the
+  // serial banner + "Add serial" card in ResultScreen AND the engine penalty.
+  serialFusion: boolean;
 };
 
 // Free tier — 5 scans within a 30-DAY WINDOW. After the window elapses,
@@ -117,7 +120,7 @@ const FREE_CAPS: TierCapabilities = {
   heatmapPerMonth: 0,
   deepSearchPerMonth: 0,
   templatePhotoCount: 1,          // front dial only
-  weightFusion: false,
+  serialFusion: false,
 };
 
 // Standard Package — monthly scan limit: 20
@@ -145,7 +148,7 @@ const STANDARD_CAPS: TierCapabilities = {
   heatmapPerMonth: 0,
   deepSearchPerMonth: 0,
   templatePhotoCount: 2,          // front dial + caseback
-  weightFusion: false,
+  serialFusion: false,
 };
 
 // Pro Package — monthly scan limit: 50
@@ -173,7 +176,7 @@ const PRO_CAPS: TierCapabilities = {
   heatmapPerMonth: 0,
   deepSearchPerMonth: 0,
   templatePhotoCount: 3,          // front + back + side profile
-  weightFusion: false,
+  serialFusion: false,
 };
 
 // Premium Package — monthly scan limit: 100
@@ -201,7 +204,7 @@ const PREMIUM_CAPS: TierCapabilities = {
   heatmapPerMonth: 50,
   deepSearchPerMonth: 0,
   templatePhotoCount: 4,          // full 4-angle capture
-  weightFusion: true,             // 🏋️ AI-Data Fusion: material-density verification
+  serialFusion: true,             // 🔢 AI-Data Fusion: serial format + production-era check
 };
 
 export function tierCaps(tier: MembershipTier): TierCapabilities {

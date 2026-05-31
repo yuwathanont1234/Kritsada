@@ -579,7 +579,8 @@ export function ResultScreen({ route, navigation }: Props) {
             serial just confirms format/era; a format_suspect / era_mismatch
             raises caution (and already lowered the confidence number). Shown
             only when a serial was actually read. */}
-        {result.serialCheck &&
+        {caps.serialFusion &&
+          result.serialCheck &&
           result.serialCheck.status !== 'absent' &&
           result.serialCheck.status !== 'unsupported' &&
           (() => {
@@ -726,21 +727,23 @@ export function ResultScreen({ route, navigation }: Props) {
           </View>
         )}
 
-        {/* "Add weight to verify" CTA — Premium-only feature.
+        {/* "Add serial number" CTA — Premium-only feature (cap `serialFusion`).
             ─────────────────────────────────────────────────────
-            • Premium tier (or trial): renders the unlocked CTA that
-              opens the weight-input modal.
-            • Free / Standard / Pro: renders a locked CTA that opens
-              the upgrade modal instead. We keep the visual real-estate
-              consistent so non-premium users SEE that the feature
-              exists (good for conversion) rather than the row simply
-              disappearing.
-            Existing weightCheck banners above ignore tier — if a
-            user previously had Premium and downgraded, they keep
-            seeing past results they already paid for. */}
+            • Premium tier (or trial): unlocked CTA → opens the serial-input
+              modal; submit runs validateSerial locally (no Gemini re-call).
+            • Free / Standard / Pro: LOCKED CTA → opens the upgrade modal
+              (handleUpgradePress('auth')) so non-premium users SEE the
+              feature exists (conversion) rather than the row disappearing.
+            The serial banner above is likewise gated on caps.serialFusion,
+            and the engine only attaches result.serialCheck for premium-like
+            tiers — so the whole serial surface is Premium-only end to end. */}
         {result.identified && !result.serialNumber && (
           <Pressable
             onPress={() => {
+              if (!caps.serialFusion) {
+                handleUpgradePress('auth');
+                return;
+              }
               setSerialInput(result.serialNumber || '');
               setSerialModalOpen(true);
             }}
@@ -778,12 +781,16 @@ export function ResultScreen({ route, navigation }: Props) {
                   : 'Add the serial number to verify'}
               </Text>
               <Text style={{ color: '#A89E8A', fontSize: 11.5, lineHeight: 16 }}>
-                {lang === 'th'
-                  ? 'ตรวจรูปแบบ + ยุคผลิต (ดักซีเรียลผิดรูปแบบ/ผิดยุค) — ฟรีทุกแพ็คเกจ'
-                  : 'Format + production-era check (catches malformed / era-mismatched serials) — free on every tier'}
+                {caps.serialFusion
+                  ? (lang === 'th'
+                      ? 'ตรวจรูปแบบ + ยุคผลิต (ดักซีเรียลผิดรูปแบบ/ผิดยุค)'
+                      : 'Format + production-era check (catches malformed / era-mismatched serials)')
+                  : (lang === 'th'
+                      ? 'ตรวจรูปแบบ + ยุคผลิต — เฉพาะแพ็กเกจ Premium'
+                      : 'Format + production-era check — Premium only')}
               </Text>
             </View>
-            <Feather name="chevron-right" size={18} color="#ECC87A" />
+            <Feather name={caps.serialFusion ? 'chevron-right' : 'lock'} size={18} color="#ECC87A" />
           </Pressable>
         )}
 

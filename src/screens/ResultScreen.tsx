@@ -560,9 +560,13 @@ export function ResultScreen({ route, navigation }: Props) {
                 {lang === 'th' ? 'การตรวจสอบจำกัด' : 'LIMITED PHOTO COVERAGE'}
               </Text>
               <Text style={{ color: '#E8DCC0', fontSize: 13, lineHeight: 19 }}>
-                {lang === 'th'
-                  ? 'ความเชื่อมั่นถูกจำกัดที่ 70% เนื่องจากภาพไม่เพียงพอ เพิ่มภาพ macro ของเม็ดมะยม, รอบ rehaut, ฝาหลัง และพรายน้ำ เพื่อปลดล็อกการตรวจสอบความเชื่อมั่นสูงขึ้น'
-                  : 'Confidence capped at 70% due to limited photos. Add macro shots of the crown, rehaut engraving, caseback finishing, and lume to unlock higher-confidence authentication.'}
+                {result.macroCoverageCap === 85
+                  ? (lang === 'th'
+                      ? 'ความเชื่อมั่นถูกจำกัดที่ 85% — เพิ่มภาพ macro อีก 1 มุม (ฝาหลัง / เม็ดมะยม / รอบ rehaut) เพื่อปลดเพดานเต็มช่วง'
+                      : 'Confidence capped at 85% — add one more macro angle (caseback / crown / rehaut engraving) to unlock the full range.')
+                  : (lang === 'th'
+                      ? 'ความเชื่อมั่นถูกจำกัดที่ 70% เนื่องจากภาพไม่เพียงพอ เพิ่มภาพ macro ของเม็ดมะยม, รอบ rehaut, ฝาหลัง และพรายน้ำ เพื่อปลดล็อกการตรวจสอบความเชื่อมั่นสูงขึ้น'
+                      : 'Confidence capped at 70% due to limited photos. Add macro shots of the crown, rehaut engraving, caseback finishing, and lume to unlock higher-confidence authentication.')}
               </Text>
             </View>
           </View>

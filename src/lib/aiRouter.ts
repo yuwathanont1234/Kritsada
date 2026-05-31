@@ -1145,22 +1145,36 @@ export async function analyzeWatchByTier(
   // becomes "70% (limited photo coverage)" rather than flipping
   // to "uncertain", which would mislead in the opposite direction.
   const photoCount = 1 + (backUri ? 1 : 0) + (extraImages?.filter(Boolean).length ?? 0);
+  // GRADUATED coverage ceiling — the confidence cap scales with the number of
+  // inspection ANGLES actually provided (the real driver of how far a
+  // photo-only verdict can be trusted): 4+ angles unlock the full range, 3 cap
+  // at 85%, ≤2 cap at 70%. This is evidence-based, so it naturally
+  // differentiates the tiers by what they capture (Standard 2 → 70, Pro 3 → 85,
+  // Premium 4 → full) WITHOUT a tier flag — a Premium user who submits only 2
+  // photos is still held to 70, and anyone who adds an angle earns the higher
+  // ceiling. (Before this was binary: <4 → 70, which gave Pro the same 70% cap
+  // as Standard despite its extra angle.) The verdict itself isn't downgraded,
+  // only the number — a 92%-raw verdict on 3 photos reads "85%", never flipped
+  // to "uncertain".
+  const coverageCap = photoCount >= 4 ? 100 : photoCount === 3 ? 85 : 70;
   if (
-    photoCount < 4 &&
+    coverageCap < 100 &&
     identified.authenticityVerdict === 'likely-authentic' &&
-    (identified.authenticityProbability ?? 0) > 70
+    (identified.authenticityProbability ?? 0) > coverageCap
   ) {
     const rawProb = identified.authenticityProbability ?? 0;
     console.log(
-      `[aiRouter] Macro-coverage gate: ${photoCount} photo(s) < 4 → capping auth confidence ${rawProb}% → 70%`
+      `[aiRouter] Macro-coverage gate: ${photoCount} photo(s) → capping auth confidence ${rawProb}% → ${coverageCap}%`
     );
-    identified.authenticityProbability = 70;
-    // Tag for ResultScreen to render a "Limited photo coverage" banner.
+    identified.authenticityProbability = coverageCap;
+    // Tag for ResultScreen to render a "Limited photo coverage" banner + CTA.
     identified.macroCoverageWarning = true;
-    // Surface the cap in the user-visible reasoning so they understand
-    // why the verdict isn't higher.
+    identified.macroCoverageCap = coverageCap;
+    // Surface the cap in the user-visible reasoning so they understand the ceiling.
     const note =
-      ' (Confidence capped at 70% due to limited photo coverage — add macro shots of crown, rehaut engraving, and caseback for higher confidence.)';
+      coverageCap === 85
+        ? ' (Confidence capped at 85% — add a 4th macro shot of the caseback / crown / rehaut engraving for the full confidence range.)'
+        : ' (Confidence capped at 70% due to limited photo coverage — add macro shots of crown, rehaut engraving, and caseback for higher confidence.)';
     identified.authenticityReasoning =
       (identified.authenticityReasoning || '') + note;
   }

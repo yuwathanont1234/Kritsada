@@ -81,6 +81,12 @@ export type ScanResult = {
   // photo coverage" banner + add-macro-photos CTA when this is
   // true. Not persisted to DB — derived per-scan.
   macroCoverageWarning?: boolean;
+  // The confidence ceiling the macro-coverage gate applied (70 for ≤2 photos,
+  // 85 for 3). Lets the UI banner show the ACTUAL cap rather than a hardcoded
+  // number — the post-cap classifier penalty can lower authenticityProbability
+  // below the cap, so that field isn't a reliable stand-in. Undefined when no
+  // cap fired (4+ photos).
+  macroCoverageCap?: number;
 
   // AI-Data Fusion: weight-discrepancy signal. Populated by aiRouter
   // when the user provided a measured weight AND a spec exists for

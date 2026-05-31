@@ -50,6 +50,12 @@ export default function VerdictHeader({
   const [loading, setLoading] = useState(false);
   const [err, setErr] = useState<string | null>(null);
   const [sel, setSel] = useState<number | null>(null);
+  // Cap how many times the on-demand AI Hallmark can be (re)generated per result.
+  // Each run is a billable Gemini call (~฿1); the "refresh" used to re-fire it
+  // unlimited. 3 (initial + 2 refreshes) is plenty for "re-run if the photo was
+  // blurry" while stopping refresh-spam (audit H1).
+  const MAX_HEATMAP_RUNS = 3;
+  const [runCount, setRunCount] = useState(0);
 
   const isFront = activeIdx === 0;
   const mainUri = images[activeIdx] ?? images[0];
@@ -67,12 +73,14 @@ export default function VerdictHeader({
   }, [mainUri]);
 
   const runHeatmap = async () => {
+    if (loading || runCount >= MAX_HEATMAP_RUNS) return; // guard double-fire + spam
     setLoading(true);
     setErr(null);
     setSel(null);
     try {
       const r = await generateWatchHeatmap(images[0]);
       setHeatmap(r);
+      setRunCount((c) => c + 1); // count billable responses (errors don't burn it)
       if (!r.regions.length) {
         setErr(lang === 'th' ? 'ไม่พบจุดเด่นที่ชี้ได้จากภาพนี้ ลองถ่ายชัด/ใกล้ขึ้น' : 'No notable spots detected — try a sharper / closer photo.');
       }
@@ -242,9 +250,11 @@ export default function VerdictHeader({
                 <Legend color="#2ECC71" label={lang === 'th' ? `ผ่าน ${heatmap.counts.green}` : `OK ${heatmap.counts.green}`} />
                 <Legend color="#ECC87A" label={lang === 'th' ? `ตรวจซ้ำ ${heatmap.counts.yellow}` : `Check ${heatmap.counts.yellow}`} />
                 <Legend color="#E74C3C" label={lang === 'th' ? `น่าสงสัย ${heatmap.counts.red}` : `Flag ${heatmap.counts.red}`} />
-                <Pressable onPress={runHeatmap} hitSlop={10} style={{ marginLeft: 'auto' }}>
-                  <Feather name="refresh-cw" size={13} color={colors.textMuted} />
-                </Pressable>
+                {runCount < MAX_HEATMAP_RUNS && !loading && (
+                  <Pressable onPress={runHeatmap} hitSlop={10} style={{ marginLeft: 'auto' }}>
+                    <Feather name="refresh-cw" size={13} color={colors.textMuted} />
+                  </Pressable>
+                )}
               </View>
               {!!heatmap.overallNote && <Text style={styles.overall}>{heatmap.overallNote}</Text>}
               <Text style={styles.tapHint}>{lang === 'th' ? 'แตะหมายเลขหรือจุดบนรูปเพื่อดูรายละเอียด' : 'Tap a number or marker to see details.'}</Text>

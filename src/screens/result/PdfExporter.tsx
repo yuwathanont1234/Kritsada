@@ -6,6 +6,7 @@ import { Asset } from 'expo-asset';
 import { ScanResult } from '../../lib/types';
 import { AuthColor } from '../../lib/authVerdictColor';
 import { TierCapabilities } from '../../lib/tier';
+import { getLandmarksForWatch, matchSignalToLandmark } from '../../lib/data/watchLandmarks';
 
 interface ExportPDFParams {
   result: ScanResult;
@@ -104,18 +105,33 @@ export async function exportWatchPDF({
     const isTh = lang === 'th';
     const tt = (en: string, th: string): string => (isTh ? th : en);
 
-    // ── Verdict status (top-line conclusion shown below the gauge)
-    let verdictTitle = tt('Genuine Verified', 'ยืนยันของแท้');
-    let verdictPillText = tt('PASS', 'ผ่าน');
+    // HTML-escape — the checkpoint observation + name now carry
+    // freeform Gemini text (previously they were static literals), so
+    // a stray &, <, or > must not be able to break the markup.
+    const esc = (s: string): string =>
+      String(s ?? '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;');
+
+    // ── Verdict status (top-line conclusion shown below the gauge).
+    //    Driven by the model's ACTUAL authenticityVerdict so the PDF
+    //    never overclaims — a 70% "likely authentic" reads as exactly
+    //    that, not "Genuine Verified". Wording mirrors ResultScreen so
+    //    the share text, the app, and the PDF all agree.
+    const verdict = result.authenticityVerdict;
+    let verdictTitle = tt('Likely Authentic', 'มีแนวโน้มเป็นของแท้');
+    let verdictPillText = tt('LIKELY', 'น่าจะแท้');
     let verdictPillColor = '#2ECC71';
 
-    if (authColor === 'red') {
-      verdictTitle = tt('Reproduction Detected', 'ตรวจพบของลอกเลียน');
-      verdictPillText = tt('REPLICA', 'ปลอม');
+    if (authColor === 'red' || verdict === 'likely-reproduction') {
+      verdictTitle = tt('Likely Reproduction', 'มีแนวโน้มเป็นของเลียนแบบ');
+      verdictPillText = tt('REPRODUCTION', 'เลียนแบบ');
       verdictPillColor = '#E74C3C';
-    } else if (authColor === 'yellow') {
-      verdictTitle = tt('Inconclusive Analysis', 'ผลวิเคราะห์ไม่ชัดเจน');
-      verdictPillText = tt('UNCERTAIN', 'ไม่แน่ใจ');
+    } else if (authColor === 'yellow' || verdict === 'uncertain' || verdict === 'cannot-assess') {
+      verdictTitle = tt('Inconclusive', 'ไม่สามารถระบุได้');
+      verdictPillText = tt('REVIEW', 'ต้องตรวจเพิ่ม');
       verdictPillColor = '#F1C40F';
     }
 
@@ -144,89 +160,70 @@ export async function exportWatchPDF({
       conditionLabel = tt('Critical', 'วิกฤต');
     }
 
-    // ── Reusable pill phrases (Thai / English) for the 6 metric
-    //    cards below — kept here so we don't repeat the ternary
-    //    six times in the original. Each card picks one of three
-    //    severity labels depending on authColor.
-    const pillNormal = (pct: number) => tt(`Normal ${pct}%`, `ปกติ ${pct}%`);
-    const pillFailed = (pct: number) => tt(`Failed ${pct}%`, `ไม่ผ่าน ${pct}%`);
-    const pillDeviant = (pct: number) => tt(`Deviant ${pct}%`, `ผิดปกติ ${pct}%`);
-    const pillShallow = (pct: number) => tt(`Shallow ${pct}%`, `ตื้น ${pct}%`);
-    const pillWarning = (pct: number) => tt(`Warning ${pct}%`, `เตือน ${pct}%`);
-    const pillUncertain = (pct: number) => tt(`Uncertain ${pct}%`, `ไม่แน่ใจ ${pct}%`);
+    // ── Hallmark inspection checkpoints — REAL data (no fabrication).
+    //    The previous version invented six fixed "Box 1-6" cards
+    //    (Dial 100% / Lume 100% / Sapphire 100% ...) keyed ONLY on
+    //    authColor — every green watch got byte-identical "all passed"
+    //    claims about regions the AI never examined (and a cheap-brand
+    //    fast-path watch, which skips auth entirely, still showed six
+    //    perfect passes). That made the PDF claim far more than the
+    //    app and collapsed under any side-by-side check.
+    //
+    //    Now we drive the cards off the EXACT pipeline the app's
+    //    SpecsSection uses: the brand-specific landmark set
+    //    (getLandmarksForWatch) paired against THIS scan's own
+    //    authenticity signals (matchSignalToLandmark). Each card shows
+    //    the real /10 conformity score + the AI's actual observation,
+    //    or an honest "no observation" state when the model never
+    //    spoke to that landmark. PDF == app, always.
+    const signals = result.authenticitySignals ?? [];
+    const landmarks = getLandmarksForWatch(result.brand, result.name, result.reference);
+    // Status colour per weight — mirrors the app palette, tuned a
+    // touch warmer to sit on the dark-gold report background.
+    const cpColor = (w?: string, muted?: boolean): string =>
+      muted
+        ? '#8A8175'
+        : w === 'positive'
+        ? '#5FCB7D'
+        : w === 'negative'
+        ? '#E0524B'
+        : '#E0A23C';
+    // Cap at 8 so the single landscape row never gets cramped; brand
+    // sets are 5-7 in practice. Order is preserved so the card numbers
+    // line up 1:1 with the app's numbered checkpoints.
+    const checkpoints = landmarks.slice(0, 8).map((lm, i) => {
+      const m = matchSignalToLandmark(lm, signals);
+      const muted = !m;
+      return {
+        n: String(i + 1).padStart(2, '0'),
+        name: isTh ? lm.labelTh : lm.labelEn,
+        score: m?.score,
+        color: cpColor(m?.weight, muted),
+        muted,
+        obs: m
+          ? (isTh ? (m.signalTh || m.signal) : m.signal)
+          : tt('No AI observation at this landmark', 'ไม่มีข้อสังเกตจาก AI'),
+      };
+    });
+    const analyzedCount = checkpoints.filter((c) => !c.muted).length;
+    const checkpointCount = checkpoints.length;
 
-    // ── Diagnostic Checklist Cards — bilingual copy.
-    //    Each card has: title, pill label (Normal / Failed / etc.),
-    //    pill color tokens, and two short observation lines that
-    //    flip based on whether the verdict is green vs red/yellow.
-    //    Box 1 — Dial Markings
-    const b1Pill = authColor === 'green' ? pillNormal(100) : authColor === 'red' ? pillFailed(72) : pillUncertain(85);
-    const b1PillColor = authColor === 'green' ? '#2ECC71' : authColor === 'red' ? '#E74C3C' : '#F1C40F';
-    const b1PillBg = authColor === 'green' ? 'rgba(46, 204, 113, 0.1)' : authColor === 'red' ? 'rgba(231, 76, 60, 0.1)' : 'rgba(241, 196, 15, 0.1)';
-    const b1Text1 = authColor === 'green'
-      ? tt('Markers and dial centered', 'ตัวชี้และหน้าปัดอยู่กึ่งกลาง')
-      : tt('Dial index offset mismatch', 'ตัวชี้บนหน้าปัดเหลื่อมไม่ตรง');
-    const b1Text2 = authColor === 'green'
-      ? tt('Crown position at 12 o\'clock aligned', 'ตำแหน่งโลโก้ที่ 12 นาฬิกาตรงแนว')
-      : tt('Crown logo alignment deviation', 'ตำแหน่งโลโก้เบี่ยงเบนจากแนว');
-
-    // Box 2 — Text Printing
-    const b2Pill = authColor === 'green' ? pillNormal(100) : authColor === 'red' ? pillDeviant(65) : pillUncertain(88);
-    const b2PillColor = authColor === 'green' ? '#2ECC71' : authColor === 'red' ? '#E74C3C' : '#F1C40F';
-    const b2PillBg = authColor === 'green' ? 'rgba(46, 204, 113, 0.1)' : authColor === 'red' ? 'rgba(231, 76, 60, 0.1)' : 'rgba(241, 196, 15, 0.1)';
-    const b2Text1 = authColor === 'green'
-      ? tt('Sharp printing, no color bleeding', 'ตัวอักษรพิมพ์คมชัด ไม่มีสีเลอะ')
-      : tt('Fuzzy letter borders & ink bleed', 'ขอบตัวอักษรเบลอและมีสีเลอะ');
-    const b2Text2 = authColor === 'green'
-      ? tt('Font and kerning spacing normal', 'ฟอนต์และระยะห่างเป็นปกติ')
-      : tt('Kerning spacing deviation', 'ระยะห่างตัวอักษรผิดปกติ');
-
-    // Box 3 — Bezel Engraving
-    const b3Pill = authColor === 'green' ? pillNormal(99) : authColor === 'red' ? pillShallow(58) : pillUncertain(90);
-    const b3PillColor = authColor === 'green' ? '#2ECC71' : authColor === 'red' ? '#E74C3C' : '#F1C40F';
-    const b3PillBg = authColor === 'green' ? 'rgba(46, 204, 113, 0.1)' : authColor === 'red' ? 'rgba(231, 76, 60, 0.1)' : 'rgba(241, 196, 15, 0.1)';
-    const b3Text1 = authColor === 'green'
-      ? tt('Tachymeter engraving depth matches standards', 'ความลึกของการแกะสลักได้มาตรฐาน')
-      : tt('Extremely shallow letter engraving', 'การแกะสลักตัวอักษรตื้นเกินไป');
-    const b3Text2 = authColor === 'green'
-      ? tt('Checked gold/platinum coating substance', 'ตรวจสอบสารเคลือบทอง/แพลทินัมแล้ว')
-      : tt('Metallic gloss & plating variance', 'ความเงาและการชุบโลหะผิดปกติ');
-
-    // Box 4 — Caseback Serial & Engravings
-    const b4Pill = authColor === 'green' ? pillNormal(100) : authColor === 'red' ? pillWarning(70) : pillUncertain(85);
-    const b4PillColor = authColor === 'green' ? '#2ECC71' : authColor === 'red' ? '#E74C3C' : '#F1C40F';
-    const b4PillBg = authColor === 'green' ? 'rgba(46, 204, 113, 0.1)' : authColor === 'red' ? 'rgba(231, 76, 60, 0.1)' : 'rgba(241, 196, 15, 0.1)';
-    const b4Text1 = authColor === 'green'
-      ? tt('Deeply stamped caseback serial', 'ซีเรียลฝาหลังประทับลึกชัดเจน')
-      : tt('Laser etched serial replication', 'ซีเรียลแกะด้วยเลเซอร์แบบลอกเลียน');
-    const b4Text2 = authColor === 'green'
-      ? tt('Polished thread edges smooth', 'ขอบเกลียวขัดเรียบเนียน')
-      : tt('Coarse brushed metal contours', 'ขอบโลหะหยาบ ไม่เนียน');
-
-    // Box 5 — Lume Consistency
-    const b5Pill = authColor === 'green' ? pillNormal(100) : authColor === 'red' ? pillDeviant(75) : pillUncertain(92);
-    const b5PillColor = authColor === 'green' ? '#2ECC71' : authColor === 'red' ? '#E74C3C' : '#F1C40F';
-    const b5PillBg = authColor === 'green' ? 'rgba(46, 204, 113, 0.1)' : authColor === 'red' ? 'rgba(231, 76, 60, 0.1)' : 'rgba(241, 196, 15, 0.1)';
-    const b5Text1 = authColor === 'green'
-      ? tt('Luminous pigment applied evenly', 'เคลือบสารเรืองแสงสม่ำเสมอ')
-      : tt('Overflowed granular lume deposits', 'สารเรืองแสงล้นและเป็นเม็ด');
-    const b5Text2 = authColor === 'green'
-      ? tt('Luminescence brightness visually consistent', 'ความสว่างเรืองแสงสม่ำเสมอทุกตำแหน่ง')
-      : tt('Blotchy excitation glow unbalance', 'การเรืองแสงไม่สม่ำเสมอ มีจุดด่าง');
-
-    // Box 6 — Sapphire Crystal & Clarity
-    const b6Pill = authColor === 'green' ? pillNormal(100) : authColor === 'red' ? pillWarning(80) : pillUncertain(87);
-    const b6PillColor = authColor === 'green' ? '#2ECC71' : authColor === 'red' ? '#E74C3C' : '#F1C40F';
-    const b6PillBg = authColor === 'green' ? 'rgba(46, 204, 113, 0.1)' : authColor === 'red' ? 'rgba(231, 76, 60, 0.1)' : 'rgba(241, 196, 15, 0.1)';
-    const b6Text1 = authColor === 'green'
-      ? tt('Anti-reflective coated sapphire scratch-free', 'กระจกแซฟไฟร์เคลือบกันสะท้อน ไม่มีรอย')
-      : tt('Anti-reflective coat color variance', 'สีของชั้นเคลือบกันสะท้อนผิดปกติ');
-    const b6Text2 = authColor === 'green'
-      ? tt('Laser etched crown logo size correct at 6 o\'clock', 'โลโก้สลักเลเซอร์ขนาดถูกต้องที่ 6 นาฬิกา')
-      : tt('Thick, visible replica laser etching', 'ร่องรอยการสลักเลเซอร์หนาเห็นได้ชัด');
-
-    // SHA-256 random transaction signature
-    const randomSig = `b4f8d2e6c8a071d3f9e4b6c2a1d7f0e39c6b12d5${Math.random().toString(16).substring(2, 10).toUpperCase()}`;
+    // Deterministic verification signature — folded from the watch
+    // identity + verdict so the SAME scan ALWAYS yields the SAME
+    // reference string. The old value used Math.random(), so it changed
+    // on every export of the same watch — which quietly undermines the
+    // credibility of a "verification hash" the moment anyone re-exports.
+    // FNV-1a 32-bit, expanded to 32 hex chars via four cheap remixes.
+    const sigSeed = `${brand}|${reference}|${name}|${probability}|${serial}`;
+    let sigHash = 0x811c9dc5;
+    for (let i = 0; i < sigSeed.length; i++) {
+      sigHash ^= sigSeed.charCodeAt(i);
+      sigHash = Math.imul(sigHash, 0x01000193) >>> 0;
+    }
+    const hx = (n: number): string => (n >>> 0).toString(16).padStart(8, '0');
+    const randomSig = `${hx(sigHash)}${hx(Math.imul(sigHash, 0x9e3779b1))}${hx(
+      Math.imul(sigHash ^ 0x5bd1e995, 0x85ebca6b)
+    )}${hx(Math.imul(sigHash + 0x7feb352d, 0xc2b2ae35))}`.toUpperCase();
 
     // ── Gauge tick marks for the Condition & Authenticity Index.
     //    20 ticks every 18° around a 120-unit SVG canvas. Majors
@@ -320,8 +317,6 @@ export async function exportWatchPDF({
     html[lang="th"] .scan-label-tab,
     html[lang="th"] .scan-pass-badge,
     html[lang="th"] .metric-name,
-    html[lang="th"] .metric-badge,
-    html[lang="th"] .metric-item,
     html[lang="th"] .footer-title {
       letter-spacing: 0.3px !important;
     }
@@ -479,7 +474,11 @@ export async function exportWatchPDF({
       display: grid;
       grid-template-columns: 0.95fr 1.4fr 1.15fr;
       gap: 5mm;
-      flex-shrink: 0;
+      /* Pinned to the 78mm grid track; min-height:0 + overflow:hidden
+         stop any panel from growing the track and shoving the metrics
+         row down. */
+      min-height: 0;
+      overflow: hidden;
     }
 
     .panel {
@@ -489,6 +488,11 @@ export async function exportWatchPDF({
         linear-gradient(180deg, rgba(26, 22, 18, 0.55) 0%, rgba(15, 12, 9, 0.55) 100%);
       padding: 5mm 5mm;
       position: relative;
+      /* Clip any content to the panel's own grid track so a tall
+         child (e.g. the photo pair) can never spill onto the row
+         below. min-height:0 lets the panel shrink inside the grid. */
+      min-height: 0;
+      overflow: hidden;
     }
 
     .panel-title {
@@ -659,17 +663,25 @@ export async function exportWatchPDF({
       grid-template-columns: 1fr 1fr;
       gap: 4mm;
       height: 100%;
+      min-height: 0;
     }
 
     .scan-box {
       display: flex;
       flex-direction: column;
+      min-height: 0;
+      overflow: hidden;
     }
 
     .scan-image {
       width: 100%;
       flex: 1;
-      min-height: 70mm;
+      /* No fixed min-height — a 70mm floor here forced the photo panel
+         (title + 2 images + label tabs + padding ≈ 93mm) past its 78mm
+         grid track and the images bled down over metric card #5. The
+         flex:1 + min-height:0 below lets the pair shrink to fit the
+         track; background-size:cover keeps them filling the box. */
+      min-height: 0;
       border-top-left-radius: 4px;
       border-top-right-radius: 4px;
       border: 1px solid #D4B98C;
@@ -783,39 +795,69 @@ export async function exportWatchPDF({
       margin-bottom: 1.5mm;
     }
 
-    .metric-badge {
-      align-self: flex-start;
-      font-size: 6.5px;
-      font-weight: 800;
-      padding: 2px 6px;
-      border-radius: 8px;
-      text-transform: uppercase;
-      white-space: nowrap;
-      letter-spacing: 1px;
-      margin-bottom: 2mm;
+    /* ── Real-data checkpoint card internals ──
+       Replaces the old fixed "Normal 100%" pill. A matched landmark
+       shows its /10 conformity score (colour = weight); an unmatched
+       one shows a muted status dot + a dimmed card so the reader can
+       instantly tell analysed vs not-analysed. */
+    .metric-card-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 1.5mm;
     }
 
-    .metric-item {
+    .metric-card-muted {
+      opacity: 0.6;
+    }
+
+    .metric-score {
+      font-family: 'Cinzel', 'Cormorant Garamond', 'Noto Sans Thai', serif;
+      font-size: 12px;
+      font-weight: 700;
+      line-height: 1;
+      padding: 1.5px 5px;
+      border-radius: 5px;
+      border: 1px solid;
+      white-space: nowrap;
+    }
+
+    .metric-score-max {
+      font-size: 7px;
+      font-weight: 500;
+      opacity: 0.75;
+    }
+
+    .metric-status-dot {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+
+    .metric-obs {
       display: flex;
       align-items: flex-start;
-      gap: 4px;
-      margin-bottom: 1mm;
       font-size: 7px;
       color: #B5AFA5;
-      line-height: 1.3;
+      line-height: 1.35;
+      padding-left: 4px;
+      border-left: 2px solid transparent;
+      overflow: hidden;
     }
 
-    .metric-item:last-child {
-      margin-bottom: 0;
+    /* Clamp long Gemini observations so every card stays the same
+       height and inside its grid track. */
+    .metric-obs span {
+      display: -webkit-box;
+      -webkit-line-clamp: 4;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
     }
 
-    .metric-item span {
-      flex: 1;
-    }
-
-    .check-svg {
-      margin-top: 1px;
-      flex-shrink: 0;
+    .metric-obs-muted {
+      color: #6B6258;
+      font-style: italic;
     }
 
     /* ──────────────────────────────────────────────────────
@@ -1019,38 +1061,30 @@ export async function exportWatchPDF({
     <!-- 3. Diagnostic Metrics — 6 cards in one row -->
     <div class="metrics-section">
       <div class="metrics-section-title">
-        <span>${tt('Hallmark Diagnostic Metrics · 6 Inspection Points', 'ตัวชี้วัดเอกลักษณ์ · 6 จุดตรวจสอบ')}</span>
-        <span class="metrics-section-subtitle">${tt('Numbered cross-reference to AI landmark map', 'เลขอ้างอิงตามแผนภาพจุดตรวจสอบของ AI')}</span>
+        <span>${tt(`Hallmark Inspection · ${checkpointCount} Points`, `จุดตรวจสอบ Hallmark · ${checkpointCount} จุด`)}</span>
+        <span class="metrics-section-subtitle">${tt(`${analyzedCount} of ${checkpointCount} returned an AI observation`, `AI ให้ข้อสังเกต ${analyzedCount} จาก ${checkpointCount} จุด`)}</span>
       </div>
-      <div class="metrics-grid">
-        ${[
-          { n: '01', name: tt('Dial Markings', 'เครื่องหมายหน้าปัด'), pill: b1Pill, pillColor: b1PillColor, pillBg: b1PillBg, t1: b1Text1, t2: b1Text2 },
-          { n: '02', name: tt('Text Printing', 'การพิมพ์ตัวอักษร'), pill: b2Pill, pillColor: b2PillColor, pillBg: b2PillBg, t1: b2Text1, t2: b2Text2 },
-          { n: '03', name: tt('Bezel Engraving', 'การแกะสลักขอบ'), pill: b3Pill, pillColor: b3PillColor, pillBg: b3PillBg, t1: b3Text1, t2: b3Text2 },
-          { n: '04', name: tt('Caseback Serial', 'ซีเรียลฝาหลัง'), pill: b4Pill, pillColor: b4PillColor, pillBg: b4PillBg, t1: b4Text1, t2: b4Text2 },
-          { n: '05', name: tt('Lume Application', 'สารเรืองแสง'), pill: b5Pill, pillColor: b5PillColor, pillBg: b5PillBg, t1: b5Text1, t2: b5Text2 },
-          { n: '06', name: tt('Sapphire Crystal', 'กระจกแซฟไฟร์'), pill: b6Pill, pillColor: b6PillColor, pillBg: b6PillBg, t1: b6Text1, t2: b6Text2 },
-        ].map((m) => `
-          <div class="metric-card">
-            <div class="metric-card-number">${m.n}</div>
-            <div class="metric-name">${m.name}</div>
-            <div class="metric-badge" style="color: ${m.pillColor}; background-color: ${m.pillBg}; border: 1px solid ${m.pillColor};">${m.pill}</div>
-            <div class="metric-item">
-              <svg class="check-svg" width="9" height="9" viewBox="0 0 12 12">
-                <rect x="1" y="1" width="10" height="10" rx="2" fill="none" stroke="${m.pillColor}" stroke-width="1.2"></rect>
-                <path d="M3 6L5 8L9 4" fill="none" stroke="${m.pillColor}" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"></path>
-              </svg>
-              <span>${m.t1}</span>
+      <div class="metrics-grid" style="grid-template-columns: repeat(${checkpointCount}, 1fr);">
+        ${checkpoints
+          .map(
+            (c) => `
+          <div class="metric-card${c.muted ? ' metric-card-muted' : ''}">
+            <div class="metric-card-head">
+              <span class="metric-card-number">${c.n}</span>
+              ${
+                c.score != null
+                  ? `<span class="metric-score" style="color: ${c.color}; border-color: ${c.color};">${c.score}<span class="metric-score-max">/10</span></span>`
+                  : `<span class="metric-status-dot" style="background-color: ${c.color};"></span>`
+              }
             </div>
-            <div class="metric-item">
-              <svg class="check-svg" width="9" height="9" viewBox="0 0 12 12">
-                <rect x="1" y="1" width="10" height="10" rx="2" fill="none" stroke="${m.pillColor}" stroke-width="1.2"></rect>
-                <path d="M3 6L5 8L9 4" fill="none" stroke="${m.pillColor}" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"></path>
-              </svg>
-              <span>${m.t2}</span>
+            <div class="metric-name">${esc(c.name)}</div>
+            <div class="metric-obs" style="${c.muted ? '' : `border-left-color: ${c.color};`}">
+              <span${c.muted ? ' class="metric-obs-muted"' : ''}>${esc(c.obs)}</span>
             </div>
           </div>
-        `).join('')}
+        `
+          )
+          .join('')}
       </div>
     </div>
 

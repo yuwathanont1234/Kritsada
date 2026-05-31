@@ -504,7 +504,6 @@ async function upsertCacheRow(seed: RefSeed, payload: any): Promise<boolean> {
 
 // ── Main loop ──────────────────────────────────────────────────────
 (async () => {
-  let cached = 0;
   let fetched = 0;
   let failed = 0;
   let skipped = 0;

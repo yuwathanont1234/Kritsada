@@ -1,4 +1,3 @@
-import React from 'react';
 import { Alert } from 'react-native';
 import * as Print from 'expo-print';
 import * as Sharing from 'expo-sharing';
@@ -30,12 +29,10 @@ export async function exportWatchPDF({
   galleryImages,
   authColor,
   caps,
-  exchangeRate,
   generatingPDF,
   setGeneratingPDF,
   handleUpgradePress,
   lang,
-  t,
 }: ExportPDFParams) {
   // Check if current subscription tier supports PDF exporting
   if (!caps.pdfExport) {
@@ -46,12 +43,6 @@ export async function exportWatchPDF({
   if (generatingPDF) return;
   setGeneratingPDF(true);
 
-  // Simple formatter helper inside the function context
-  const formatTHB = (val?: number, rate: number | null = 36.5): string => {
-    if (val === undefined || isNaN(val)) return '-';
-    const activeRate = rate || 36.5;
-    return '฿' + Math.round(val * activeRate).toLocaleString();
-  };
 
   try {
     // 1. Convert all captured watch images (every angle) to base64
@@ -117,18 +108,15 @@ export async function exportWatchPDF({
     let verdictTitle = tt('Genuine Verified', 'ยืนยันของแท้');
     let verdictPillText = tt('PASS', 'ผ่าน');
     let verdictPillColor = '#2ECC71';
-    let verdictPillBg = 'rgba(46, 204, 113, 0.1)';
 
     if (authColor === 'red') {
       verdictTitle = tt('Reproduction Detected', 'ตรวจพบของลอกเลียน');
       verdictPillText = tt('REPLICA', 'ปลอม');
       verdictPillColor = '#E74C3C';
-      verdictPillBg = 'rgba(231, 76, 60, 0.1)';
     } else if (authColor === 'yellow') {
       verdictTitle = tt('Inconclusive Analysis', 'ผลวิเคราะห์ไม่ชัดเจน');
       verdictPillText = tt('UNCERTAIN', 'ไม่แน่ใจ');
       verdictPillColor = '#F1C40F';
-      verdictPillBg = 'rgba(241, 196, 15, 0.1)';
     }
 
     // ── Condition & Authenticity Index — qualifier band derived
@@ -172,7 +160,6 @@ export async function exportWatchPDF({
     //    pill color tokens, and two short observation lines that
     //    flip based on whether the verdict is green vs red/yellow.
     //    Box 1 — Dial Markings
-    const b1Title = tt('1. Dial Markings Alignment', '1. ตำแหน่งเครื่องหมายหน้าปัด');
     const b1Pill = authColor === 'green' ? pillNormal(100) : authColor === 'red' ? pillFailed(72) : pillUncertain(85);
     const b1PillColor = authColor === 'green' ? '#2ECC71' : authColor === 'red' ? '#E74C3C' : '#F1C40F';
     const b1PillBg = authColor === 'green' ? 'rgba(46, 204, 113, 0.1)' : authColor === 'red' ? 'rgba(231, 76, 60, 0.1)' : 'rgba(241, 196, 15, 0.1)';
@@ -184,7 +171,6 @@ export async function exportWatchPDF({
       : tt('Crown logo alignment deviation', 'ตำแหน่งโลโก้เบี่ยงเบนจากแนว');
 
     // Box 2 — Text Printing
-    const b2Title = tt('2. Text Printing Accuracy', '2. ความแม่นยำของการพิมพ์ตัวอักษร');
     const b2Pill = authColor === 'green' ? pillNormal(100) : authColor === 'red' ? pillDeviant(65) : pillUncertain(88);
     const b2PillColor = authColor === 'green' ? '#2ECC71' : authColor === 'red' ? '#E74C3C' : '#F1C40F';
     const b2PillBg = authColor === 'green' ? 'rgba(46, 204, 113, 0.1)' : authColor === 'red' ? 'rgba(231, 76, 60, 0.1)' : 'rgba(241, 196, 15, 0.1)';
@@ -196,7 +182,6 @@ export async function exportWatchPDF({
       : tt('Kerning spacing deviation', 'ระยะห่างตัวอักษรผิดปกติ');
 
     // Box 3 — Bezel Engraving
-    const b3Title = tt('3. Bezel Engraving Depth', '3. ความลึกของการแกะสลักขอบ');
     const b3Pill = authColor === 'green' ? pillNormal(99) : authColor === 'red' ? pillShallow(58) : pillUncertain(90);
     const b3PillColor = authColor === 'green' ? '#2ECC71' : authColor === 'red' ? '#E74C3C' : '#F1C40F';
     const b3PillBg = authColor === 'green' ? 'rgba(46, 204, 113, 0.1)' : authColor === 'red' ? 'rgba(231, 76, 60, 0.1)' : 'rgba(241, 196, 15, 0.1)';
@@ -208,7 +193,6 @@ export async function exportWatchPDF({
       : tt('Metallic gloss & plating variance', 'ความเงาและการชุบโลหะผิดปกติ');
 
     // Box 4 — Caseback Serial & Engravings
-    const b4Title = tt('4. Caseback Serial & Engravings', '4. ซีเรียลและการแกะสลักฝาหลัง');
     const b4Pill = authColor === 'green' ? pillNormal(100) : authColor === 'red' ? pillWarning(70) : pillUncertain(85);
     const b4PillColor = authColor === 'green' ? '#2ECC71' : authColor === 'red' ? '#E74C3C' : '#F1C40F';
     const b4PillBg = authColor === 'green' ? 'rgba(46, 204, 113, 0.1)' : authColor === 'red' ? 'rgba(231, 76, 60, 0.1)' : 'rgba(241, 196, 15, 0.1)';
@@ -220,7 +204,6 @@ export async function exportWatchPDF({
       : tt('Coarse brushed metal contours', 'ขอบโลหะหยาบ ไม่เนียน');
 
     // Box 5 — Lume Consistency
-    const b5Title = tt('5. Lume Consistency', '5. ความสม่ำเสมอของสารเรืองแสง');
     const b5Pill = authColor === 'green' ? pillNormal(100) : authColor === 'red' ? pillDeviant(75) : pillUncertain(92);
     const b5PillColor = authColor === 'green' ? '#2ECC71' : authColor === 'red' ? '#E74C3C' : '#F1C40F';
     const b5PillBg = authColor === 'green' ? 'rgba(46, 204, 113, 0.1)' : authColor === 'red' ? 'rgba(231, 76, 60, 0.1)' : 'rgba(241, 196, 15, 0.1)';
@@ -232,7 +215,6 @@ export async function exportWatchPDF({
       : tt('Blotchy excitation glow unbalance', 'การเรืองแสงไม่สม่ำเสมอ มีจุดด่าง');
 
     // Box 6 — Sapphire Crystal & Clarity
-    const b6Title = tt('6. Sapphire Crystal & Clarity', '6. กระจกแซฟไฟร์และความใส');
     const b6Pill = authColor === 'green' ? pillNormal(100) : authColor === 'red' ? pillWarning(80) : pillUncertain(87);
     const b6PillColor = authColor === 'green' ? '#2ECC71' : authColor === 'red' ? '#E74C3C' : '#F1C40F';
     const b6PillBg = authColor === 'green' ? 'rgba(46, 204, 113, 0.1)' : authColor === 'red' ? 'rgba(231, 76, 60, 0.1)' : 'rgba(241, 196, 15, 0.1)';

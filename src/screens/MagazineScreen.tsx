@@ -5,17 +5,15 @@ import {
   StyleSheet,
   ScrollView,
   Pressable,
-  Dimensions,
   Modal,
   Image,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Feather, Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
-import { colors, spacing, radius } from '../lib/theme';
+import { spacing, radius } from '../lib/theme';
 import { useLanguage } from '../lib/localization';
 
-const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
 interface Article {
   id: string;

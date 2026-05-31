@@ -11,7 +11,7 @@ interface ErrorStateProps {
 }
 
 export function ErrorState({ errorMsg, onRetry, onCancel }: ErrorStateProps) {
-  const { t, lang } = useLanguage();
+  const { t } = useLanguage();
 
   // Try to determine the nature of the error to show localized context
   let displayTitle = t('error.title');

@@ -64,7 +64,7 @@ async function getPortfolioMetrics() {
 }
 
 export default function PortfolioScreen({ navigation }: any) {
-  const { t, lang } = useLanguage();
+  const { lang } = useLanguage();
   const [metrics, setMetrics] = useState<{ summary: PortfolioSummary; watches: SavedWatch[] } | null>(null);
   const [exchangeRate, setExchangeRate] = useState<number>(36.5);
   const [brandFilter, setBrandFilter] = useState<string>('all');

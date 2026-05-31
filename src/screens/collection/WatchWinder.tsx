@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useRef } from 'react';
 import { View, Text, Pressable, Animated, Easing, StyleSheet } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Feather } from '@expo/vector-icons';
-import { colors, radius, spacing } from '../../lib/theme';
+import { colors, spacing } from '../../lib/theme';
 import { SavedWatch } from '../../lib/types';
 
 /**

@@ -5,7 +5,6 @@ import { StatusBar } from 'expo-status-bar';
 import { Feather } from '@expo/vector-icons';
 import { colors } from '../lib/theme';
 import { isAuthenticated } from '../lib/auth';
-import { useLanguage } from '../lib/localization';
 import { styles, screenW, screenH } from './AppStyles';
 
 export default function SplashScreen({ navigation }: any) {

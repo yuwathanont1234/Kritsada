@@ -4,7 +4,6 @@ import {
   ScrollView,
   Text,
   Pressable,
-  StyleSheet,
   Linking,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -18,7 +17,7 @@ const PRIVACY_URL = 'https://yuwathanont1234.github.io/Kritsada/legal/privacy.ht
 const TERMS_URL = 'https://yuwathanont1234.github.io/Kritsada/legal/terms.html';
 
 export default function InfoScreen({ route, navigation }: any) {
-  const { t, lang } = useLanguage();
+  const { lang } = useLanguage();
   const kind = route?.params?.kind || 'faq';
 
   const renderContent = () => {

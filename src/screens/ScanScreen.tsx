@@ -24,7 +24,7 @@ import { UpgradeModal, UpgradeReason } from '../components/UpgradeModal';
 import { DataConsentModal } from '../components/DataConsentModal';
 import { AiProcessingConsentModal } from '../components/AiProcessingConsentModal';
 import { hasValidAiConsent } from '../lib/aiConsent';
-import { BONUS_SCANS_PER_MONTH, getDataConsent } from '../lib/dataConsent';
+import { getDataConsent } from '../lib/dataConsent';
 import { grantFreeScanBonus } from '../lib/storage';
 import { getMembership } from '../lib/auth';
 import { getFreeScansUsed, isFreeWindowExpired } from '../lib/storage';
@@ -42,12 +42,6 @@ type Props = NativeStackScreenProps<RootStackParamList, 'Scan'>;
 
 type Side = 'front' | 'back' | 'top' | 'bottom';
 
-const SIDE_LABEL: Record<Side, string> = {
-  front: 'Dial & Bezel',
-  back: 'Caseback & Movement',
-  top: 'Crown & Profile',
-  bottom: 'Bracelet & Clasp',
-};
 
 // Capture order — front is required, the rest are optional. Tapping the
 // shutter advances to the next un-filled slot automatically so the user
@@ -242,7 +236,7 @@ export function ScanScreen({ navigation }: Props) {
 
   // P1 AI Processing Consent Gate — Apple AI Policy 2025 + PDPA require explicit
   // consent before sending user photos to third-party AI (Google Gemini + Replicate, USA).
-  const [aiConsentLoading, setAiConsentLoading] = useState(true);
+  const [, setAiConsentLoading] = useState(true);
   const [aiConsentModalVisible, setAiConsentModalVisible] = useState(false);
   React.useEffect(() => {
     (async () => {

@@ -1,7 +1,7 @@
 import React from 'react';
 import { View, Text, Pressable, ActivityIndicator, StyleSheet } from 'react-native';
 import { Feather, Ionicons } from '@expo/vector-icons';
-import { colors, radius, spacing } from '../../lib/theme';
+import { radius, spacing } from '../../lib/theme';
 import { AuthColor } from '../../lib/authVerdictColor';
 import { ScanResult } from '../../lib/types';
 import { TierCapabilities } from '../../lib/tier';

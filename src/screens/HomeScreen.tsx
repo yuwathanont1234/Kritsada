@@ -66,7 +66,7 @@ async function getPortfolioMetrics(): Promise<{
 }
 
 export default function HomeScreen({ navigation }: any) {
-  const { t, lang } = useLanguage();
+  const { lang } = useLanguage();
   const [user, setUser] = useState<AuthUser | null>(null);
   const [membership, setMembershipState] = useState<any>(null);
   const [portfolio, setPortfolio] = useState<{

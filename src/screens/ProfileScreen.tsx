@@ -204,7 +204,7 @@ async function getPortfolioMetrics() {
 }
 
 export default function CollectionScreen({ navigation }: any) {
-  const { t, lang } = useLanguage();
+  const { lang } = useLanguage();
   const [watches, setWatches] = useState<SavedWatch[]>([]);
   const [metrics, setMetrics] = useState({ totalCount: 0, totalValue: 0 });
   const [filter, setFilter] = useState<'all' | 'active' | 'sold'>('all');

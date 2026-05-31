@@ -667,7 +667,10 @@ function isApproaching(remaining: number, total: number): boolean {
 
 export async function checkScanAllowed(
   tier: MembershipTier,
-  freeScansUsedLifetime: number,
+  // Vestigial: callers still pass the free-scan count, but the body derives
+  // everything from tier + trialStart (trial uses getTrialScansUsed). Prefixed
+  // `_` to mark intentionally-unused without changing the signature/callers.
+  _freeScansUsedLifetime: number,
   trialStart?: string | null
 ): Promise<{
   allowed: boolean;

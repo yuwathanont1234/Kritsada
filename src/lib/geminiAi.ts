@@ -334,7 +334,6 @@ async function callGeminiJson<T = any>(opts: GeminiCallOptions): Promise<T> {
     // outage, not a transient — surfacing the error sooner lets the user
     // retry manually rather than staring at the spinner.
     const MAX_EDGE_RETRIES = 2;
-    let lastError: any = null;
     for (let attempt = 1; attempt <= MAX_EDGE_RETRIES; attempt++) {
       console.log(
         `[gemini:${opts.label}] Secure Edge Routing: Calling serverless analyze-watch backend` +
@@ -370,7 +369,6 @@ async function callGeminiJson<T = any>(opts: GeminiCallOptions): Promise<T> {
         return data as T;
       }
 
-      lastError = error;
       // Abort errors aren't transient — the user cancelled. Surface
       // immediately without retry so we don't burn budget pretending
       // we'll succeed.

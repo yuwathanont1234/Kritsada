@@ -1,13 +1,12 @@
 import React from 'react';
-import { View, Text, Pressable, ActivityIndicator, StyleSheet } from 'react-native';
+import { View, Text, Pressable, StyleSheet } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import { Feather, Ionicons } from '@expo/vector-icons';
+import { Feather } from '@expo/vector-icons';
 import { colors, radius, spacing } from '../../lib/theme';
 import { AuthColor } from '../../lib/authVerdictColor';
 import { ScanResult } from '../../lib/types';
 import { TierCapabilities } from '../../lib/tier';
 import { useLanguage } from '../../lib/localization';
-import { usePriceFallback } from './usePriceFallback';
 import {
   getLandmarksForWatch,
   matchSignalToLandmark,
@@ -29,15 +28,10 @@ export default function SpecsSection({
   authColor,
   result,
   caps,
-  exchangeRate,
-  savedId,
-  refreshingPrices,
   handleUpgradePress,
-  handleRefreshPrices,
   getBadgeLabel,
 }: SpecsSectionProps) {
   const { lang } = useLanguage();
-  const { formatTHB, getBrandFallbackPrice } = usePriceFallback();
 
   // Get authenticity badge styling
   let authBadge = null;

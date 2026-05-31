@@ -1,6 +1,6 @@
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { Feather, Ionicons } from '@expo/vector-icons';
+import { Feather } from '@expo/vector-icons';
 import {
   ActivityIndicator,
   Alert,
@@ -12,21 +12,13 @@ import {
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { PrimaryButton } from '../components/PrimaryButton';
 import { ScanningImageAnimation } from '../components/ScanningImageAnimation';
 import { ErrorState } from '../components/ErrorState';
 import { analyzeWatchByTier, logFullyCachedScan } from '../lib/aiRouter';
 import { getMembership } from '../lib/auth';
-import {
-  clearScanCaches,
-  embedFrontAndBack,
-  findSimilarWatches,
-  findSimilarExpertCerts,
-  prewarmAll,
-} from '../lib/visualRag';
+import { clearScanCaches, prewarmAll } from '../lib/visualRag';
 import { logScanEvent } from '../lib/scanAnalytics';
 import { subscribeRetry, type RetryStatus } from '../lib/retryStatus';
-import { COST_PER_CALL, logCostEvent } from '../lib/costBreaker';
 import { getDataConsent } from '../lib/dataConsent';
 import { incrementFreeScansUsed, getFreeScansUsed } from '../lib/storage';
 import {
@@ -49,60 +41,7 @@ import { colors, radius, spacing, typography } from '../lib/theme';
 import { RootStackParamList } from '../lib/types';
 import { useLanguage, translations } from '../lib/localization';
 
-// Progressive probe state — populated by parallel "fast probe"
-type Probe = {
-  brand?: string;
-  model?: string;
-  reference?: string;
-};
-
 type Props = NativeStackScreenProps<RootStackParamList, 'Loading'>;
-
-const TIPS = [
-  'Genuine luxury timepieces exhibit immaculate case finishing with hand-polished, seamlessly beveled edges and no sharp undercuts.',
-  'An authentic mechanical movement sweeps smoothly and gracefully. The seconds hand glides across the dial with near-frictionless sweep oscillations.',
-  'Authentic dials feature ultra-crisp typography, perfect alignment, and flawless logo transfer printing without any bleeding or micro-fuzziness.',
-  'Prestigious manufacturers employ ultra-premium materials: Oystersteel 904L, solid 18K gold, or high-tech scratch-resistant ceramic, giving a reassuringly heavy wrist presence.',
-  'Genuine luminescence (Super-LumiNova/Chromalight) displays a uniform, highly intense glow with pristine, even-layered application.',
-  'Beware of sophisticated "Super Clones" that mirror exterior details. Absolute authenticity is resolved via caliber engravings and gear train micro-geometry.',
-  'Authentic date apertures and cyclops magnification lenses are perfectly aligned, offering clean distortion-free enlargement and crisp font rendering.',
-];
-
-const CERT_TRUST_DISTANCE = 0.30;
-
-function ProbeLine({ icon, text }: { icon: string; text: string }) {
-  const anim = useRef(new Animated.Value(0)).current;
-  useEffect(() => {
-    Animated.timing(anim, {
-      toValue: 1,
-      duration: 380,
-      easing: Easing.out(Easing.cubic),
-      useNativeDriver: true,
-    }).start();
-  }, [anim]);
-  return (
-    <Animated.View
-      style={[
-        styles.probeRow,
-        {
-          opacity: anim,
-          transform: [
-            {
-              translateY: anim.interpolate({
-                inputRange: [0, 1],
-                outputRange: [8, 0],
-              }),
-            },
-          ],
-        },
-      ]}
-    >
-      <Text style={styles.probeIcon}>{icon}</Text>
-      <Text style={styles.probeText}>{text}</Text>
-      <Animated.Text style={[styles.probeCheck, { opacity: anim }]}>✓</Animated.Text>
-    </Animated.View>
-  );
-}
 
 function PulsingProbeRow({ text }: { text: string }) {
   const pulse = useRef(new Animated.Value(0.45)).current;
@@ -205,71 +144,6 @@ function NeuralTourbillon({ size = 64, duration = 3000 }: { size?: number; durat
         shadowOpacity: 1,
         shadowRadius: 4,
       }} />
-    </View>
-  );
-}
-
-function AnimatedAITitle() {
-  const { lang } = useLanguage();
-  const pulse = useRef(new Animated.Value(0.7)).current;
-  const scale = useRef(new Animated.Value(1)).current;
-  const [dots, setDots] = useState('');
-
-  useEffect(() => {
-    const opacityLoop = Animated.loop(
-      Animated.sequence([
-        Animated.timing(pulse, {
-          toValue: 1,
-          duration: 750,
-          easing: Easing.inOut(Easing.sin),
-          useNativeDriver: true,
-        }),
-        Animated.timing(pulse, {
-          toValue: 0.7,
-          duration: 750,
-          easing: Easing.inOut(Easing.sin),
-          useNativeDriver: true,
-        }),
-      ])
-    );
-    const scaleLoop = Animated.loop(
-      Animated.sequence([
-        Animated.timing(scale, {
-          toValue: 1.15,
-          duration: 750,
-          easing: Easing.inOut(Easing.sin),
-          useNativeDriver: true,
-        }),
-        Animated.timing(scale, {
-          toValue: 1,
-          duration: 750,
-          easing: Easing.inOut(Easing.sin),
-          useNativeDriver: true,
-        }),
-      ])
-    );
-    opacityLoop.start();
-    scaleLoop.start();
-    const dotsTimer = setInterval(() => {
-      setDots((d) => (d.length >= 3 ? '' : d + '.'));
-    }, 400);
-    return () => {
-      opacityLoop.stop();
-      scaleLoop.stop();
-      clearInterval(dotsTimer);
-    };
-  }, [pulse, scale]);
-
-  return (
-    <View style={styles.aiTitleRow}>
-      <Animated.View
-        style={[
-          { opacity: pulse, transform: [{ scale }], marginRight: spacing.sm },
-        ]}
-      >
-        <NeuralTourbillon size={38} duration={4000} />
-      </Animated.View>
-      <Text style={styles.title}>{lang === 'th' ? 'ระบบ AI กำลังวิเคราะห์' : 'AI Analyzing'}{dots}</Text>
     </View>
   );
 }
@@ -492,7 +366,7 @@ const AI_COUNT_BY_TIER: Record<string, number> = {
 export function LoadingScreen({ route, navigation }: Props) {
   const { t, lang } = useLanguage();
   const { frontUri, backUri, extraImages, extraImageRoles } = route.params;
-  const [tipIdx, setTipIdx] = useState(0);
+  const [, setTipIdx] = useState(0);
   const [elapsed, setElapsed] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const [aiCount, setAiCount] = useState(7);
@@ -604,13 +478,11 @@ export function LoadingScreen({ route, navigation }: Props) {
         let result;
         let provider: 'claude' | 'gemini' | 'cache' = 'cache';
         let cacheHit = false;
-        let cacheLayer: 'local' | 'shared' | null = null;
         if (fingerprint) {
           const cached = await getCachedScanResult(fingerprint);
           if (cached) {
             result = cached;
             cacheHit = true;
-            cacheLayer = 'local';
           } else {
             const shared = await getSharedCachedResult(
               fingerprint,
@@ -619,13 +491,11 @@ export function LoadingScreen({ route, navigation }: Props) {
             if (shared) {
               result = shared;
               cacheHit = true;
-              cacheLayer = 'shared';
               setCachedScanResult(fingerprint, shared).catch(() => {});
             }
           }
         }
 
-        const tAnalyze = Date.now();
         if (!cacheHit) {
           // Defense-in-depth re-gate (audit H2): ScanScreen gates first, but the
           // billable AI call happens HERE. If Loading is reached via a stale /
@@ -671,7 +541,6 @@ export function LoadingScreen({ route, navigation }: Props) {
             }
           }
         }
-        const analyzeMs = Date.now() - tAnalyze;
         if (cancelled) return;
 
         const scanTotalMs = Date.now() - scanT0;

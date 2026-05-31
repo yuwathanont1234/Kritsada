@@ -21,7 +21,6 @@ import * as ImagePicker from 'expo-image-picker';
 import { colors, radius, spacing } from '../lib/theme';
 import { AuthUser, getAuthUser, getMembership, startTrialAgain, clearTrial, MembershipTier, setMembership, updateUser, logout } from '../lib/auth';
 import { requestPhoneOtp, verifyPhoneOtp } from '../lib/simRegistry';
-import { getExchangeRate } from '../lib/currency';
 import { useLanguage } from '../lib/localization';
 import { styles } from './AppStyles';
 import {

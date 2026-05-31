@@ -13,7 +13,7 @@ import { StatusBar } from 'expo-status-bar';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Feather } from '@expo/vector-icons';
 import { colors, radius, spacing } from '../lib/theme';
-import { getMembership, setMembership, MembershipTier } from '../lib/auth';
+import { getMembership, MembershipTier } from '../lib/auth';
 import { getExchangeRate } from '../lib/currency';
 import { useLanguage } from '../lib/localization';
 import { styles } from './AppStyles';
@@ -80,7 +80,7 @@ function RecommendedRibbon({ lang }: { lang: 'th' | 'en' }) {
 export default function MembershipScreen({ navigation, route }: any) {
   const { t, lang } = useLanguage();
   const [activeTier, setActiveTier] = useState<MembershipTier>('free');
-  const [exchangeRate, setExchangeRate] = useState<number>(36.5);
+  const [, setExchangeRate] = useState<number>(36.5);
 
   // Segment-aware UI — drives tier ordering + copy emphasis on the
   // paywall. Read from userProfile (populated by OnboardingScreen).

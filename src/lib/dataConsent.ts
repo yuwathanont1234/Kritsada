@@ -103,7 +103,7 @@ export async function getDataConsent(): Promise<DataConsentStatus> {
 }
 
 export async function grantDataConsent(): Promise<DataConsentStatus> {
-  const cohort = await ensureCohortHash();
+  await ensureCohortHash();
   await AsyncStorage.setItem(KEYS.consentGranted, 'true');
   await AsyncStorage.setItem(KEYS.consentTimestamp, new Date().toISOString());
   await awardBonusScansIfNotYet();

@@ -40,17 +40,22 @@ import { scanBreadcrumb } from './sentry';
  *       4. Grounded Search Fallback (Standard+): If initial confidence falls below threshold (75% for Standard/Pro, 85% for Premium) and has no DB agreement, rerun Gemini with Google Search enabled.
  */
 
-const RAG_MIN_SIMILARITY = 0.3;
-// globalSpread = (max − min similarity) across the top-K candidates. Empirically
-// recalibrated 0.15 → 0.08 (2026-05-29): the live `image_embeddings.image_embedding_v2`
-// space (256-d probe-projected DINOv3) is tightly clustered — even a CLEAN, correct
-// Rolex catalog image only produces ~0.08 spread, and real user photos ~0.05. At 0.15
-// the gate rejected essentially every query (the scanned green-dial Rolex got 0.045),
-// so RAG corroboration never fired and every scan fell through to the Gemini path. The
-// downstream brand cross-check (visualBrandCorroborated) + RAG_MIN_TOP_MARGIN still guard
-// against accepting a wrong-brand top hit, so loosening spread is safe.
-const RAG_MIN_GLOBAL_SPREAD = 0.08;
-const RAG_MIN_TOP_MARGIN = 0.05;
+// ── Visual-RAG quality gates — recalibrated for the RAW 1024-d DINOv3 space
+// (migration 0015 switched matching off the 256-d probe). 1024-d cosines are
+// numerically SMALL (correct catalog matches land ~0.16-0.23, cross-brand
+// <0.13) but the RANKING is reliable — same-brand fills the top dozens of
+// neighbours before any cross-brand appears (first cross-brand at rank 49-366
+// in measurements). So these absolute floors are deliberately loose; the real
+// guard against a wrong-brand hit is the downstream brand/model AGREEMENT check
+// (Phase 1B). NOTE: floors are catalog↔catalog-calibrated — phone↔catalog may
+// sit lower, so watch the `[visualRag] top.sim=` logs on live scans and loosen
+// these if genuine matches get cut.
+const RAG_MIN_SIMILARITY = 0.08;
+// globalSpread = (max − min similarity) across the top-K. A clean same-brand
+// top-K in 1024-d spreads only ~0.05-0.07, so this is just a floor against a
+// degenerate near-uniform result (a broken/zero embedding). 0.08 → 0.012.
+const RAG_MIN_GLOBAL_SPREAD = 0.012;
+const RAG_MIN_TOP_MARGIN = 0.006;
 // Hard cap on the Phase-1C Google-grounded identify retry. Normal grounded
 // calls land in 5-15s; a 53s tail has been observed returning unchanged
 // confidence (then discarded). The grounded result is only used when it
@@ -616,48 +621,39 @@ export async function analyzeWatchByTier(
             !!identBrand && !!topBrand &&
             (topBrand.includes(identBrand) || identBrand.includes(topBrand));
 
-          if (top.similarity > 0.95 && matchesModel) {
-            // Strong DB validation — same logic as before.
+          // ── 1024-d corroboration tiers (migration 0015). Raw-DINOv3 cosines
+          // are numerically small (correct catalog matches ~0.16-0.23,
+          // cross-brand <0.13), so these floors are NOT the old 256-d-probe
+          // thresholds (0.95/0.85/0.65). The real signal is brand/model
+          // AGREEMENT between two INDEPENDENT methods (Gemini vision + DINOv3
+          // retrieval): the 1024-d top hit is a rank-reliable same-brand match,
+          // so brand agreement carries the corroboration and sim is just a
+          // loose floor. A false hit would need a coincidental shared brand
+          // with Gemini's guess. (Catalog-calibrated — if live phone scans
+          // corroborate lower, widen via the `[visualRag] top.sim` logs.)
+          if (top.similarity >= 0.15 && matchesBrand && matchesModel) {
+            // Strong: brand AND model agree at a confident 1024-d sim.
             dbValidated = true;
             console.log(
-              `[aiRouter] DB-validated ✓ AI + DINOv3 agree: "${identified.name}" vs top visual "${top.name}" (sim=${top.similarity.toFixed(3)})`
+              `[aiRouter] DB-validated ✓ (1024d) brand+model agree: "${identified.brand} ${identified.name}" vs "${top.brand} ${top.name}" (sim=${top.similarity.toFixed(3)})`
             );
-          } else if (top.similarity >= 0.85 && matchesBrand) {
-            // Strong-sim brand match (T2 short-circuit, 2026-05).
-            // DINOv3 returned a near-identical embedding with matching
-            // brand — even if the model name diverges slightly (e.g.
-            // Flash says "Submariner Date" vs DB says "Submariner"),
-            // the visual fingerprint is close enough to skip the
-            // ฿1.84-per-call Pro grounded retry. Treat as DB-validated.
-            //
-            // Why 0.85 not 0.95: DINOv3 embeddings on luxury watches
-            // rarely cross 0.95 unless the input image is from the
-            // brand's own marketing shot. Real user photos at ~0.85
-            // are still extremely confident matches.
+          } else if (top.similarity >= 0.13 && matchesBrand) {
+            // Strong brand agreement — model name may diverge on variants
+            // (Flash "Submariner Date" vs DB "Submariner"); the visual
+            // fingerprint + brand are enough to treat as DB-validated.
             dbValidated = true;
             console.log(
-              `[aiRouter] DB-validated ✓ strong-sim brand match: "${identified.brand}" vs top visual "${top.brand} ${top.name}" (sim=${top.similarity.toFixed(3)})`
+              `[aiRouter] DB-validated ✓ (1024d) strong brand match: "${identified.brand}" vs "${top.brand} ${top.name}" (sim=${top.similarity.toFixed(3)})`
             );
-          } else if (
-            top.similarity >= 0.60 &&
-            matchesBrand &&
-            matchesModel
-          ) {
-            // Light corroboration — moderate sim but brand AND model agree.
-            // Lowered 0.65 → 0.60 (2026-05-31): two INDEPENDENT methods
-            // (Gemini vision + DINOv3 retrieval) landing on the same
-            // brand+model is genuine corroboration even at mid-0.6 sim,
-            // where the phone-vs-catalog domain gap parks otherwise-valid
-            // matches of watches the DB DOES contain — so "Reference DB
-            // Match: not found" stops firing on them. Safe direction: the
-            // brand+model two-signal guard means a false hit would have to
-            // coincidentally share BOTH with Gemini's independent guess, and
-            // this only ever sets visualBrandCorroborated (skips the Pro
-            // retry → cost saver), never authenticity. Does NOT claim full
-            // DB-validated status (which downstream auth signals gate on).
+          } else if (top.similarity >= 0.09 && matchesBrand) {
+            // Light corroboration — brand agrees at a moderate 1024-d sim
+            // (typical of a phone-vs-catalog domain gap on a watch the DB DOES
+            // contain). Enough to surface the "Reference DB Match" + skip the
+            // Pro grounded retry; does NOT claim full DB-validated status
+            // (which downstream auth signals gate on).
             visualBrandCorroborated = true;
             console.log(
-              `[aiRouter] Visual-corroborated ✓ AI + DINOv3 agree (light): "${identified.brand} ${identified.name}" vs top visual "${top.brand} ${top.name}" (sim=${top.similarity.toFixed(3)}) — will skip grounded retry`
+              `[aiRouter] Visual-corroborated ✓ (1024d light) brand agrees: "${identified.brand} ${identified.name}" vs "${top.brand} ${top.name}" (sim=${top.similarity.toFixed(3)}) — skip grounded retry`
             );
           }
 

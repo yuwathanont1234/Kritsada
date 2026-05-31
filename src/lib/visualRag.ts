@@ -152,23 +152,18 @@ export function prewarmHnsw(): void {
     max_distance: 2.0,
   });
 
-  const body256 = JSON.stringify({
-    query_embedding: normalized.slice(0, 256),
-    match_count: 1,
-    max_distance: 2.0,
-  });
-
   const t0 = Date.now();
   const warn = (rpc: string) => (e: any) => {
     console.warn(`[visualRag] prewarm ${rpc} failed:`, String(e?.message ?? e).slice(0, 200));
     return null;
   };
   Promise.all([
-    fetch(`${SUPABASE_URL}/rest/v1/rpc/match_watches_v2`, {
+    // Warm the 1024-d match_watches HNSW index (the probe-256 path is retired).
+    fetch(`${SUPABASE_URL}/rest/v1/rpc/match_watches`, {
       method: 'POST',
       headers,
-      body: body256,
-    }).catch(warn('match_watches_v2')),
+      body,
+    }).catch(warn('match_watches')),
     fetch(`${SUPABASE_URL}/rest/v1/rpc/match_expert_cert`, {
       method: 'POST',
       headers,
@@ -536,7 +531,7 @@ export async function findSimilarWatches(
   const cacheKey = `${useV2 ? 'v2' : 'v1'}:${embeddingFingerprint(embedding)}:${k}:${threshold}`;
   const cached = getRagCached(ragWatchesCache, cacheKey);
   if (cached) {
-    console.log(`[visualRag] match_watches_v2 cache HIT (k=${k}, thr=${threshold})`);
+    console.log(`[visualRag] match_watches cache HIT (k=${k}, thr=${threshold})`);
     return cached;
   }
   const promise = _findSimilarWatchesImpl(embedding, k, threshold, useV2);
@@ -613,20 +608,20 @@ async function _findSimilarWatchesImpl(
   const fetchK = Math.max(k * 4, 20);
   const maxDistance = 1 - Math.min(Math.max(threshold, -1), 1);
 
-  let queryEmbedding = embedding;
-  if (useProbeV2) {
-    try {
-      queryEmbedding = await applyLinearProbe(embedding);
-    } catch (e: any) {
-      console.warn(`[visualRag] applyLinearProbe failed, falling back to 256 slice: ${e?.message}`);
-      queryEmbedding = embedding.slice(0, 256);
-    }
-  } else {
-    // Falls back to slicing to 256 dimension if probe explicitly disabled
-    queryEmbedding = embedding.slice(0, 256);
-  }
+  // Match on the RAW 1024-d DINOv3 embedding (match_watches, migration 0015) —
+  // NOT the 256-d linear probe (match_watches_v2). The probe projection
+  // collapses brand/model discrimination to ~random: measured same-brand@10 was
+  // 3.0/10 on the 256-d probe (Audemars 0/10, Omega 1/10) vs 10.0/10 on the raw
+  // 1024-d, with the first cross-brand neighbour only appearing at rank 49-366.
+  // That mis-match is why live scans retrieved wrong-brand top hits (a Rolex GMT
+  // pulling a TAG Carrera) and "Reference DB Match" never fired. The raw 1024-d
+  // vectors + their HNSW index already exist for every row. embedFrontAndBack
+  // returns the L2-normalized 1024-d, fed straight through — no probe. (useProbeV2
+  // param retained for the cache-key split but no longer projects.)
+  void useProbeV2;
+  const queryEmbedding = embedding;
 
-  const res = await fetch(`${SUPABASE_URL}/rest/v1/rpc/match_watches_v2`, {
+  const res = await fetch(`${SUPABASE_URL}/rest/v1/rpc/match_watches`, {
     method: 'POST',
     headers: {
       apikey: SUPABASE_ANON_KEY,
@@ -643,7 +638,7 @@ async function _findSimilarWatchesImpl(
 
   if (!res.ok) {
     const txt = await res.text();
-    console.warn(`[visualRag] match_watches_v2 RPC ${res.status} in ${fetchMs}ms: ${txt.slice(0, 200)}`);
+    console.warn(`[visualRag] match_watches RPC ${res.status} in ${fetchMs}ms: ${txt.slice(0, 200)}`);
     return {
       candidates: [],
       globalSpread: 0,
@@ -664,7 +659,7 @@ async function _findSimilarWatchesImpl(
   }>;
 
   if (rows.length === 0) {
-    console.log(`[visualRag] match_watches_v2 returned 0 rows in ${fetchMs}ms`);
+    console.log(`[visualRag] match_watches returned 0 rows in ${fetchMs}ms`);
     return {
       candidates: [],
       globalSpread: 0,
@@ -685,7 +680,7 @@ async function _findSimilarWatchesImpl(
   const avgSim = sims.reduce((a, b) => a + b, 0) / sims.length;
 
   console.log(
-    `[visualRag] match_watches_v2: ${rows.length} rows in ${fetchMs}ms, ` +
+    `[visualRag] match_watches: ${rows.length} rows in ${fetchMs}ms, ` +
       `top.id=${scored[0]?.watch_id ?? 'n/a'}, top.sim=${maxSim.toFixed(3)}, ` +
       `spread=${(maxSim - minSim).toFixed(3)}`
   );

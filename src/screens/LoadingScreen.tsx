@@ -28,10 +28,11 @@ import { logScanEvent } from '../lib/scanAnalytics';
 import { subscribeRetry, type RetryStatus } from '../lib/retryStatus';
 import { COST_PER_CALL, logCostEvent } from '../lib/costBreaker';
 import { getDataConsent } from '../lib/dataConsent';
-import { incrementFreeScansUsed } from '../lib/storage';
+import { incrementFreeScansUsed, getFreeScansUsed } from '../lib/storage';
 import {
   incrementMonthlyScans,
   incrementTrialScans,
+  checkScanAllowed,
 } from '../lib/tier';
 import { preflightWatchCheck } from '../lib/scanPreflight';
 import { checkAntiAbuse, recordSuccessfulScan, recordFailedScan } from '../lib/antiAbuse';
@@ -626,6 +627,25 @@ export function LoadingScreen({ route, navigation }: Props) {
 
         const tAnalyze = Date.now();
         if (!cacheHit) {
+          // Defense-in-depth re-gate (audit H2): ScanScreen gates first, but the
+          // billable AI call happens HERE. If Loading is reached via a stale /
+          // raced / deep-link path, re-assert the quota right before the call so
+          // a scan can't slip through for free. Cache hits are free → not gated.
+          const freeUsed = await getFreeScansUsed();
+          const gate = await checkScanAllowed(
+            membership.tier,
+            freeUsed,
+            membership.trialStart
+          );
+          if (!gate.allowed) {
+            console.warn('[LoadingScreen] re-gate blocked the scan:', gate.reason);
+            Alert.alert(
+              'สแกนครบโควต้า',
+              gate.reason || 'ใช้สิทธิ์สแกนครบแล้ว กรุณาอัปเกรดสมาชิก',
+              [{ text: 'OK', onPress: () => navigation.goBack() }]
+            );
+            return;
+          }
           const out = await analyzeWatchByTier(
             membership.tier,
             frontUri,

@@ -24,6 +24,7 @@ import {
   isEmbeddingCached,
 } from './visualRag';
 import { logCostEvent, COST_PER_CALL } from './costBreaker';
+import { getBrandFallbackPrice } from './data/brandFallbackPrices';
 import { getDataConsent } from './dataConsent';
 import { scanBreadcrumb } from './sentry';
 
@@ -506,7 +507,17 @@ export async function analyzeWatchByTier(
     if (!emb && enableVisualRag) {
       await new Promise((r) => setTimeout(r, 1500)); // let a cold Replicate finish booting
       emb = await embedFrontAndBack(frontUri, backUri).catch(() => null);
-      if (emb) src = 'retry';
+      if (emb) {
+        src = 'retry';
+        // Account for this FRESH embed in the cost breaker. The RAG
+        // embedPromise cost-log above only fires when the RAG embed
+        // itself RESOLVED — here it had failed (emb was still null), so
+        // we fell through to this independent retry, whose spend was
+        // otherwise invisible to the breaker. Only reachable on
+        // Standard+/trial: the whole block is gated by enableVisualRag,
+        // so Free never embeds here (classifier logs SKIPPED instead).
+        logCostEvent({ type: 'embedding', costUsd: COST_PER_CALL.embedding, tier }).catch(() => {});
+      }
     }
     if (!emb) {
       console.log(
@@ -930,29 +941,11 @@ export async function analyzeWatchByTier(
           : Promise.resolve(null)
       ]);
 
-function getBrandFallbackPrice(brand?: string, name?: string): number {
-  if (!brand) return 2500;
-  const b = brand.toLowerCase();
-  if (b.includes('rolex')) {
-    if (name?.toLowerCase().includes('daytona')) return 28400;
-    if (name?.toLowerCase().includes('submariner')) return 13500;
-    if (name?.toLowerCase().includes('datejust')) return 9800;
-    return 15000;
-  }
-  if (b.includes('patek')) return 55000;
-  if (b.includes('audemars') || b.includes('ap')) return 42000;
-  if (b.includes('omega')) return 6200;
-  if (b.includes('tag heuer') || b.includes('tagheuer') || b.includes('tag')) return 3200;
-  if (b.includes('tudor')) return 4100;
-  if (b.includes('cartier')) return 6500;
-  if (b.includes('chopard')) return 9200;
-  if (b.includes('franck') || b.includes('muller')) return 12500;
-  if (b.includes('zenith')) return 11000;
-  if (b.includes('breitling')) return 6800;
-  if (b.includes('longines')) return 2800;
-  if (b.includes('seiko')) return 450;
-  return 2500;
-}
+// getBrandFallbackPrice moved to ./data/brandFallbackPrices (imported
+// above). The old local copy duplicated here returned a single $15,000
+// catch-all for every Rolex that wasn't a Daytona/Submariner/Datejust,
+// so an Oyster Perpetual 36 and a GMT-Master II both showed the
+// identical fallback price. The shared version is model-aware.
 
       // Merge results
       if (authPayload) {

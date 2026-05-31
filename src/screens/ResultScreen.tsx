@@ -573,6 +573,61 @@ export function ResultScreen({ route, navigation }: Props) {
         )}
 
         {/* ─────────────────────────────────────────────────────────
+            AI-Data Fusion · SERIAL — the new primary physical-evidence
+            signal (auto-read serial; no scale needed). ASYMMETRIC: a clean
+            serial just confirms format/era; a format_suspect / era_mismatch
+            raises caution (and already lowered the confidence number). Shown
+            only when a serial was actually read. */}
+        {result.serialCheck &&
+          result.serialCheck.status !== 'absent' &&
+          result.serialCheck.status !== 'unsupported' &&
+          (() => {
+            const sc = result.serialCheck!;
+            const tone =
+              sc.status === 'era_mismatch'
+                ? { c: '#EF4444', icon: 'alert-triangle', bg: 'rgba(239,68,68,0.10)', bd: 'rgba(239,68,68,0.65)' }
+                : sc.status === 'format_suspect'
+                ? { c: '#ECC87A', icon: 'alert-circle', bg: 'rgba(236,200,122,0.07)', bd: 'rgba(236,200,122,0.50)' }
+                : { c: '#2ECC71', icon: 'check-circle', bg: 'rgba(46,204,113,0.07)', bd: 'rgba(46,204,113,0.45)' };
+            const title =
+              sc.status === 'era_mismatch'
+                ? lang === 'th' ? '🚩 ซีเรียลไม่สอดคล้องยุคของรุ่น' : '🚩 SERIAL ERA MISMATCH'
+                : sc.status === 'format_suspect'
+                ? lang === 'th' ? 'รูปแบบซีเรียลน่าสงสัย' : 'SERIAL FORMAT SUSPECT'
+                : lang === 'th' ? '✓ ซีเรียลสอดคล้อง (ตรวจรูปแบบ)' : '✓ SERIAL CONSISTENT (FORMAT)';
+            return (
+              <View
+                style={{
+                  marginHorizontal: 16,
+                  marginBottom: 12,
+                  borderRadius: 12,
+                  borderWidth: 1.5,
+                  borderColor: tone.bd,
+                  backgroundColor: tone.bg,
+                  padding: 14,
+                  flexDirection: 'row',
+                  alignItems: 'flex-start',
+                }}
+              >
+                <Feather name={tone.icon as any} size={20} color={tone.c} style={{ marginRight: 10, marginTop: 1 }} />
+                <View style={{ flex: 1 }}>
+                  <Text style={{ color: tone.c, fontSize: 12, fontWeight: '800', letterSpacing: 1, marginBottom: 4 }}>
+                    {(lang === 'th' ? 'AI-DATA FUSION · ซีเรียล — ' : 'AI-DATA FUSION · SERIAL — ') + title}
+                  </Text>
+                  {!!sc.serial && (
+                    <Text style={{ color: '#E8DCC0', fontSize: 13, lineHeight: 19, marginBottom: 4 }}>
+                      {(lang === 'th' ? 'ซีเรียล: ' : 'Serial: ') + sc.serial}
+                    </Text>
+                  )}
+                  <Text style={{ color: sc.status === 'era_mismatch' ? '#FCA5A5' : '#C0B4A0', fontSize: 12.5, lineHeight: 18 }}>
+                    {lang === 'th' ? sc.note.th : sc.note.en}
+                  </Text>
+                </View>
+              </View>
+            );
+          })()}
+
+        {/* ─────────────────────────────────────────────────────────
             AI-Data Fusion: Weight discrepancy banner.
             ─────────────────────────────────────────────────────────
             Renders only when applyWeightFusion has populated

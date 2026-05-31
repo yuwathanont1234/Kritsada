@@ -25,6 +25,7 @@ import {
 } from './visualRag';
 import { logCostEvent, COST_PER_CALL } from './costBreaker';
 import { getBrandFallbackPrice } from './data/brandFallbackPrices';
+import { validateSerial } from './data/serialValidation';
 import { getDataConsent } from './dataConsent';
 import { scanBreadcrumb } from './sentry';
 
@@ -1206,6 +1207,26 @@ export async function analyzeWatchByTier(
         ` (การคัดกรองด้วย AI real-vs-fake โน้มไปทางของเลียนแบบ: P(แท้)=${(pReal * 100).toFixed(0)}% — โปรดใช้ความระมัดระวังเพิ่มเติม นี่เป็นสัญญาณรอง ไม่ใช่คำตัดสินหลัก)`;
       identified.authenticityReasoning =
         (identified.authenticityReasoning || '') + note;
+    }
+  }
+
+  // ── Serial-number screening (ASYMMETRIC, flag-only) ───────────────────
+  // The new physical-evidence signal that REPLACES the weight-input AI-Data
+  // Fusion. Validates the photo-read serial against the identified brand/model:
+  // L1 format/charset + L2 production-era cross-check. Like the A1 classifier,
+  // it can ONLY add caution — a clean serial does nothing (fakes copy real
+  // serials). It's free (rule-based, no AI call) so it runs on EVERY tier as a
+  // safety net — no scale required, unlike weight. See data/serialValidation.ts.
+  const serialCheck = validateSerial(identified.brand, identified.serialNumber, identified.year);
+  identified.serialCheck = serialCheck;
+  if (serialCheck.penalty > 0) {
+    const before = identified.authenticityProbability ?? 0;
+    const after = Math.max(5, before - serialCheck.penalty);
+    if (after < before) {
+      identified.authenticityProbability = after;
+      console.log(
+        `[aiRouter] Serial check (${serialCheck.status}, "${serialCheck.serial}") → auth confidence ${before}% → ${after}% (-${serialCheck.penalty}, asymmetric flag-only)`
+      );
     }
   }
 

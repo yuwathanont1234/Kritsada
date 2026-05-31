@@ -1,3 +1,5 @@
+import { SerialCheck } from './data/serialValidation';
+
 export type AuthenticitySignal = {
   signal: string;
   // Thai translation of `signal`, populated by Gemini only when the scan
@@ -74,6 +76,13 @@ export type ScanResult = {
   authenticityVerdict?: 'likely-authentic' | 'uncertain' | 'likely-reproduction' | 'cannot-assess';
   authenticityReasoning?: string;   // Reason for the verdict
   serialNumber?: string;            // Serial/ref engraving read from a photo (only if legible; never guessed)
+
+  // Serial-number screening (src/lib/data/serialValidation.ts) — ASYMMETRIC,
+  // flag-only. L1 format + L2 production-era cross-check on the photo-read
+  // serial. A clean serial does NOT confirm authenticity (fakes copy serials);
+  // only a format-suspect / era-mismatch result carries a penalty. Replaces the
+  // weight-input AI-Data Fusion as the primary physical-evidence signal.
+  serialCheck?: SerialCheck;
 
   // Set by the macro-coverage gate in aiRouter when the scan had
   // fewer than 4 photos and the raw verdict would otherwise have

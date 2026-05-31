@@ -101,35 +101,62 @@ serve(async (req) => {
       }
     }
 
-    // ── Server-side per-USER scan ledger (STAGE 1: SHADOW — audit C1/C3/C5) ──
-    // Record the AUTHENTICATED user's scan count server-side, keyed on the JWT
-    // `sub` (auth.users.id) — the count a reinstall / clear-data CANNOT reset.
-    // SHADOW: log only, do NOT block. Once the logs confirm real logged-in users
-    // are tracked, Stage 2 flips this to enforce the tier cap BEFORE the AI call.
-    // Count ONE scan per scan-flow: label === 'identify' fires once per scan;
-    // 'auth'/'price'/'heatmap' (and the embed-image calls) are part of the same
-    // scan and must not be double-counted.
+    // ── Server-side scan guards (run ONCE per scan: label === 'identify') ────
+    // Two independent, fail-open, SHADOW-by-default checks:
+    //   (A) a GLOBAL daily scan ceiling — the catastrophic-cost backstop, and
+    //   (B) the per-USER monthly ledger (Stage 1/2, audit C1/C3/C5).
+    // 'auth'/'price'/'heatmap' and the embed-image calls are part of the same
+    // scan, so they're not counted here (no double-count).
     if (label === 'identify') {
       try {
-        const authHeader = req.headers.get('authorization') ?? ''
-        const jwt = authHeader.replace(/^Bearer\s+/i, '').trim()
         const lUrl = Deno.env.get('SUPABASE_URL')
         const lKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')
-        if (jwt && lUrl && lKey) {
+        if (lUrl && lKey) {
           const { createClient } = await import('https://esm.sh/@supabase/supabase-js@2')
           const admin = createClient(lUrl, lKey)
-          // getUser(jwt) returns no user for the anon key, a service_role token,
-          // or an expired session → those fall through to the existing device
-          // cap unchanged (nothing breaks: keep-warm, tooling, logged-out).
-          const { data: u } = await admin.auth.getUser(jwt)
+
+          // (A) GLOBAL daily scan ceiling — counts EVERY scan server-side,
+          // independent of who's logged in and of the client-logged cost_events
+          // (a tampered client can simply omit those). Generous default
+          // (2000/day ≈ ฿5k) that only a runaway/abuse spike reaches → bounds
+          // the worst-case daily spend to a known max. SHADOW by default; set
+          // GLOBAL_CEILING_ENFORCE=true (secret) to actually block — no redeploy.
+          try {
+            const GCAP = Number(Deno.env.get('GLOBAL_DAILY_SCAN_CAP') ?? '2000')
+            const GENFORCE = (Deno.env.get('GLOBAL_CEILING_ENFORCE') ?? 'false') === 'true'
+            const day = new Date().toISOString().slice(0, 10) // 'YYYY-MM-DD' (UTC)
+            const { data: g, error: gErr } = await admin.rpc('consume_global_scan', {
+              p_day: day, p_cap: GCAP, p_enforce: GENFORCE,
+            })
+            const grow = Array.isArray(g) ? g[0] : g
+            if (!gErr && grow) {
+              if (GENFORCE && grow.allowed === false) {
+                console.warn(`[global-ceiling:enforce] BLOCK day=${day} used=${grow.scans_used} >= cap=${GCAP}`)
+                return new Response(
+                  JSON.stringify({ error: "ระบบมีการใช้งานหนาแน่นผิดปกติ กรุณาลองใหม่ภายหลัง", quotaExceeded: true }),
+                  { status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+                )
+              }
+              const gWouldBlock = !GENFORCE && grow.scans_used > GCAP
+              console.log(`[global-ceiling:${GENFORCE ? 'enforce' : 'shadow'}] day=${day} used=${grow.scans_used} cap=${GCAP}${gWouldBlock ? ' WOULD-BLOCK' : ''}`)
+            } else if (gErr) {
+              console.warn(`[global-ceiling] rpc error: ${gErr.message}`)
+            }
+          } catch (ge) {
+            console.warn('[global-ceiling] skipped:', (ge as any)?.message)
+          }
+
+          // (B) Per-USER monthly ledger — keyed on the JWT `sub` (auth.users.id),
+          // a count a reinstall / clear-data CANNOT reset. getUser(jwt) returns
+          // no user for the anon key / service_role / expired session → those
+          // fall through to the device + global caps (keep-warm, tooling,
+          // logged-out unaffected). Backstop cap default 150 (> premium 100/mo).
+          const authHeader = req.headers.get('authorization') ?? ''
+          const jwt = authHeader.replace(/^Bearer\s+/i, '').trim()
+          const { data: u } = jwt ? await admin.auth.getUser(jwt) : { data: { user: null } as any }
           const userId = u?.user?.id
           if (userId) {
             const period = new Date().toISOString().slice(0, 7) // 'YYYY-MM'
-            // Per-user monthly backstop cap (Stage 2). Generous default (150 >
-            // premium's 100/mo) so it never blocks a real user, but bounds an
-            // abused account instead of leaving it unlimited. SHADOW by default;
-            // set SCAN_LEDGER_ENFORCE=true (secret) to start actually blocking —
-            // no redeploy needed.
             const CAP = Number(Deno.env.get('USER_MONTHLY_SCAN_CAP') ?? '150')
             const ENFORCE = (Deno.env.get('SCAN_LEDGER_ENFORCE') ?? 'false') === 'true'
             const { data: led, error: ledErr } = await admin.rpc('consume_user_scan', {
@@ -154,11 +181,11 @@ serve(async (req) => {
               console.warn(`[scan-ledger] rpc error: ${ledErr.message}`)
             }
           } else {
-            console.log('[scan-ledger:shadow] no authenticated user (anon/service/expired) — device cap only')
+            console.log('[scan-ledger:shadow] no authenticated user (anon/service/expired) — device + global cap only')
           }
         }
       } catch (e) {
-        console.warn('[scan-ledger:shadow] skipped:', (e as any)?.message)
+        console.warn('[scan-guards] skipped:', (e as any)?.message)
       }
     }
 

@@ -514,24 +514,14 @@ export async function analyzeWatchByTier(
       emb = await embedPromise.catch(() => null); // independent embed already running
       if (emb) src = 'fallback';
     }
-    if (!emb && enableVisualRag) {
-      await new Promise((r) => setTimeout(r, 1500)); // let a cold Replicate finish booting
-      emb = await embedFrontAndBack(frontUri, backUri).catch(() => null);
-      if (emb) {
-        src = 'retry';
-        // Account for this FRESH embed in the cost breaker. The RAG
-        // embedPromise cost-log above only fires when the RAG embed
-        // itself RESOLVED — here it had failed (emb was still null), so
-        // we fell through to this independent retry, whose spend was
-        // otherwise invisible to the breaker. Only reachable on
-        // Standard+/trial: the whole block is gated by enableVisualRag,
-        // so Free never embeds here (classifier logs SKIPPED instead).
-        logCostEvent({ type: 'embedding', costUsd: COST_PER_CALL.embedding, tier }).catch(() => {});
-      }
-    }
+    // NOTE: a SECOND fresh embedFrontAndBack used to live here (fired when
+    // embedPromise returned null), which DOUBLED cold-scan latency to ~134s
+    // (embedPromise ~67s + this retry ~67s). Removed — we rely on the in-flight
+    // embedPromise only (embedImageReal already retries internally), and the
+    // await downstream is time-capped so a cold boot can't stall the scan.
     if (!emb) {
       console.log(
-        `[authClassifier:shadow] SKIPPED — no embedding after fallback+retry ` +
+        `[authClassifier:shadow] SKIPPED — no embedding (embedPromise null/timeout) ` +
           `(visualRag=${enableVisualRag}, ragSkipped=${ragOutcome.skipped}). Replicate likely still cold.`
       );
       return null;
@@ -1195,7 +1185,18 @@ export async function analyzeWatchByTier(
   // can't be trusted to reassure — but its "fake" signal can only ever make us
   // MORE cautious, the safe direction for an authenticator. Low weight: the
   // reduction is capped so Gemini stays the primary verdict (never flips it).
-  const pReal = await authClassifierPromise;
+  // Time-cap the wait: on a cold Replicate boot the embed can take 60s+, and
+  // the scan must NOT block that long (a 134-155s scan reads as broken). If the
+  // classifier isn't ready within the cap, proceed without it — the Gemini
+  // verdict stands (and the watermark/auth signals still catch fakes). Warm
+  // scans resolve in a few seconds so they're unaffected; the cap only bites on
+  // the first cold scan after idle. (The DB-match salvage below shares this
+  // embed, so it's bounded too.)
+  const CLASSIFIER_AWAIT_CAP_MS = 15000;
+  const pReal = await Promise.race([
+    authClassifierPromise,
+    new Promise<number | null>((resolve) => setTimeout(() => resolve(null), CLASSIFIER_AWAIT_CAP_MS)),
+  ]);
   if (pReal !== null && pReal < 0.5) {
     const before = identified.authenticityProbability ?? 0;
     const MAX_PENALTY = 20; // points; keeps Gemini primary, never flips verdict

@@ -125,15 +125,33 @@ serve(async (req) => {
           const userId = u?.user?.id
           if (userId) {
             const period = new Date().toISOString().slice(0, 7) // 'YYYY-MM'
-            const { data: led, error: ledErr } = await admin.rpc('record_user_scan', {
+            // Per-user monthly backstop cap (Stage 2). Generous default (150 >
+            // premium's 100/mo) so it never blocks a real user, but bounds an
+            // abused account instead of leaving it unlimited. SHADOW by default;
+            // set SCAN_LEDGER_ENFORCE=true (secret) to start actually blocking —
+            // no redeploy needed.
+            const CAP = Number(Deno.env.get('USER_MONTHLY_SCAN_CAP') ?? '150')
+            const ENFORCE = (Deno.env.get('SCAN_LEDGER_ENFORCE') ?? 'false') === 'true'
+            const { data: led, error: ledErr } = await admin.rpc('consume_user_scan', {
               p_user_id: userId,
               p_period: period,
+              p_cap: CAP,
+              p_enforce: ENFORCE,
             })
             const row = Array.isArray(led) ? led[0] : led
             if (!ledErr && row) {
-              console.log(`[scan-ledger:shadow] user=${userId.slice(0, 8)} period=${period} period_used=${row.period_used} lifetime=${row.lifetime_used}`)
+              const u8 = userId.slice(0, 8)
+              if (ENFORCE && row.allowed === false) {
+                console.warn(`[scan-ledger:enforce] BLOCK user=${u8} period=${period} used=${row.period_used} >= cap=${CAP}`)
+                return new Response(
+                  JSON.stringify({ error: "ใช้สแกนครบโควต้าสูงสุดของบัญชีนี้ในเดือนนี้แล้ว กรุณาลองใหม่เดือนหน้าหรืออัปเกรดสมาชิก", quotaExceeded: true }),
+                  { status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+                )
+              }
+              const wouldBlock = !ENFORCE && row.period_used > CAP
+              console.log(`[scan-ledger:${ENFORCE ? 'enforce' : 'shadow'}] user=${u8} period=${period} period_used=${row.period_used} lifetime=${row.lifetime_used} cap=${CAP}${wouldBlock ? ' WOULD-BLOCK' : ''}`)
             } else if (ledErr) {
-              console.warn(`[scan-ledger:shadow] rpc error: ${ledErr.message}`)
+              console.warn(`[scan-ledger] rpc error: ${ledErr.message}`)
             }
           } else {
             console.log('[scan-ledger:shadow] no authenticated user (anon/service/expired) — device cap only')

@@ -257,8 +257,8 @@ export default function MembershipScreen({ navigation, route }: any) {
               {/* Segment-aware sub-headline. Role data from Onboarding. */}
               {userRole === 'dealer'
                 ? (lang === 'th'
-                    ? 'เครื่องมือมืออาชีพสำหรับดีลเลอร์ — PDF Cert + Weight Verification'
-                    : 'Professional Tools for Dealers — PDF Certs + Weight Verification')
+                    ? 'เครื่องมือมืออาชีพสำหรับดีลเลอร์ — PDF Cert + Serial Verification'
+                    : 'Professional Tools for Dealers — PDF Certs + Serial Verification')
                 : userRole === 'first_time'
                 ? (lang === 'th'
                     ? 'เริ่มต้นง่าย — ตรวจของก่อนซื้ออย่างมั่นใจ'
@@ -273,7 +273,7 @@ export default function MembershipScreen({ navigation, route }: any) {
               Drives conversion by surfacing the most-relevant tier:
                 • first_time → Standard (low commitment, learn the product)
                 • collector  → Pro (best value for high-volume usage)
-                • dealer     → Premium (PDF certs + weight verification) */}
+                • dealer     → Premium (PDF certs + serial verification) */}
           {userRole === 'first_time' && (
             <RecommendedRibbon lang={lang} />
           )}
@@ -305,8 +305,8 @@ export default function MembershipScreen({ navigation, route }: any) {
 
             <View style={styles.featuresList}>
               {[
-                lang === 'th' ? 'ตรวจสอบสิทธิ์ด้วยระบบ AI มาตรฐาน 2 ระบบย่อย (สูงสุด 20 สแกนต่อเดือน)' : 'Standard 2-Engine AI verification (up to 20 scans per month)',
-                lang === 'th' ? 'ความแม่นยำการวิเคราะห์ทางแสงระดับมาตรฐาน (Standard 88% Accuracy)' : 'Standard 88% visual optical accuracy rating',
+                lang === 'th' ? 'ระบบ AI ตรวจสอบความแท้ 3 เอนจิน — Vision AI · DINOv3 ฐานข้อมูลอ้างอิง · Neural Classifier (สูงสุด 20 สแกน/เดือน)' : '3-Engine AI authenticity check — Vision AI · DINOv3 Reference-DB · Neural Classifier (up to 20 scans/month)',
+                lang === 'th' ? 'ความแม่นยำการคัดกรองทางภาพสูงสุด 70% (สแกน 2 มุม)' : 'Up to 70% visual screening accuracy (2-angle scan)',
                 lang === 'th' ? 'ความละเอียดภาพสแกน 2 มุมกล้องหลัก (หน้าปัดและฝาหลังความละเอียดสูง)' : 'Standard 2-angle optical resolution (dial face + caseback micro-shots)',
                 lang === 'th' ? 'ปลดล็อกการวิเคราะห์ขอบหน้าปัดและฟอนต์ตัวอักษรเพื่อคัดกรองเบื้องต้น' : 'Unlocks bezel alignment & dial typography proportions screening'
               ].map((feat, idx) => (
@@ -366,11 +366,11 @@ export default function MembershipScreen({ navigation, route }: any) {
 
             <View style={styles.featuresList}>
               {[
-                lang === 'th' ? 'ตรวจสอบสิทธิ์ด้วยระบบ AI ขั้นสูง 4 ระบบย่อย (สูงสุด 50 สแกนต่อเดือน)' : 'Advanced 4-Engine AI verification (up to 50 scans per month)',
-                lang === 'th' ? 'ความแม่นยำประเมินทางทัศนศาสตร์ระดับมืออาชีพ (Professional 94% Accuracy)' : 'Professional 94% visual optical accuracy rating',
+                lang === 'th' ? 'ระบบ AI 4 เอนจิน — 3 เอนจินตรวจแท้ + AI ประเมินราคาตลาด (Grounded) (สูงสุด 50 สแกน/เดือน)' : '4-Engine AI — 3 authenticity engines + Grounded market-valuation AI (up to 50 scans/month)',
+                lang === 'th' ? 'ความแม่นยำการคัดกรองสูงสุด 85% — ปลดเพดานเหนือ Standard ด้วยภาพ 3 มุม' : 'Up to 85% screening accuracy — unlocked above Standard via 3-angle capture',
                 lang === 'th' ? 'ความละเอียดระดับไมโครสแกน 3 มุมกล้อง (หน้าปัด, ฝาหลัง และขอบเม็ดมะยม)' : 'High-definition 3-angle micro-resolution (adds case side & crown details)',
                 lang === 'th' ? 'แผนภาพตราประจำการตรวจสอบ (Hallmark Diagnostic Map) เฉพาะแบรนด์ + เทียบเคียงใบเซอร์ผู้เชี่ยวชาญ' : 'Brand-specific Hallmark Diagnostic Map with numbered landmarks & expert certificate matches',
-                lang === 'th' ? 'สร้างไฟล์รายงานผลสแกนและใบรับรองในรูปแบบ PDF ระดับพรีเมียม' : 'Premium PDF scan report generation & high-end collector exporting'
+                lang === 'th' ? 'ประเมินราคาตลาดเรียลไทม์ + สร้างรายงานผลสแกน PDF ระดับพรีเมียม' : 'Real-time market valuation + premium PDF scan report generation'
               ].map((feat, idx) => (
                 <View key={idx} style={styles.featureRow}>
                   <Feather name="check" size={14} color={colors.amber} style={styles.featureIcon} />
@@ -433,11 +433,12 @@ export default function MembershipScreen({ navigation, route }: any) {
 
             <View style={styles.featuresList}>
               {[
-                lang === 'th' ? 'ตรวจสอบสิทธิ์ด้วยระบบ AI พรีเมียม 8 ระบบย่อย (สูงสุด 100 สแกนต่อเดือน)' : 'Premium 8-Engine AI verification (up to 100 scans per month)',
-                lang === 'th' ? 'ความแม่นยำสูงระดับสุดยอดมาตรฐานสถาบันประมูล (Executive 99.2% Accuracy)' : 'Ultimate high-fidelity auction-grade accuracy (99.2% Executive Accuracy)',
-                lang === 'th' ? 'ความละเอียดระดับกล้องขยายไมโครสโคป 4 มุมกล้อง (วิเคราะห์เนื้อโลหะและกลไกแกนล้อ)' : 'Microscopic 4-angle resolution (adds millimeter caliber finishes & movement gear micro-shots)',
-                lang === 'th' ? 'Hallmark Diagnostic Map ระดับลึก: ตราประทับโลหะจิ๋ว, ตราสลักทองคำ และรหัสขอบเลเซอร์' : 'Deep Hallmark Diagnostic Map: micro-hallmarks, laser etchings & gold stamps',
-                lang === 'th' ? 'ตู้นิรภัยสะสมสูงสุด 100 เรือน พร้อมส่งออกรายงานผลสแกน PDF ระดับพรีเมียม' : 'Up to 100-watch collection vault & premium PDF scan report exporting'
+                lang === 'th' ? 'ระบบ AI ครบ 6 เอนจิน — ครบทุกเอนจิน Pro + AI Hallmark Heatmap + AI-Data Fusion (Serial) (สูงสุด 100 สแกน/เดือน)' : 'Full 6-Engine AI — every Pro engine + AI Hallmark Heatmap + AI-Data Fusion (Serial) (up to 100 scans/month)',
+                lang === 'th' ? 'ความแม่นยำการคัดกรองสูงสุด ~95% (สแกนครบ 4 มุม) ระดับเตรียมเข้าประมูล' : 'Up to ~95% auction-prep screening accuracy (full 4-angle scan)',
+                lang === 'th' ? 'ความละเอียดระดับไมโคร 4 มุมกล้อง (เพิ่มงานเก็บขอบตัวเรือนและกลไกแกนล้อ)' : 'Microscopic 4-angle resolution (adds case finishing & movement gear micro-shots)',
+                lang === 'th' ? 'AI Hallmark Heatmap ออนดีมานด์ + ตราประทับโลหะจิ๋ว/ตราสลักทอง/รหัสขอบเลเซอร์ (เฉพาะ Premium)' : 'On-demand AI Hallmark Heatmap + micro-hallmarks, laser etchings & gold stamps (Premium only)',
+                lang === 'th' ? 'AI-Data Fusion: ตรวจสอบ Serial Number รูปแบบ + ยุคการผลิต (เฉพาะ Premium) 🆕' : 'AI-Data Fusion: Serial Number format + production-era validation (Premium only) 🆕',
+                lang === 'th' ? 'ตู้นิรภัยสะสมสูงสุด 100 เรือน + ส่งออกรายงานผลสแกน PDF ระดับพรีเมียม' : 'Up to 100-watch collection vault & premium PDF scan report exporting'
               ].map((feat, idx) => (
                 <View key={idx} style={styles.featureRow}>
                   <Feather name="check" size={14} color={colors.amber} style={styles.featureIcon} />

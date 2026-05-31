@@ -240,12 +240,17 @@ export async function signInWithGoogle(): Promise<AuthUser> {
 }
 
 export async function getMembership(): Promise<MembershipStatus> {
-  const raw = (await AsyncStorage.getItem(KEYS.membership)) ?? 'premium';
+  // Default to 'free' when unset/unrecognized (audit M2). Previously defaulted to
+  // 'premium', so a fresh install or corrupted membership state silently granted
+  // full Premium for free. A genuinely paid user's tier is restored from IAP /
+  // RevenueCat on launch (syncMembershipFromIap), so failing closed to 'free' is
+  // safe — at worst a paid user shows free for a moment until the sync runs.
+  const raw = (await AsyncStorage.getItem(KEYS.membership)) ?? 'free';
   let tier: MembershipTier;
   if (raw === 'plus') tier = 'standard';
   else if (raw === 'trial') tier = 'free'; // trial is a flag now, not a tier
   else if (raw === 'standard' || raw === 'pro' || raw === 'premium') tier = raw;
-  else tier = 'premium';
+  else tier = 'free';
 
   // Check trial state — independent of subscribed tier
   const trialStart = await AsyncStorage.getItem(KEYS.trialStart);

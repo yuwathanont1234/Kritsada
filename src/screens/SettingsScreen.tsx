@@ -737,6 +737,12 @@ export default function SettingsScreen({ navigation }: any) {
         {/* ==========================================
             DEVELOPER CONTROL PANEL OVERLAY (FOR SANDBOX GATES TESTING)
             ========================================== */}
+        {/* Dev-only — __DEV__-gated so it's stripped from production builds.
+            These buttons call setMembership()/clearTrial() locally and open the
+            (fake, Math.random) phone-OTP trial — shipping them = a free-Premium
+            + free-trial hole (audit M2 / C2). Real trial/upgrade flows for
+            production go through IAP + the server entitlement (Stage 3). */}
+        {__DEV__ && (
         <View style={styles.devCard}>
           <Text style={styles.devCardTitle}>{t('settings.devControls')}</Text>
           <Text style={styles.devCardSub}>{t('settings.devSub')}</Text>
@@ -787,6 +793,7 @@ export default function SettingsScreen({ navigation }: any) {
             </Pressable>
           </View>
         </View>
+        )}
       </SafeAreaView>
     </ScrollView>
  

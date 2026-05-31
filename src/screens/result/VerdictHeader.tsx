@@ -120,6 +120,11 @@ export default function VerdictHeader({
   // SpecsSection mutes EVERY checkpoint when a weight-mismatch override fired
   // (the Gemini signals are superseded); mirror that so the dots stay faithful.
   const overridden = result.weightCheck?.grade === 'mismatch';
+  // ...and mutes contradictory GREEN dots on a fake verdict (a good replica
+  // looks correct feature-by-feature; the dots must not reassure on a fake).
+  const verdictIsFake =
+    result.authenticityVerdict === 'likely-reproduction' ||
+    (result.authenticityProbability != null && result.authenticityProbability < 35);
   // Exactly the SpecsSection palette so the two views match pixel-for-pixel.
   const weightColor = (w?: string, muted?: boolean): string =>
     muted || !w ? '#94A3B8'
@@ -143,7 +148,7 @@ export default function VerdictHeader({
       const li = regionLandmarkIdx(r.feature);
       if (li < 0) return null;
       const m = matchSignalToLandmark(landmarks[li], signals);
-      const muted = overridden || !m;
+      const muted = overridden || !m || (verdictIsFake && m.weight === 'positive');
       const kind: Dot['kind'] = muted ? 'none' : m.weight === 'positive' ? 'ok' : m.weight === 'negative' ? 'flag' : 'check';
       return { region: r, num: li + 1, color: weightColor(m?.weight, muted), kind };
     })

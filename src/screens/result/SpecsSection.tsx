@@ -484,6 +484,16 @@ function LandmarkCardsSection({
   );
   const signals = result.authenticitySignals ?? [];
   const overridden = result.weightCheck?.grade === 'mismatch';
+  // A reproduction verdict with POSITIVE per-feature scores is contradictory:
+  // a good replica looks correct feature-by-feature (these scores rate how the
+  // feature LOOKS in the photo, not authenticity), and the verdict is driven by
+  // HOLISTIC signals (web-seller watermark, A1 classifier) that aren't tied to
+  // these landmark checkpoints. So when the app already called the watch fake,
+  // mute the misleading greens + show an explainer — the list must never read
+  // as "passed" on a watch the verdict says is a reproduction.
+  const verdictIsFake =
+    result.authenticityVerdict === 'likely-reproduction' ||
+    (result.authenticityProbability != null && result.authenticityProbability < 35);
 
   // Pre-compute matches so we don't re-run the regex on every render.
   const cards = React.useMemo(
@@ -530,10 +540,37 @@ function LandmarkCardsSection({
         </View>
       )}
 
+      {verdictIsFake && cards.some((c) => c.match?.weight === 'positive') && (
+        <View
+          style={{
+            flexDirection: 'row',
+            alignItems: 'flex-start',
+            paddingHorizontal: 10,
+            paddingVertical: 9,
+            borderRadius: 8,
+            borderWidth: 1,
+            borderColor: 'rgba(236, 200, 122, 0.45)',
+            backgroundColor: 'rgba(236, 200, 122, 0.07)',
+            marginBottom: 10,
+          }}
+        >
+          <Feather name="alert-triangle" size={13} color="#ECC87A" style={{ marginRight: 7, marginTop: 1 }} />
+          <Text style={{ color: '#D9CBA8', fontSize: 11, flex: 1, lineHeight: 16 }}>
+            {lang === 'th'
+              ? 'คะแนนรายจุดด้านล่างสะท้อน "หน้าตา" ของแต่ละจุดในภาพ ไม่ใช่ความแท้ — ของเลียนแบบเกรดดีผ่านรายจุดได้ คำตัดสินรวมเป็น "ของเลียนแบบ" มาจากสัญญาณองค์รวม (เช่น ลายน้ำเว็บขายของปลอม หรือ AI classifier)'
+              : 'The per-point scores below reflect how each feature LOOKS in the photo, not authenticity — a good replica can score well point-by-point. The overall "Reproduction" verdict comes from holistic signals (e.g. a reseller watermark or the AI classifier).'}
+          </Text>
+        </View>
+      )}
+
       {cards.map(({ landmark, match }, idx) => {
         const expanded = expandedId === landmark.id;
         const weight = match?.weight;
-        const isMuted = overridden || !match;
+        // A positive (green) score on a fake verdict is contradictory — mute it
+        // so the list never reassures on a watch the app already called fake.
+        // Negative/neutral scores stay (they support the verdict).
+        const contradictoryPositive = verdictIsFake && weight === 'positive';
+        const isMuted = overridden || !match || contradictoryPositive;
 
         const statusColor = isMuted
           ? '#94A3B8'
@@ -545,6 +582,8 @@ function LandmarkCardsSection({
 
         const statusIcon: any = !match
           ? 'circle'
+          : isMuted
+          ? 'minus-circle'
           : weight === 'positive'
           ? 'check-circle'
           : weight === 'negative'

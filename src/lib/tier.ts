@@ -215,10 +215,12 @@ export function effectiveCaps(status: {
   tier: MembershipTier;
   isTrialing: boolean;
 }): TierCapabilities {
-  // Trial unlocks the full Premium feature set EXCEPT price data — market
-  // valuation + grade pricing is reserved for paid Pro/Premium subscribers
-  // (it's the conversion driver: trial users see the locked price CTA).
-  if (status.isTrialing && status.tier === 'free') return { ...PREMIUM_CAPS, priceData: false };
+  // Trial unlocks the full Premium feature set EXCEPT the paid-only conversion
+  // drivers — price data (market valuation + grade pricing) AND the AI Hallmark
+  // heatmap — which are reserved for paid Pro/Premium subscribers. Trial users
+  // see the locked CTA on those, driving conversion.
+  if (status.isTrialing && status.tier === 'free')
+    return { ...PREMIUM_CAPS, priceData: false, authenticityHeatmap: false, heatmapPerMonth: 0 };
   return tierCaps(status.tier);
 }
 

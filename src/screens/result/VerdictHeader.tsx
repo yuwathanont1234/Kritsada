@@ -171,8 +171,16 @@ export default function VerdictHeader({
   const INSET = 6;
   const railCX = boxW - INSET - BADGE / 2;
   const lineStartX = railCX - BADGE / 2;
-  const badgeCY = (i: number, n: number) =>
-    n <= 1 ? displayH / 2 : BADGE / 2 + 4 + (i * (displayH - BADGE - 8)) / (n - 1);
+  // Compact, evenly-spaced column centred vertically — keeps the numbers tidy
+  // and grouped on the right edge instead of stretching them across the whole
+  // image height (which read as "scattered" when there were only 2-3 dots).
+  const BADGE_GAP = 10;
+  const badgeCY = (i: number, n: number) => {
+    if (n <= 1) return displayH / 2;
+    const stackH = n * BADGE + (n - 1) * BADGE_GAP;
+    const firstCY = Math.max(BADGE / 2 + 4, (displayH - stackH) / 2 + BADGE / 2);
+    return firstCY + i * (BADGE + BADGE_GAP);
+  };
   const spotX = (r: HeatmapResult['regions'][number]) => ((r.box.xmin + r.box.xmax) / 2 / 1000) * boxW;
   const spotY = (r: HeatmapResult['regions'][number]) => ((r.box.ymin + r.box.ymax) / 2 / 1000) * displayH;
 

@@ -23,7 +23,8 @@ import {
   deleteWatch,
   checkCollectionLimit,
 } from '../lib/collection';
-import { fetchPricesByTier, applyWeightFusion } from '../lib/aiRouter';
+import { fetchPricesByTier } from '../lib/aiRouter';
+import { validateSerial } from '../lib/data/serialValidation';
 import { getAuthColorMeta, AuthColor } from '../lib/authVerdictColor';
 import { getMembership, MembershipStatus } from '../lib/auth';
 import { getExchangeRate } from '../lib/currency';
@@ -153,13 +154,13 @@ export function ResultScreen({ route, navigation }: Props) {
   const [refreshingPrices, setRefreshingPrices] = useState(false);
   const [generatingPDF, setGeneratingPDF] = useState(false);
 
-  // Weight-fusion modal state. The "Add weight to verify" CTA opens a
-  // small modal where the user enters the watch's measured weight (in
-  // grams, from a kitchen scale). On submit we run applyWeightFusion
-  // locally — no Gemini re-call needed — and the updated verdict /
-  // discrepancy banner re-render via setResult.
-  const [weightModalOpen, setWeightModalOpen] = useState(false);
-  const [weightInput, setWeightInput] = useState<string>('');
+  // Serial-input modal state (AI-Data Fusion v2). The "Add serial" CTA opens a
+  // small modal where the user types the serial off the rehaut/caseback. On
+  // submit we run validateSerial locally — no Gemini re-call — and the verdict /
+  // serial banner re-render via setResult. (Replaced the weight-input flow:
+  // serial is free, needs no scale, and the scan already OCRs it.)
+  const [serialModalOpen, setSerialModalOpen] = useState(false);
+  const [serialInput, setSerialInput] = useState<string>('');
 
   // Fetch membership & exchange rate on mount for all tiers
   useEffect(() => {
@@ -737,125 +738,53 @@ export function ResultScreen({ route, navigation }: Props) {
             Existing weightCheck banners above ignore tier — if a
             user previously had Premium and downgraded, they keep
             seeing past results they already paid for. */}
-        {!result.weightCheck && result.identified && (
-          caps.weightFusion ? (
-            <Pressable
-              onPress={() => {
-                setWeightInput('');
-                setWeightModalOpen(true);
-              }}
+        {result.identified && !result.serialNumber && (
+          <Pressable
+            onPress={() => {
+              setSerialInput(result.serialNumber || '');
+              setSerialModalOpen(true);
+            }}
+            style={{
+              marginHorizontal: 16,
+              marginBottom: 12,
+              borderRadius: 12,
+              borderWidth: 1,
+              borderColor: 'rgba(236, 200, 122, 0.35)',
+              backgroundColor: 'rgba(236, 200, 122, 0.06)',
+              padding: 14,
+              flexDirection: 'row',
+              alignItems: 'center',
+            }}
+          >
+            <View
               style={{
-                marginHorizontal: 16,
-                marginBottom: 12,
-                borderRadius: 12,
+                width: 36,
+                height: 36,
+                borderRadius: 18,
                 borderWidth: 1,
-                borderColor: 'rgba(236, 200, 122, 0.35)',
-                backgroundColor: 'rgba(236, 200, 122, 0.06)',
-                padding: 14,
-                flexDirection: 'row',
+                borderColor: 'rgba(236, 200, 122, 0.40)',
+                backgroundColor: 'rgba(28, 22, 17, 0.7)',
+                justifyContent: 'center',
                 alignItems: 'center',
+                marginRight: 12,
               }}
             >
-              <View
-                style={{
-                  width: 36,
-                  height: 36,
-                  borderRadius: 18,
-                  borderWidth: 1,
-                  borderColor: 'rgba(236, 200, 122, 0.40)',
-                  backgroundColor: 'rgba(28, 22, 17, 0.7)',
-                  justifyContent: 'center',
-                  alignItems: 'center',
-                  marginRight: 12,
-                }}
-              >
-                <Feather name="bar-chart-2" size={18} color="#ECC87A" />
-              </View>
-              <View style={{ flex: 1 }}>
-                <Text style={{ color: '#F5E9CC', fontSize: 14, fontWeight: '700', marginBottom: 2 }}>
-                  {lang === 'th'
-                    ? 'เพิ่มน้ำหนักเพื่อยืนยันความแท้'
-                    : 'Add weight to verify authenticity'}
-                </Text>
-                <Text style={{ color: '#A89E8A', fontSize: 11.5, lineHeight: 16 }}>
-                  {lang === 'th'
-                    ? 'ตรวจสอบความหนาแน่นวัสดุ — ดักของปลอมที่ใช้เคสกลวงหรือชุบทอง'
-                    : 'Material-density check — detects hollow cases & gold-plated fakes'}
-                </Text>
-              </View>
-              <Feather name="chevron-right" size={18} color="#ECC87A" />
-            </Pressable>
-          ) : (
-            <Pressable
-              onPress={() => {
-                // Weight-fusion is a Premium-only feature gate — when a
-                // non-Premium user taps the locked CTA, attribute the
-                // funnel event so we can measure how often this card
-                // drives upgrades vs the PDF/heatmap gates.
-                logFunnelEvent('feature_locked_tapped', {
-                  feature: 'weight_fusion',
-                  from_screen: 'ResultScreen',
-                }).catch(() => {});
-                setUpgradeType('auth');
-                setUpgradeReason(undefined);
-                setUpgradeModalVisible(true);
-              }}
-              style={{
-                marginHorizontal: 16,
-                marginBottom: 12,
-                borderRadius: 12,
-                borderWidth: 1,
-                borderColor: 'rgba(236, 200, 122, 0.20)',
-                backgroundColor: 'rgba(28, 22, 17, 0.55)',
-                padding: 14,
-                flexDirection: 'row',
-                alignItems: 'center',
-              }}
-            >
-              <View
-                style={{
-                  width: 36,
-                  height: 36,
-                  borderRadius: 18,
-                  borderWidth: 1,
-                  borderColor: 'rgba(236, 200, 122, 0.25)',
-                  backgroundColor: 'rgba(18, 14, 10, 0.85)',
-                  justifyContent: 'center',
-                  alignItems: 'center',
-                  marginRight: 12,
-                }}
-              >
-                <Feather name="lock" size={16} color="#ECC87A" />
-              </View>
-              <View style={{ flex: 1 }}>
-                <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 2 }}>
-                  <Text style={{ color: '#F5E9CC', fontSize: 14, fontWeight: '700', marginRight: 8 }}>
-                    {lang === 'th'
-                      ? 'AI-Data Fusion: ตรวจสอบน้ำหนัก'
-                      : 'AI-Data Fusion: Weight Check'}
-                  </Text>
-                  <View
-                    style={{
-                      paddingHorizontal: 6,
-                      paddingVertical: 2,
-                      borderRadius: 4,
-                      backgroundColor: '#ECC87A',
-                    }}
-                  >
-                    <Text style={{ color: '#1A130C', fontSize: 9, fontWeight: '900', letterSpacing: 0.5 }}>
-                      PREMIUM
-                    </Text>
-                  </View>
-                </View>
-                <Text style={{ color: '#A89E8A', fontSize: 11.5, lineHeight: 16 }}>
-                  {lang === 'th'
-                    ? 'ดักของปลอมประเภทเคสกลวง / ชุบทอง — แตะเพื่ออัปเกรด'
-                    : 'Catches hollow-case / gold-plated counterfeits — tap to upgrade'}
-                </Text>
-              </View>
-              <Feather name="chevron-right" size={18} color="#ECC87A" />
-            </Pressable>
-          )
+              <Feather name="hash" size={18} color="#ECC87A" />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={{ color: '#F5E9CC', fontSize: 14, fontWeight: '700', marginBottom: 2 }}>
+                {lang === 'th'
+                  ? 'เพิ่ม Serial Number เพื่อตรวจสอบความแท้'
+                  : 'Add the serial number to verify'}
+              </Text>
+              <Text style={{ color: '#A89E8A', fontSize: 11.5, lineHeight: 16 }}>
+                {lang === 'th'
+                  ? 'ตรวจรูปแบบ + ยุคผลิต (ดักซีเรียลผิดรูปแบบ/ผิดยุค) — ฟรีทุกแพ็คเกจ'
+                  : 'Format + production-era check (catches malformed / era-mismatched serials) — free on every tier'}
+              </Text>
+            </View>
+            <Feather name="chevron-right" size={18} color="#ECC87A" />
+          </Pressable>
         )}
 
         {/* ─────────────────────────────────────────────────────────
@@ -1085,16 +1014,16 @@ export function ResultScreen({ route, navigation }: Props) {
       />
 
       {/* ─────────────────────────────────────────────────────────
-          Weight-input modal (AI-Data Fusion entry point).
-          User types in the watch's measured weight in grams from a
-          kitchen scale; submit runs applyWeightFusion locally and
-          updates `result` so the banner re-renders. No Gemini call.
+          Serial-input modal (AI-Data Fusion v2 entry point).
+          User types the serial off the rehaut/caseback; submit runs
+          validateSerial locally and updates `result` so the serial
+          banner re-renders. No Gemini call. Free, all tiers.
           ───────────────────────────────────────────────────────── */}
       <Modal
         animationType="fade"
         transparent
-        visible={weightModalOpen}
-        onRequestClose={() => setWeightModalOpen(false)}
+        visible={serialModalOpen}
+        onRequestClose={() => setSerialModalOpen(false)}
       >
         <View
           style={{
@@ -1136,15 +1065,15 @@ export function ResultScreen({ route, navigation }: Props) {
                   marginBottom: 10,
                 }}
               >
-                <Feather name="bar-chart-2" size={22} color={colors.amber} />
+                <Feather name="hash" size={22} color={colors.amber} />
               </View>
               <Text style={{ color: '#F5E9CC', fontSize: 18, fontWeight: '800', textAlign: 'center' }}>
-                {lang === 'th' ? 'น้ำหนักจากเครื่องชั่ง' : 'Measured Weight'}
+                Serial Number
               </Text>
               <Text style={{ color: '#A89E8A', fontSize: 12, marginTop: 4, textAlign: 'center', lineHeight: 17 }}>
                 {lang === 'th'
-                  ? 'ชั่งนาฬิกาทั้งเรือนพร้อมสาย/แขนรัด (กรอกเป็นกรัม)'
-                  : 'Weigh the full watch including bracelet/strap (enter grams)'}
+                  ? 'กรอกซีเรียลที่สลักบน rehaut / ฝาหลัง / ระหว่างขาสาย'
+                  : 'Enter the serial engraved on the rehaut / caseback / between the lugs'}
               </Text>
             </View>
 
@@ -1156,43 +1085,43 @@ export function ResultScreen({ route, navigation }: Props) {
                 borderRadius: 10,
                 color: '#fff',
                 padding: 16,
-                fontSize: 28,
+                fontSize: 20,
                 fontWeight: '800',
-                letterSpacing: 1,
+                letterSpacing: 2,
                 textAlign: 'center',
-                marginBottom: 8,
+                marginBottom: 18,
               }}
-              placeholder="0"
+              placeholder={lang === 'th' ? 'เช่น 7F8K2M9P' : 'e.g. 7F8K2M9P'}
               placeholderTextColor="rgba(255,255,255,0.2)"
-              keyboardType="decimal-pad"
-              maxLength={6}
-              value={weightInput}
-              onChangeText={setWeightInput}
+              autoCapitalize="characters"
+              autoCorrect={false}
+              maxLength={20}
+              value={serialInput}
+              onChangeText={setSerialInput}
               autoFocus
             />
-            <Text style={{ color: '#A89E8A', fontSize: 11, textAlign: 'center', marginBottom: 18 }}>
-              {lang === 'th' ? 'หน่วย: กรัม (g)' : 'unit: grams (g)'}
-            </Text>
 
             <Pressable
               onPress={() => {
-                const n = parseFloat(weightInput.replace(',', '.'));
-                if (!isFinite(n) || n <= 0 || n > 2000) {
+                const s = serialInput.trim();
+                if (!s) {
                   Alert.alert(
-                    lang === 'th' ? 'น้ำหนักไม่ถูกต้อง' : 'Invalid weight',
+                    lang === 'th' ? 'ยังไม่ได้กรอกซีเรียล' : 'No serial entered',
                     lang === 'th'
-                      ? 'กรุณากรอกตัวเลขระหว่าง 1-2000 กรัม'
-                      : 'Please enter a number between 1 and 2000 grams.'
+                      ? 'กรุณากรอกหมายเลขซีเรียลที่อ่านได้จากตัวเรือน'
+                      : 'Please enter the serial read off the watch.'
                   );
                   return;
                 }
                 setResult((prev) => {
-                  // Clone to ensure React picks up the change (applyWeightFusion
-                  // mutates in place by design but the same reference back).
-                  const next = { ...prev };
-                  return applyWeightFusion(next, n);
+                  const check = validateSerial(prev.brand, s, prev.year);
+                  const next = { ...prev, serialNumber: s, serialCheck: check };
+                  if (check.penalty > 0) {
+                    next.authenticityProbability = Math.max(5, (prev.authenticityProbability ?? 0) - check.penalty);
+                  }
+                  return next;
                 });
-                setWeightModalOpen(false);
+                setSerialModalOpen(false);
               }}
               style={({ pressed }) => ({
                 backgroundColor: colors.amber,
@@ -1204,12 +1133,12 @@ export function ResultScreen({ route, navigation }: Props) {
               })}
             >
               <Text style={{ color: '#1A130C', fontWeight: '800', fontSize: 14, letterSpacing: 0.5 }}>
-                {lang === 'th' ? 'ยืนยันและตรวจสอบ' : 'VERIFY WEIGHT'}
+                {lang === 'th' ? 'ยืนยันและตรวจสอบ' : 'VERIFY SERIAL'}
               </Text>
             </Pressable>
 
             <Pressable
-              onPress={() => setWeightModalOpen(false)}
+              onPress={() => setSerialModalOpen(false)}
               style={({ pressed }) => ({
                 borderColor: 'rgba(255,255,255,0.2)',
                 borderWidth: 1,

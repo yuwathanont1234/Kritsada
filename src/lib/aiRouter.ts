@@ -639,14 +639,22 @@ export async function analyzeWatchByTier(
               `[aiRouter] DB-validated ✓ strong-sim brand match: "${identified.brand}" vs top visual "${top.brand} ${top.name}" (sim=${top.similarity.toFixed(3)})`
             );
           } else if (
-            top.similarity >= 0.65 &&
+            top.similarity >= 0.60 &&
             matchesBrand &&
             matchesModel
           ) {
-            // Light corroboration — moderate sim but brand+model agree.
-            // Enough to skip the Pro-grounded retry without claiming
-            // full DB-validated status (which downstream auth signals
-            // gate on). Cost saver, accuracy-neutral.
+            // Light corroboration — moderate sim but brand AND model agree.
+            // Lowered 0.65 → 0.60 (2026-05-31): two INDEPENDENT methods
+            // (Gemini vision + DINOv3 retrieval) landing on the same
+            // brand+model is genuine corroboration even at mid-0.6 sim,
+            // where the phone-vs-catalog domain gap parks otherwise-valid
+            // matches of watches the DB DOES contain — so "Reference DB
+            // Match: not found" stops firing on them. Safe direction: the
+            // brand+model two-signal guard means a false hit would have to
+            // coincidentally share BOTH with Gemini's independent guess, and
+            // this only ever sets visualBrandCorroborated (skips the Pro
+            // retry → cost saver), never authenticity. Does NOT claim full
+            // DB-validated status (which downstream auth signals gate on).
             visualBrandCorroborated = true;
             console.log(
               `[aiRouter] Visual-corroborated ✓ AI + DINOv3 agree (light): "${identified.brand} ${identified.name}" vs top visual "${top.brand} ${top.name}" (sim=${top.similarity.toFixed(3)}) — will skip grounded retry`

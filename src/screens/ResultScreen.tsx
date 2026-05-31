@@ -512,6 +512,7 @@ export function ResultScreen({ route, navigation }: Props) {
           specsText={specsText}
           getVerdictLabel={getVerdictLabel}
           t={t}
+          heatmapAllowed={caps.authenticityHeatmap}
         />
 
         {/* AI Hallmark (on-demand inspection overlay) now lives INSIDE

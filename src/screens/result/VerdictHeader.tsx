@@ -17,6 +17,8 @@ interface VerdictHeaderProps {
   specsText: string;
   getVerdictLabel: (color: AuthColor) => string;
   t: (key: string, options?: any) => string;
+  /** AI Hallmark (on-demand heatmap) is a Premium-only feature (caps.authenticityHeatmap). */
+  heatmapAllowed: boolean;
 }
 
 const colorFor = (s: HeatmapSignal) =>
@@ -39,6 +41,7 @@ export default function VerdictHeader({
   specsText,
   getVerdictLabel,
   t,
+  heatmapAllowed,
 }: VerdictHeaderProps) {
   const { lang } = useLanguage();
   const [activeIdx, setActiveIdx] = useState(0);
@@ -73,6 +76,7 @@ export default function VerdictHeader({
   }, [mainUri]);
 
   const runHeatmap = async () => {
+    if (!heatmapAllowed) return; // Premium-only (caps.authenticityHeatmap)
     if (loading || runCount >= MAX_HEATMAP_RUNS) return; // guard double-fire + spam
     setLoading(true);
     setErr(null);
@@ -231,10 +235,21 @@ export default function VerdictHeader({
           </Text>
 
           {!heatmap && !loading && (
-            <Pressable style={styles.genBtn} onPress={runHeatmap}>
-              <Feather name="zap" size={14} color="#1A1410" style={{ marginRight: 6 }} />
-              <Text style={styles.genBtnText}>{lang === 'th' ? 'วิเคราะห์จุดตรวจด้วย AI' : 'Analyze spots with AI'}</Text>
-            </Pressable>
+            heatmapAllowed ? (
+              <Pressable style={styles.genBtn} onPress={runHeatmap}>
+                <Feather name="zap" size={14} color="#1A1410" style={{ marginRight: 6 }} />
+                <Text style={styles.genBtnText}>{lang === 'th' ? 'วิเคราะห์จุดตรวจด้วย AI' : 'Analyze spots with AI'}</Text>
+              </Pressable>
+            ) : (
+              <View style={styles.hallmarkLocked}>
+                <Feather name="lock" size={13} color={colors.amber} style={{ marginRight: 7 }} />
+                <Text style={styles.hallmarkLockedText}>
+                  {lang === 'th'
+                    ? 'เฉพาะสมาชิก Premium — อัปเกรดเพื่อใช้ AI Hallmark'
+                    : 'Premium only — upgrade to use AI Hallmark'}
+                </Text>
+              </View>
+            )
           )}
           {loading && (
             <View style={styles.loadingRow}>
@@ -402,6 +417,19 @@ const styles = StyleSheet.create({
     marginTop: spacing.md,
   },
   genBtnText: { color: '#1A1410', fontSize: 13, fontWeight: '800' },
+  hallmarkLocked: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(236, 200, 122, 0.08)',
+    borderWidth: 1,
+    borderColor: 'rgba(236, 200, 122, 0.25)',
+    borderRadius: radius.md,
+    paddingVertical: 11,
+    paddingHorizontal: spacing.sm,
+    marginTop: spacing.md,
+  },
+  hallmarkLockedText: { color: colors.amber, fontSize: 12, fontWeight: '700', flexShrink: 1 },
   loadingRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, marginTop: spacing.md },
   loadingText: { color: '#B5AFA5', fontSize: 12 },
   errText: { color: '#E0A0A0', fontSize: 12, marginTop: spacing.sm, textAlign: 'center' },

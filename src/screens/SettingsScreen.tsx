@@ -568,10 +568,12 @@ export default function SettingsScreen({ navigation }: any) {
               their watch) and rarely revisit, which is exactly the role
               Settings is meant for.
 
-                • Coverage banner: ~94% of Thai luxury watch sales volume.
+                • Coverage banner: ~97% of Thai luxury watch sales volume.
                 • 4 horology tiers (apex/established/independent/accessible)
                   ordered by craft level, not alphabetically.
-                • Q3/Q4 2026 roadmap to 100% — signals active expansion. */}
+                • 59 brands live (2026-06-01 expansion 31→59 — Reference DB
+                  now 35,481 embeddings); remaining Glashütte Original /
+                  Citizen / Mido on the roadmap to 100%. */}
           <View style={{ marginTop: spacing.md, marginBottom: spacing.md }}>
             {/* Coverage banner */}
             <View style={{
@@ -605,10 +607,10 @@ export default function SettingsScreen({ navigation }: any) {
                     letterSpacing: -1,
                     lineHeight: 36,
                   }}>
-                    94%
+                    97%
                   </Text>
                   <Text style={{ color: colors.textMuted, fontSize: 9, letterSpacing: 1 }}>
-                    31 BRANDS
+                    59 BRANDS
                   </Text>
                 </View>
               </View>
@@ -631,8 +633,10 @@ export default function SettingsScreen({ navigation }: any) {
                 'Audemars Piguet',
                 'Vacheron Constantin',
                 'A. Lange & Söhne',
+                'Breguet',
                 'Richard Mille',
                 'F.P. Journe',
+                'Greubel Forsey',
               ]}
             />
 
@@ -659,6 +663,11 @@ export default function SettingsScreen({ navigation }: any) {
                 'Bvlgari',
                 'Franck Muller',
                 'Girard-Perregaux',
+                'Piaget',
+                'Hermès',
+                'Blancpain',
+                'Ulysse Nardin',
+                'Parmigiani Fleurier',
               ]}
             />
 
@@ -673,9 +682,24 @@ export default function SettingsScreen({ navigation }: any) {
                 'MB&F',
                 'URWERK',
                 'Bovet',
+                'De Bethune',
+                'H. Moser & Cie',
+                'Laurent Ferrier',
+                'Moritz Grossmann',
                 'Grand Seiko',
-                'Ulysse Nardin',
-                'Parmigiani Fleurier',
+                'Czapek',
+                'Jacob & Co.',
+                'Bell & Ross',
+                'Arnold & Son',
+                'HYT',
+                'Angelus',
+                'Lang & Heyne',
+                'Lederer',
+                'Louis Moinet',
+                'Montblanc',
+                'Nivada Grenchen',
+                'Trilobe',
+                'Édouard Koehn',
               ]}
             />
 
@@ -686,7 +710,7 @@ export default function SettingsScreen({ navigation }: any) {
               tag={lang === 'th' ? 'เข้าถึงได้' : 'TIER IV'}
               title={lang === 'th' ? 'Accessible Luxury' : 'Accessible Luxury'}
               subtitle={lang === 'th' ? 'แบรนด์สวิสและญี่ปุ่นราคาเป็นมิตร' : 'Approachable Swiss & Japanese'}
-              brands={['Tissot', 'Longines', 'Frédérique Constant', 'Seiko']}
+              brands={['Tissot', 'Longines', 'Frédérique Constant', 'Seiko', 'Hamilton', 'Oris', 'NOMOS Glashütte', 'Maurice Lacroix', 'Louis Erard', 'Swatch']}
             />
 
             {/* Roadmap card */}
@@ -706,16 +730,16 @@ export default function SettingsScreen({ navigation }: any) {
                 </Text>
               </View>
               <View style={{ flexDirection: 'row', marginBottom: spacing.xs }}>
-                <Text style={{ color: colors.textSecondary, fontSize: 11, fontWeight: '700', width: 64 }}>Q3 →</Text>
+                <Text style={{ color: '#2ECC71', fontSize: 11, fontWeight: '700', width: 64 }}>{lang === 'th' ? 'เพิ่มแล้ว' : 'ADDED'}</Text>
                 <Text style={{ color: '#D0D0D0', fontSize: 11, flex: 1, lineHeight: 16 }}>
-                  Hermès · Piaget · Glashütte Original · Oris · Hamilton
-                  <Text style={{ color: colors.amber, fontWeight: '700' }}> → 98%</Text>
+                  IWC · Tissot · Hermès · Piaget · Hamilton · NOMOS · Breguet
+                  <Text style={{ color: '#2ECC71', fontWeight: '700' }}> +28 ✓</Text>
                 </Text>
               </View>
               <View style={{ flexDirection: 'row' }}>
-                <Text style={{ color: colors.textSecondary, fontSize: 11, fontWeight: '700', width: 64 }}>Q4 →</Text>
+                <Text style={{ color: colors.textSecondary, fontSize: 11, fontWeight: '700', width: 64 }}>{lang === 'th' ? 'ถัดไป' : 'NEXT'}</Text>
                 <Text style={{ color: '#D0D0D0', fontSize: 11, flex: 1, lineHeight: 16 }}>
-                  Citizen · Mido · Maurice Lacroix · boutique independents
+                  Glashütte Original · Citizen · Mido
                   <Text style={{ color: colors.amber, fontWeight: '700' }}> → 100%</Text>
                 </Text>
               </View>

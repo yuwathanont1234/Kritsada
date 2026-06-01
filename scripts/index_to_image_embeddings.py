@@ -90,6 +90,46 @@ BRAND_DISPLAY = {
     "Seiko":               "Seiko",
     # ── 2026-05-28: official-site scrapes (filename embeds Ref+Name+THB) ──
     "Hermes":              "Hermès",
+    # ── 2026-05-31: +34 brands to close the live-RAG coverage gap. These
+    #    /official folders had ZERO rows in image_embeddings (per the
+    #    scripts/_audit_coverage.ts scan) so the mobile app's match_watches
+    #    returned "Reference DB Match: not found" for every scan of them.
+    #    Display names mirror index_official.py / SettingsScreen canonical
+    #    forms so RAG brand-agreement lines up with Gemini's brand output.
+    "Angelus":                   "Angelus",
+    "Arnold_Son":                "Arnold & Son",
+    "Bell_Ross":                 "Bell & Ross",
+    "Blancpain":                 "Blancpain",
+    "Breguet":                   "Breguet",
+    "CVSTOS":                    "CVSTOS",
+    "Christiaan_van_der_Klaauw": "Christiaan van der Klaauw",
+    "Czapek":                    "Czapek",
+    "De_Bethune":                "De Bethune",
+    "Edouard_Koehn":             "Édouard Koehn",
+    "Frederique_Constant":       "Frédérique Constant",
+    "Gorilla":                   "Gorilla",
+    "Greubel_Forsey":            "Greubel Forsey",
+    "HYT":                       "HYT",
+    "H_Moser":                   "H. Moser & Cie",
+    "Hamilton":                  "Hamilton",
+    "IWC":                       "IWC",
+    "Jacob_Co":                  "Jacob & Co.",
+    "Lang_Heyne":                "Lang & Heyne",
+    "Laurent_Ferrier":           "Laurent Ferrier",
+    "Lederer":                   "Lederer",
+    "Louis_Erard":               "Louis Erard",
+    "Louis_Moinet":              "Louis Moinet",
+    "Montblanc":                 "Montblanc",
+    "Moritz_Grossmann":          "Moritz Grossmann",
+    "Nivada_Grenchen":           "Nivada Grenchen",
+    "Nomos":                     "NOMOS Glashütte",
+    "Oris":                      "Oris",
+    "Piaget":                    "Piaget",
+    "Richard_Mille":             "Richard Mille",
+    "Swatch_MoonSwatch":         "Swatch",
+    "Tissot":                    "Tissot",
+    "Trilobe":                   "Trilobe",
+    "Vacheron_Constantin":       "Vacheron Constantin",
 }
 
 # Filename pattern for official-site scrapes (Longines, Hermès):
@@ -279,6 +319,7 @@ def _embed_via_edge(
     *,
     supabase_url: str,
     anon_jwt: str,
+    device_id: str,
 ) -> np.ndarray:
     """Call the deployed `embed-image` edge function. Returns 1024-d vector.
 
@@ -297,14 +338,41 @@ def _embed_via_edge(
         "apikey": anon_jwt,
         "Content-Type": "application/json",
     }
-    with httpx.Client(timeout=120.0) as client:
-        r = client.post(url, headers=headers, json={"image": data_url})
-        if r.status_code != 200:
+    # Retry on 429 / 5xx / timeout. Two transient classes:
+    #   • 429 = Replicate rate-limit. Under <$10 account credit Replicate caps
+    #     prediction-creates at 60/min (burst 5), so concurrent runs hit this
+    #     constantly; it resets in ~5s → short backoff and retry.
+    #   • 5xx / timeout = embed-image edge 504 on Replicate cold-start (~60-89s).
+    # A 500 carrying UnidentifiedImageError is a CORRUPT source image (not
+    # transient) → fail fast so we don't burn retries on a dead file. Other
+    # 4xx = bad request → fail fast.
+    last_err = ""
+    for attempt in range(1, 7):
+        try:
+            with httpx.Client(timeout=120.0) as client:
+                r = client.post(url, headers=headers,
+                                json={"image": data_url, "deviceId": device_id})
+            if r.status_code == 200:
+                data = r.json()
+                if "embedding" not in data:
+                    raise RuntimeError(f"embed-image returned no embedding: {data}")
+                return np.asarray(data["embedding"], dtype=np.float32)
+            if r.status_code == 429 or 500 <= r.status_code < 600:
+                if "UnidentifiedImageError" in r.text or "cannot identify image" in r.text:
+                    raise RuntimeError(f"corrupt image (skip, no retry): {r.text[:140]}")
+                last_err = f"HTTP {r.status_code}: {r.text[:160]}"
+                if attempt < 6:
+                    # 429 resets in ~5s; cold-start needs longer.
+                    time.sleep(7 if r.status_code == 429 else min(15 * attempt, 45))
+                    continue
             raise RuntimeError(f"embed-image HTTP {r.status_code}: {r.text[:300]}")
-        data = r.json()
-        if "embedding" not in data:
-            raise RuntimeError(f"embed-image returned no embedding: {data}")
-        return np.asarray(data["embedding"], dtype=np.float32)
+        except (httpx.TimeoutException, httpx.TransportError) as e:
+            last_err = f"{type(e).__name__}: {str(e)[:120]}"
+            if attempt < 6:
+                time.sleep(min(15 * attempt, 45))
+                continue
+            raise RuntimeError(f"embed-image network error after {attempt} tries: {last_err}")
+    raise RuntimeError(f"embed-image failed after 6 tries: {last_err}")
 
 
 def _supabase_upsert_watch(*, supabase_url: str, service_key: str, watch_row: dict) -> None:
@@ -376,6 +444,10 @@ def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("--brand", required=True, help="Folder name under /official, e.g. Maurice_Lacroix")
     ap.add_argument("--limit", type=int, default=0, help="Cap on processed images (0 = all)")
+    ap.add_argument("--shard", default="", help="Stride shard 'i/n' (e.g. 2/6): process every "
+                    "n-th image starting at offset i. Lets a big brand run as n parallel "
+                    "processes for ~n× speed; stratified so every collection is covered. "
+                    "Parallel-safe — the deviceId embeds the shard id so quota buckets don't collide.")
     ap.add_argument("--dry-run", action="store_true", help="No API calls; print classification only")
     args = ap.parse_args()
 
@@ -407,6 +479,12 @@ def main() -> None:
     images = list(_iter_images(args.brand))
     if args.limit:
         images = images[: args.limit]
+    shard_pfx = ""
+    if args.shard:
+        si, sn = (int(x) for x in args.shard.split("/"))
+        images = images[si::sn]          # stride: every sn-th image from offset si
+        shard_pfx = f"s{si}-"
+        log.info("shard %s → %d images", args.shard, len(images))
     log.info("brand=%s images=%d (after blacklist)", brand_display, len(images))
 
     counts = {"new": 0, "skipped": 0, "failed": 0, "blacklisted": 0}
@@ -451,8 +529,14 @@ def main() -> None:
 
         try:
             img_bytes, ct = _load_image_bytes(path)
+            # Rotate deviceId every 350 to stay under the embed-image edge
+            # 400-calls/device/day quota (migration 0008). Brand-namespaced so
+            # parallel per-brand runs never collide on the same quota bucket.
+            # (Mirrors the rotation trick in embed_folder.py.)
+            dev_id = f"idx-{_slug(brand_display)}-{shard_pfx}{(i - 1) // 350}"
             vec_1024 = _embed_via_edge(img_bytes, ct,
-                                       supabase_url=supabase_url, anon_jwt=anon_jwt)
+                                       supabase_url=supabase_url, anon_jwt=anon_jwt,
+                                       device_id=dev_id)
             vec_256 = _project_256(vec_1024, probe)
         except Exception as exc:
             log.warning("embed failed for %s: %s", path.name, exc)

@@ -324,16 +324,16 @@ async function callGeminiJson<T = any>(opts: GeminiCallOptions): Promise<T> {
     // tap "Try again" — bad UX for what is fundamentally a transient
     // issue.
     //
-    // Reduced 3 → 2 (one retry) after live scan logged
-    // "[gemini:edge] attempt 1/3 failed" on a cold-start path that already
-    // had Replicate warming up. Three retries with 1s/2s/4s backoff add
-    // ~7s of dead-air before the request actually succeeds on attempt 2
-    // anyway. One retry with a 1s pause covers the genuine transient case
-    // (network blip, edge cold start) while capping worst-case overhead
-    // at ~2s instead of ~10s. If a request fails twice it's likely a real
-    // outage, not a transient — surfacing the error sooner lets the user
-    // retry manually rather than staring at the spinner.
-    const MAX_EDGE_RETRIES = 2;
+    // 3 attempts (2 retries) with an ESCALATING 1s/3s backoff. History:
+    // was 3 → cut to 2 (the 1s/2s/4s ramp added dead-air when attempt 2
+    // already succeeded) → but a 2026-06-01 live cold-OPEN logged BOTH
+    // attempts failing (edge + Gemini + Replicate all booting at once, so
+    // the whole 2-attempt window fell inside the cold spike → scan FAILED).
+    // 3 attempts with a longer 3s pause before the last one ride out a cold
+    // edge boot (~few s) while attempts 1-2 still catch a fast network blip.
+    // Worst-case added latency ~4s — acceptable vs a failed first scan.
+    // 4xx (bad request) still fast-fails below (never transient).
+    const MAX_EDGE_RETRIES = 3;
     for (let attempt = 1; attempt <= MAX_EDGE_RETRIES; attempt++) {
       console.log(
         `[gemini:${opts.label}] Secure Edge Routing: Calling serverless analyze-watch backend` +
@@ -391,10 +391,10 @@ async function callGeminiJson<T = any>(opts: GeminiCallOptions): Promise<T> {
       }
 
       if (attempt < MAX_EDGE_RETRIES) {
-        // Fixed 1s backoff for the single retry — exponential ramp was
-        // designed for 3-retry budget; with 1 retry we want a short
-        // pause that smooths a network blip without compounding latency.
-        await new Promise((r) => setTimeout(r, 1000));
+        // Escalating backoff: 1s after attempt 1 (smooths a network blip),
+        // 3s after attempt 2 (gives a cold edge/Gemini boot time to finish
+        // so the final attempt lands warm).
+        await new Promise((r) => setTimeout(r, attempt === 1 ? 1000 : 3000));
       }
     }
 

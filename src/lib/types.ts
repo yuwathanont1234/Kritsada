@@ -210,6 +210,10 @@ export type RootStackParamList = {
   };
   Result: {
     result: ScanResult;
+    // Example mode — a curated, READ-ONLY showcase (no AI, no Save). When true,
+    // ResultScreen renders `exampleImage` as the hero and swaps Save → upgrade CTA.
+    isExample?: boolean;
+    exampleImage?: any; // bundled require() hero image (resolved via Image.resolveAssetSource)
     frontUri: string;
     backUri?: string;
     savedId?: string; // present when viewing from Collection

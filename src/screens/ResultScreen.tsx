@@ -47,6 +47,12 @@ type Props = NativeStackScreenProps<RootStackParamList, 'Result'>;
 export function ResultScreen({ route, navigation }: Props) {
   const { t, lang } = useLanguage();
   const { frontUri, backUri, savedId, bgColor } = route.params;
+  // Example mode: curated, read-only showcase (no AI, no Save). The hero image
+  // is a bundled asset; resolve it to a uri so the existing carousel renders it.
+  const isExample = route.params.isExample === true;
+  const exampleImageUri = isExample && route.params.exampleImage
+    ? Image.resolveAssetSource(route.params.exampleImage).uri
+    : null;
   const { getBrandFallbackPrice, formatTHB } = usePriceFallback();
 
   const getVerdictLabel = (color: AuthColor) => {
@@ -447,7 +453,10 @@ export function ResultScreen({ route, navigation }: Props) {
   const caliber = result.movementFamily || 'N/A';
   const caseMetal = result.caseMaterial || 'N/A';
   const specsText = `Caliber ${caliber}, ${caseMetal}${result.year ? `, ${result.year}` : ''}`;
-  const imagesList = [frontUri, backUri, ...(route.params.galleryImages ?? [])].filter(Boolean) as string[];
+  const imagesList = (isExample && exampleImageUri
+    ? [exampleImageUri]
+    : [frontUri, backUri, ...(route.params.galleryImages ?? [])]
+  ).filter(Boolean) as string[];
 
   return (
     <SafeAreaView style={styles.container} edges={['bottom']}>
@@ -499,6 +508,16 @@ export function ResultScreen({ route, navigation }: Props) {
             <Feather name="alert-triangle" size={14} color={colors.amber} style={{ marginRight: 8 }} />
             <Text style={styles.liveRateWarningText}>
               {t('error.liveRateUnavailable')}
+            </Text>
+          </View>
+        )}
+
+        {/* Example-mode banner — makes clear this is a curated showcase, not a scan. */}
+        {isExample && (
+          <View style={{ marginHorizontal: 16, marginTop: 4, marginBottom: 12, borderRadius: 12, borderWidth: 1, borderColor: 'rgba(236,200,122,0.45)', backgroundColor: 'rgba(236,200,122,0.08)', paddingVertical: 10, paddingHorizontal: 14, flexDirection: 'row', alignItems: 'center' }}>
+            <Feather name="eye" size={15} color={colors.amber} style={{ marginRight: 8 }} />
+            <Text style={{ color: colors.textCream, fontSize: 12.5, fontWeight: '700', flex: 1 }}>
+              {lang === 'th' ? 'ตัวอย่างผลตรวจ — ดูได้อย่างเดียว ไม่ใช่การสแกนจริง' : 'Example result — view-only, not a real scan'}
             </Text>
           </View>
         )}
@@ -948,24 +967,36 @@ export function ResultScreen({ route, navigation }: Props) {
         </View>
       </ScrollView>
 
-      {/* Floating Save Actions Bar at bottom */}
+      {/* Floating action bar — Save for real scans; upgrade CTA for examples. */}
       <View style={styles.bottomBar}>
-        <PrimaryButton
-          {...({
-            label: savedState.saving
-              ? (lang === 'th' ? 'กำลังอัปเดตตู้สะสม...' : 'Updating Vault...')
-              : savedState.saved
-              ? (lang === 'th' ? 'ลบออกจากตู้นิรภัยสะสม' : 'Remove from Secure Vault')
-              : (lang === 'th' ? 'บันทึกเข้าตู้นิรภัยตู้สะสม' : 'Secure in Collection Vault'),
-            onPress: handleSave,
-            icon: savedState.saved ? 'trash-2' : 'bookmark',
-            style: savedState.saved
-              ? { backgroundColor: colors.surfaceMuted, borderColor: colors.border, borderWidth: 1 }
-              : { backgroundColor: colors.amber },
-            textStyle: savedState.saved ? { color: colors.textSecondary } : { color: '#1A1410' },
-            loading: savedState.saving,
-          } as any)}
-        />
+        {isExample ? (
+          <PrimaryButton
+            {...({
+              label: lang === 'th' ? 'สแกนนาฬิกาของคุณเอง — อัปเกรด' : 'Scan your own watch — Upgrade',
+              onPress: () => navigation.navigate('Subscription', { trigger: 'example_cta' }),
+              icon: 'unlock',
+              style: { backgroundColor: colors.amber },
+              textStyle: { color: '#1A1410' },
+            } as any)}
+          />
+        ) : (
+          <PrimaryButton
+            {...({
+              label: savedState.saving
+                ? (lang === 'th' ? 'กำลังอัปเดตตู้สะสม...' : 'Updating Vault...')
+                : savedState.saved
+                ? (lang === 'th' ? 'ลบออกจากตู้นิรภัยสะสม' : 'Remove from Secure Vault')
+                : (lang === 'th' ? 'บันทึกเข้าตู้นิรภัยตู้สะสม' : 'Secure in Collection Vault'),
+              onPress: handleSave,
+              icon: savedState.saved ? 'trash-2' : 'bookmark',
+              style: savedState.saved
+                ? { backgroundColor: colors.surfaceMuted, borderColor: colors.border, borderWidth: 1 }
+                : { backgroundColor: colors.amber },
+              textStyle: savedState.saved ? { color: colors.textSecondary } : { color: '#1A1410' },
+              loading: savedState.saving,
+            } as any)}
+          />
+        )}
       </View>
 
       {/* Modals for Premium/Pro Upgrades */}

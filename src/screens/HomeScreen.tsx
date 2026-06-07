@@ -21,6 +21,7 @@ import { prewarmAll } from '../lib/visualRag';
 // Direct import to get collection metrics
 import { getAllWatches, calculatePortfolio } from '../lib/collection';
 import type { SavedWatch } from '../lib/types';
+import { EXAMPLE_SCANS } from '../lib/data/exampleScans';
 
 type BrandGroup = { brand: string; count: number; watches: SavedWatch[] };
 
@@ -112,8 +113,11 @@ export default function HomeScreen({ navigation }: any) {
       }
     };
     load();
-    const interval = setInterval(load, 4000);
-    return () => clearInterval(interval);
+    // Refresh when the user returns to Home (e.g. after a scan/save) instead
+    // of polling every 4s — same freshness, without the battery drain and
+    // re-render churn of a timer firing while the user is reading the screen.
+    const unsub = navigation.addListener('focus', load);
+    return () => unsub();
   }, []);
 
   return (
@@ -295,6 +299,45 @@ export default function HomeScreen({ navigation }: any) {
               </View>
             </View>
           </Pressable>
+
+          {/* Example results — curated READ-ONLY showcases (no AI). Replaces a
+              free-scan tier: a prospect experiences the full result UI at zero
+              cost, with an upgrade CTA inside each example. */}
+          <View style={{ marginBottom: spacing.md }}>
+            <Text style={{ color: '#E8DCC0', fontSize: 14, fontWeight: '700', letterSpacing: 0.5, marginBottom: spacing.sm }}>
+              {lang === 'th' ? 'ตัวอย่างผลตรวจ' : 'Example Results'}
+            </Text>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: spacing.sm, paddingVertical: 2 }}>
+              {EXAMPLE_SCANS.map((ex) => (
+                <Pressable
+                  key={ex.id}
+                  onPress={() => navigation.navigate('Result', { result: ex.result, frontUri: '', isExample: true, exampleImage: ex.image })}
+                  style={{ width: 150, borderRadius: 14, overflow: 'hidden', borderWidth: 1, borderColor: 'rgba(236, 200, 122, 0.3)', backgroundColor: 'rgba(18, 14, 10, 0.7)' }}
+                >
+                  <Image source={ex.image} style={{ width: 150, height: 150, backgroundColor: '#000' }} resizeMode="cover" />
+                  <View style={{ position: 'absolute', top: 8, left: 8, backgroundColor: 'rgba(0, 0, 0, 0.6)', paddingHorizontal: 8, paddingVertical: 3, borderRadius: 8 }}>
+                    <Text style={{ color: '#F5E9CC', fontSize: 9, fontWeight: '700', letterSpacing: 0.5 }}>
+                      {lang === 'th' ? 'ตัวอย่าง' : 'EXAMPLE'}
+                    </Text>
+                  </View>
+                  <View style={{ padding: 10 }}>
+                    <Text numberOfLines={1} style={{ color: '#888', fontSize: 9, letterSpacing: 1, fontWeight: '700', marginBottom: 2 }}>
+                      {ex.result.brand.toUpperCase()}
+                    </Text>
+                    <Text numberOfLines={1} style={{ color: '#E8DCC0', fontSize: 12.5, fontWeight: '600', marginBottom: 4 }}>
+                      {ex.result.name}
+                    </Text>
+                    <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                      <Feather name="check-circle" size={11} color={colors.success} style={{ marginRight: 4 }} />
+                      <Text style={{ color: colors.success, fontSize: 11, fontWeight: '700' }}>
+                        {ex.result.authenticityProbability}% {lang === 'th' ? 'ผ่านเกณฑ์' : 'verified'}
+                      </Text>
+                    </View>
+                  </View>
+                </Pressable>
+              ))}
+            </ScrollView>
+          </View>
 
           {/* Recent Scans — horizontal carousel of saved watches.
               Mirrors the songphra "เพิ่งสแกน" UX: a quick visual reminder
@@ -561,44 +604,9 @@ export default function HomeScreen({ navigation }: any) {
               </ScrollView>
             ) : null}
 
-            <View style={styles.statsGrid}>
-              <View style={[styles.statBox, { borderColor: 'rgba(212, 175, 55, 0.15)', borderWidth: 1 }]}>
-                <LinearGradient
-                  colors={['rgba(255, 255, 255, 0.02)', 'rgba(255, 255, 255, 0.005)']}
-                  style={StyleSheet.absoluteFillObject}
-                />
-                <View style={styles.statBoxHeader}>
-                  <Feather name="briefcase" size={13} color={colors.textSecondary} style={{ marginRight: 4 }} />
-                  <Text style={styles.statLabel}>
-                    {lang === 'th' ? 'เก็บสะสมแล้ว' : 'VAULTED'}
-                  </Text>
-                </View>
-                <Text style={styles.statValue}>
-                  {portfolio.totalCount} {lang === 'th' ? 'เรือน' : 'Timepieces'}
-                </Text>
-                <Text style={styles.statSubTextLabel}>
-                  {lang === 'th' ? 'นาฬิกาผ่านการตรวจสอบแล้ว' : 'verified timepieces'}
-                </Text>
-              </View>
-              <View style={[styles.statBox, { borderColor: 'rgba(212, 175, 55, 0.15)', borderWidth: 1 }]}>
-                <LinearGradient
-                  colors={['rgba(255, 255, 255, 0.02)', 'rgba(255, 255, 255, 0.005)']}
-                  style={StyleSheet.absoluteFillObject}
-                />
-                <View style={styles.statBoxHeader}>
-                  <Feather name="trending-up" size={13} color={colors.amber} style={{ marginRight: 4 }} />
-                  <Text style={styles.statLabel}>
-                    {lang === 'th' ? 'มูลค่ารวมโดยประมาณ' : 'ESTIMATED VALUE'}
-                  </Text>
-                </View>
-                <Text style={[styles.statValue, { color: colors.amber }]}>
-                  ฿{Math.round(portfolio.totalValue * exchangeRate).toLocaleString()}
-                </Text>
-                <Text style={styles.statSubText}>
-                  {lang === 'th' ? 'เฉลี่ยตลาดรองสกุลเงินบาท' : 'THB Market Average'}
-                </Text>
-              </View>
-            </View>
+            {/* (Removed the duplicate VAULTED / ESTIMATED-VALUE statsGrid — the
+                piece count and total value are already shown above in the big
+                total + 3-pill row, so the card no longer repeats them.) */}
           </View>
 
           {/* Mini Game Promo */}

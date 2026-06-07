@@ -24,8 +24,8 @@ const KEYS = {
 //     buy a credit pack. Free tier is permanently locked after expiry.
 // Migration: existing users keep their `freeScansUsed` counter; their
 // 30-day clock starts the first time the new build reads `freeStartAt`.
-export const FREE_SCAN_LIMIT = 5;
-export const FREE_SCAN_BONUS = 5; // one-time, on consent grant
+export const FREE_SCAN_LIMIT = 0;  // no free AI scans — prospects use the 3 read-only examples + upgrade (2026-06)
+export const FREE_SCAN_BONUS = 0; // cut — no free AI (was 5 on consent)
 export const FREE_WINDOW_DAYS = 30;
 export const FREE_WINDOW_MS = FREE_WINDOW_DAYS * 24 * 60 * 60 * 1000;
 

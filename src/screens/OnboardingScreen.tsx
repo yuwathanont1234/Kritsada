@@ -15,7 +15,7 @@
  * is still gated by consent — silently drops if the user opted out.
  *
  * UI follows the Champagne Gold palette established for PDF reports
- * (Cinzel headings, #D4B98C accent). Keeps the luxury feel consistent.
+ * (Cinzel headings, #ECC87A accent). Keeps the luxury feel consistent.
  */
 import React, { useEffect, useRef, useState } from 'react';
 import {
@@ -49,9 +49,9 @@ const COLORS = {
   bgBot: '#0A0805',
   card: 'rgba(26, 22, 18, 0.6)',
   border: 'rgba(212, 185, 140, 0.30)',
-  borderActive: '#D4B98C',
+  borderActive: '#ECC87A',
   cream: '#EDE0BD',
-  gold: '#D4B98C',
+  gold: '#ECC87A',
   muted: '#A0978A',
   text: '#FFFFFF',
 };

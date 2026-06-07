@@ -56,11 +56,11 @@ function RecommendedRibbon({ lang }: { lang: 'th' | 'en' }) {
         paddingHorizontal: 14,
         backgroundColor: 'rgba(212, 185, 140, 0.14)',
         borderWidth: 1,
-        borderColor: '#D4B98C',
+        borderColor: '#ECC87A',
         borderRadius: 20,
       }}
     >
-      <Feather name="star" size={11} color="#D4B98C" />
+      <Feather name="star" size={11} color="#ECC87A" />
       <Text
         style={{
           color: '#EDE0BD',
@@ -72,7 +72,7 @@ function RecommendedRibbon({ lang }: { lang: 'th' | 'en' }) {
       >
         {lang === 'th' ? '— แนะนำสำหรับคุณ —' : '— RECOMMENDED FOR YOU —'}
       </Text>
-      <Feather name="star" size={11} color="#D4B98C" />
+      <Feather name="star" size={11} color="#ECC87A" />
     </View>
   );
 }

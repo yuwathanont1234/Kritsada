@@ -23,7 +23,7 @@ interface VerdictHeaderProps {
 }
 
 const colorFor = (s: HeatmapSignal) =>
-  s === 'green' ? '#2ECC71' : s === 'red' ? '#E74C3C' : '#ECC87A';
+  s === 'green' ? '#2ECC71' : s === 'red' ? '#EF4444' : '#ECC87A';
 
 /**
  * VerdictHeader — the single hero. Shows ONE main watch image (aspect-preserved
@@ -98,7 +98,7 @@ export default function VerdictHeader({
 
   const getVerdictBorderColor = (color: AuthColor) => {
     switch (color) {
-      case 'green': return '#22C55E';
+      case 'green': return '#2ECC71';
       case 'yellow': return '#F59E0B';
       case 'red': return '#EF4444';
       default: return '#ECC87A';
@@ -128,7 +128,7 @@ export default function VerdictHeader({
   // Exactly the SpecsSection palette so the two views match pixel-for-pixel.
   const weightColor = (w?: string, muted?: boolean): string =>
     muted || !w ? '#94A3B8'
-      : w === 'positive' ? '#22C55E'
+      : w === 'positive' ? '#2ECC71'
       : w === 'negative' ? '#EF4444'
       : '#F59E0B';
   const regionLandmarkIdx = (feature: string): number => {
@@ -341,7 +341,7 @@ export default function VerdictHeader({
               {/* Counts derived from the UNIFIED dot colours (checklist weights),
                   so the legend matches the dots on the photo AND the list below. */}
               <View style={styles.legendRow}>
-                <Legend color="#22C55E" label={lang === 'th' ? `ผ่าน ${dotCounts.ok}` : `OK ${dotCounts.ok}`} />
+                <Legend color="#2ECC71" label={lang === 'th' ? `ผ่าน ${dotCounts.ok}` : `OK ${dotCounts.ok}`} />
                 <Legend color="#F59E0B" label={lang === 'th' ? `ตรวจซ้ำ ${dotCounts.check}` : `Check ${dotCounts.check}`} />
                 <Legend color="#EF4444" label={lang === 'th' ? `น่าสงสัย ${dotCounts.flag}` : `Flag ${dotCounts.flag}`} />
                 {runCount < MAX_HEATMAP_RUNS && !loading && (

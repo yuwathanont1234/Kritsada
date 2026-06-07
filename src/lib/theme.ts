@@ -26,14 +26,20 @@ export const colors = {
   text: '#FFFFFF',
   textSecondary: '#B5AFA5',
   textMuted: '#7A736A',
+  // Cream/parchment "gold text" ramp — tokenized from the shades that were
+  // hardcoded ad-hoc across screens (#F5E9CC / #E8DCC0 / #C0B4A0). Use these
+  // for luxury text on dark instead of inventing new one-off hexes.
+  textCream: '#F5E9CC',      // brightest cream — headings/values on dark
+  textGold: '#E8DCC0',       // gold-tinted body text
+  textCreamDim: '#C0B4A0',   // muted cream — secondary text
 
   // Lines & dividers
   border: '#2D2620',
   divider: '#26201A',
 
   // Semantic
-  success: '#4ADE80',
-  successLight: 'rgba(74, 222, 128, 0.15)',
+  success: '#2ECC71',            // unified verified/success green (was #4ADE80)
+  successLight: 'rgba(46, 204, 113, 0.15)',
   warning: '#F59E0B',
   warningLight: 'rgba(245, 158, 11, 0.15)',
   danger: '#EF4444',

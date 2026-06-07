@@ -531,7 +531,7 @@ export default function SettingsScreen({ navigation }: any) {
                   paddingVertical: 3,
                   borderRadius: 10,
                   borderWidth: 1,
-                  borderColor: pushStatus === 'granted' ? '#D4B98C' : 'rgba(160, 151, 138, 0.4)',
+                  borderColor: pushStatus === 'granted' ? '#ECC87A' : 'rgba(160, 151, 138, 0.4)',
                   backgroundColor: pushStatus === 'granted' ? 'rgba(212, 185, 140, 0.15)' : 'transparent',
                   marginRight: 4,
                 }}
@@ -541,7 +541,7 @@ export default function SettingsScreen({ navigation }: any) {
                     fontSize: 10,
                     fontWeight: '700',
                     letterSpacing: 1,
-                    color: pushStatus === 'granted' ? '#D4B98C' : '#A0978A',
+                    color: pushStatus === 'granted' ? '#ECC87A' : '#A0978A',
                   }}
                 >
                   {pushStatus === 'granted'

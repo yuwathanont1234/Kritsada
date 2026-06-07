@@ -379,7 +379,7 @@ export function ScanScreen({ navigation }: Props) {
             height: 84,
             borderRadius: 42,
             borderWidth: 1.5,
-            borderColor: '#D4B98C',
+            borderColor: '#ECC87A',
             backgroundColor: 'rgba(212, 185, 140, 0.10)',
             alignItems: 'center',
             justifyContent: 'center',
@@ -387,7 +387,7 @@ export function ScanScreen({ navigation }: Props) {
             alignSelf: 'center',
           }}
         >
-          <Feather name="camera" size={36} color="#D4B98C" />
+          <Feather name="camera" size={36} color="#ECC87A" />
         </View>
 
         <Text
@@ -449,7 +449,7 @@ export function ScanScreen({ navigation }: Props) {
                   justifyContent: 'center',
                 }}
               >
-                <Feather name={b.icon as any} size={13} color="#D4B98C" />
+                <Feather name={b.icon as any} size={13} color="#ECC87A" />
               </View>
               <Text style={{ flex: 1, color: '#B5AFA5', fontSize: 13, lineHeight: 18 }}>
                 {lang === 'th' ? b.th : b.en}
@@ -784,7 +784,7 @@ export function ScanScreen({ navigation }: Props) {
             right: 16,
             backgroundColor: 'rgba(212, 185, 140, 0.18)',
             borderWidth: 1,
-            borderColor: '#D4B98C',
+            borderColor: '#ECC87A',
             borderRadius: 10,
             paddingVertical: 10,
             paddingHorizontal: 14,
@@ -794,7 +794,7 @@ export function ScanScreen({ navigation }: Props) {
           }}
           hitSlop={6}
         >
-          <Feather name="alert-circle" size={18} color="#D4B98C" />
+          <Feather name="alert-circle" size={18} color="#ECC87A" />
           <Text
             style={{
               flex: 1,
@@ -808,7 +808,7 @@ export function ScanScreen({ navigation }: Props) {
               ? `เหลือสแกนฟรี ${quotaStatus.remaining}${quotaStatus.total ? `/${quotaStatus.total}` : ''} ครั้ง — อัปเกรดเพื่อสแกนต่อ`
               : `${quotaStatus.remaining}${quotaStatus.total ? `/${quotaStatus.total}` : ''} free scans left — upgrade to keep scanning`}
           </Text>
-          <Feather name="chevron-right" size={16} color="#D4B98C" />
+          <Feather name="chevron-right" size={16} color="#ECC87A" />
         </Pressable>
       )}
 
@@ -1326,15 +1326,15 @@ const styles = StyleSheet.create({
     height: 20,
     borderRadius: 10,
     borderWidth: 1.2,
-    borderColor: '#4ADE80',
+    borderColor: '#2ECC71',
     backgroundColor: 'rgba(74, 222, 128, 0.12)',
   },
   hotspotDot: {
     width: 5,
     height: 5,
     borderRadius: 2.5,
-    backgroundColor: '#4ADE80',
-    shadowColor: '#4ADE80',
+    backgroundColor: '#2ECC71',
+    shadowColor: '#2ECC71',
     shadowOffset: { width: 0, height: 0 },
     shadowOpacity: 1,
     shadowRadius: 3,
@@ -1343,7 +1343,7 @@ const styles = StyleSheet.create({
   hotspotText: {
     position: 'absolute',
     top: 14,
-    color: '#4ADE80',
+    color: '#2ECC71',
     fontSize: 7.5,
     fontWeight: '800',
     letterSpacing: 0.5,
@@ -1454,9 +1454,9 @@ const styles = StyleSheet.create({
     borderColor: '#fff',
   },
   shutterReady: {
-    borderColor: '#4ADE80',
+    borderColor: '#2ECC71',
     backgroundColor: 'rgba(74, 222, 128, 0.30)',
-    shadowColor: '#4ADE80',
+    shadowColor: '#2ECC71',
     shadowOffset: { width: 0, height: 0 },
     shadowOpacity: 0.9,
     shadowRadius: 14,

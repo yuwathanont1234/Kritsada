@@ -128,7 +128,7 @@ export async function exportWatchPDF({
     if (authColor === 'red' || verdict === 'likely-reproduction') {
       verdictTitle = tt('Likely Reproduction', 'มีแนวโน้มเป็นของเลียนแบบ');
       verdictPillText = tt('REPRODUCTION', 'เลียนแบบ');
-      verdictPillColor = '#E74C3C';
+      verdictPillColor = '#EF4444';
     } else if (authColor === 'yellow' || verdict === 'uncertain' || verdict === 'cannot-assess') {
       verdictTitle = tt('Inconclusive', 'ไม่สามารถระบุได้');
       verdictPillText = tt('REVIEW', 'ต้องตรวจเพิ่ม');
@@ -329,7 +329,7 @@ export async function exportWatchPDF({
     .report-container {
       width: 100%;
       height: 100%;
-      border: 1.5px solid #D4B98C;
+      border: 1.5px solid #ECC87A;
       border-radius: 6px;
       padding: 6mm 7mm;
       background:
@@ -356,7 +356,7 @@ export async function exportWatchPDF({
       position: absolute;
       width: 12mm;
       height: 12mm;
-      border-color: #D4B98C;
+      border-color: #ECC87A;
       border-style: solid;
       border-width: 0;
     }
@@ -394,7 +394,7 @@ export async function exportWatchPDF({
       width: 38px;
       height: 38px;
       border-radius: 50%;
-      border: 1.5px solid #D4B98C;
+      border: 1.5px solid #ECC87A;
       background-color: rgba(18, 14, 10, 0.7);
       object-fit: cover;
       padding: 1px;
@@ -411,7 +411,7 @@ export async function exportWatchPDF({
       font-family: 'Cinzel', 'Playfair Display', 'Noto Sans Thai', serif;
       font-weight: 900;
       font-size: 13px;
-      color: #D4B98C;
+      color: #ECC87A;
       letter-spacing: 4px;
     }
 
@@ -499,7 +499,7 @@ export async function exportWatchPDF({
       font-family: 'Inter', 'Noto Sans Thai', sans-serif;
       font-size: 8px;
       font-weight: 700;
-      color: #D4B98C;
+      color: #ECC87A;
       letter-spacing: 3px;
       text-transform: uppercase;
       margin-bottom: 3.5mm;
@@ -527,7 +527,7 @@ export async function exportWatchPDF({
       font-family: 'Inter', 'Noto Sans Thai', sans-serif;
       font-size: 6.5px;
       font-weight: 700;
-      color: #D4B98C;
+      color: #ECC87A;
       letter-spacing: 3.5px;
       text-transform: uppercase;
       margin-bottom: 2.5mm;
@@ -572,7 +572,7 @@ export async function exportWatchPDF({
 
     .verdict-gauge-percent-symbol {
       font-size: 22px;
-      color: #D4B98C;
+      color: #ECC87A;
       margin-left: 1px;
       font-weight: 500;
     }
@@ -582,7 +582,7 @@ export async function exportWatchPDF({
       font-style: italic;
       font-size: 10.5px;
       font-weight: 500;
-      color: #D4B98C;
+      color: #ECC87A;
       letter-spacing: 2.5px;
       text-transform: uppercase;
       margin-top: 1.5mm;
@@ -684,7 +684,7 @@ export async function exportWatchPDF({
       min-height: 0;
       border-top-left-radius: 4px;
       border-top-right-radius: 4px;
-      border: 1px solid #D4B98C;
+      border: 1px solid #ECC87A;
       border-bottom: none;
       background-color: #1A130C;
       background-size: cover;
@@ -707,7 +707,7 @@ export async function exportWatchPDF({
 
     .scan-label-tab {
       width: 100%;
-      background: linear-gradient(135deg, #D4B98C 0%, #B89B6D 100%);
+      background: linear-gradient(135deg, #ECC87A 0%, #B89B6D 100%);
       color: #0A0805;
       font-size: 8.5px;
       font-weight: 800;
@@ -716,7 +716,7 @@ export async function exportWatchPDF({
       padding: 4px 0;
       border-bottom-left-radius: 4px;
       border-bottom-right-radius: 4px;
-      border: 1px solid #D4B98C;
+      border: 1px solid #ECC87A;
       border-top: none;
       text-transform: uppercase;
     }
@@ -739,7 +739,7 @@ export async function exportWatchPDF({
       font-family: 'Inter', 'Noto Sans Thai', sans-serif;
       font-size: 8px;
       font-weight: 700;
-      color: #D4B98C;
+      color: #ECC87A;
       letter-spacing: 3px;
       text-transform: uppercase;
       padding-bottom: 2mm;
@@ -886,7 +886,7 @@ export async function exportWatchPDF({
     .footer-title {
       font-size: 6.5px;
       font-weight: 700;
-      color: #D4B98C;
+      color: #ECC87A;
       letter-spacing: 2px;
       text-transform: uppercase;
     }
@@ -967,7 +967,7 @@ export async function exportWatchPDF({
             <defs>
               <linearGradient id="goldGradient" x1="0%" y1="0%" x2="100%" y2="100%">
                 <stop offset="0%" stop-color="#EDE0BD" />
-                <stop offset="50%" stop-color="#D4B98C" />
+                <stop offset="50%" stop-color="#ECC87A" />
                 <stop offset="100%" stop-color="#8E7345" />
               </linearGradient>
               <radialGradient id="hubGradient" cx="50%" cy="50%" r="55%">

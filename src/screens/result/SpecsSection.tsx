@@ -575,7 +575,7 @@ function LandmarkCardsSection({
         const statusColor = isMuted
           ? '#94A3B8'
           : weight === 'positive'
-          ? '#22C55E'
+          ? '#2ECC71'
           : weight === 'negative'
           ? '#EF4444'
           : '#F59E0B';

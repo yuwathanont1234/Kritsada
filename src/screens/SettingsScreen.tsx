@@ -598,7 +598,7 @@ export default function SettingsScreen({ navigation }: any) {
                   <Text style={{ color: colors.textMuted, fontSize: 10, letterSpacing: 1.5, fontWeight: '700' }}>
                     {lang === 'th' ? 'มาตรฐานการตรวจสอบ' : 'AUTHENTICATION COVERAGE'}
                   </Text>
-                  <Text style={{ color: '#F5E9CC', fontSize: 14, fontWeight: '600', marginTop: 4 }}>
+                  <Text style={{ color: colors.textCream, fontSize: 14, fontWeight: '600', marginTop: 4 }}>
                     {lang === 'th'
                       ? 'ครอบคลุมตลาดนาฬิกาหรูในประเทศไทย'
                       : 'Of luxury watch sales volume in Thailand'}
@@ -735,10 +735,10 @@ export default function SettingsScreen({ navigation }: any) {
                 </Text>
               </View>
               <View style={{ flexDirection: 'row', marginBottom: spacing.xs }}>
-                <Text style={{ color: '#2ECC71', fontSize: 11, fontWeight: '700', width: 64 }}>{lang === 'th' ? 'เพิ่มแล้ว' : 'ADDED'}</Text>
+                <Text style={{ color: colors.success, fontSize: 11, fontWeight: '700', width: 64 }}>{lang === 'th' ? 'เพิ่มแล้ว' : 'ADDED'}</Text>
                 <Text style={{ color: '#D0D0D0', fontSize: 11, flex: 1, lineHeight: 16 }}>
                   IWC · Tissot · Hermès · Piaget · Hamilton · NOMOS · Breguet
-                  <Text style={{ color: '#2ECC71', fontWeight: '700' }}> +28 ✓</Text>
+                  <Text style={{ color: colors.success, fontWeight: '700' }}> +28 ✓</Text>
                 </Text>
               </View>
               <View style={{ flexDirection: 'row' }}>

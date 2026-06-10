@@ -507,7 +507,7 @@ function LandmarkCardsSection({
 
   return (
     <View style={{ marginTop: 8 }}>
-      <Text style={{ color: '#E8DCC0', fontSize: 13, fontWeight: '800', letterSpacing: 1, marginBottom: 8 }}>
+      <Text style={{ color: colors.textGold, fontSize: 13, fontWeight: '800', letterSpacing: 1, marginBottom: 8 }}>
         {lang === 'th' ? 'จุดตรวจสอบ Hallmark' : 'HALLMARK INSPECTION POINTS'}
       </Text>
 
@@ -575,7 +575,7 @@ function LandmarkCardsSection({
         const statusColor = isMuted
           ? '#94A3B8'
           : weight === 'positive'
-          ? '#2ECC71'
+          ? colors.success
           : weight === 'negative'
           ? '#EF4444'
           : '#F59E0B';
@@ -634,7 +634,7 @@ function LandmarkCardsSection({
               <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
                 <Text
                   style={{
-                    color: isMuted ? '#A89E8A' : '#F5E9CC',
+                    color: isMuted ? '#A89E8A' : colors.textCream,
                     fontSize: 13,
                     fontWeight: '700',
                     letterSpacing: 0.2,
@@ -677,7 +677,7 @@ function LandmarkCardsSection({
               {!expanded && match && (
                 <Text
                   numberOfLines={1}
-                  style={{ color: '#C0B4A0', fontSize: 11.5, marginTop: 2, lineHeight: 16 }}
+                  style={{ color: colors.textCreamDim, fontSize: 11.5, marginTop: 2, lineHeight: 16 }}
                 >
                   {lang === 'th' ? (match.signalTh || match.signal) : match.signal}
                 </Text>
@@ -711,7 +711,7 @@ function LandmarkCardsSection({
                       >
                         {lang === 'th' ? 'การสังเกตของ AI' : 'AI OBSERVATION'}
                       </Text>
-                      <Text style={{ color: '#E8DCC0', fontSize: 12.5, lineHeight: 18 }}>
+                      <Text style={{ color: colors.textGold, fontSize: 12.5, lineHeight: 18 }}>
                         {lang === 'th' ? (match.signalTh || match.signal) : match.signal}
                       </Text>
                     </View>
@@ -728,7 +728,7 @@ function LandmarkCardsSection({
                   >
                     {lang === 'th' ? 'สิ่งที่ผู้เชี่ยวชาญตรวจ' : 'WHAT EXPERTS LOOK FOR'}
                   </Text>
-                  <Text style={{ color: '#C0B4A0', fontSize: 12, lineHeight: 17 }}>
+                  <Text style={{ color: colors.textCreamDim, fontSize: 12, lineHeight: 17 }}>
                     {lang === 'th' ? landmark.descriptionTh : landmark.descriptionEn}
                   </Text>
                 </View>

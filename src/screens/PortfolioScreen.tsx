@@ -478,7 +478,7 @@ export default function PortfolioScreen({ navigation }: any) {
                       return rows.map((r, i) => (
                         <View key={`${r.label}-${i}`} style={{ marginBottom: 10 }}>
                           <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 5 }}>
-                            <Text numberOfLines={1} style={{ color: '#E8DCC0', fontSize: 12.5, fontWeight: '600', flex: 1, marginRight: 8 }}>
+                            <Text numberOfLines={1} style={{ color: colors.textGold, fontSize: 12.5, fontWeight: '600', flex: 1, marginRight: 8 }}>
                               {r.label}
                             </Text>
                             <Text style={{ color: colors.amber, fontSize: 12.5, fontWeight: '700' }}>
@@ -544,7 +544,7 @@ export default function PortfolioScreen({ navigation }: any) {
                       backgroundColor: 'rgba(18, 14, 10, 0.6)',
                     }}
                   >
-                    <Text style={{ color: '#E8DCC0', fontSize: 13, fontWeight: '600' }}>
+                    <Text style={{ color: colors.textGold, fontSize: 13, fontWeight: '600' }}>
                       {sortLabel}
                     </Text>
                     <Feather name="chevron-down" size={16} color={colors.amber} />
@@ -631,7 +631,7 @@ function StatBox({
         numberOfLines={1}
         adjustsFontSizeToFit
         minimumFontScale={0.7}
-        style={{ color: valueColor || '#F5E9CC', fontSize: 14.5, fontWeight: '800', marginTop: 5, textAlign: 'center' }}
+        style={{ color: valueColor || colors.textCream, fontSize: 14.5, fontWeight: '800', marginTop: 5, textAlign: 'center' }}
       >
         {value}
       </Text>
@@ -668,7 +668,7 @@ function BrandChip({
     >
       <Text
         style={{
-          color: active ? '#F5E9CC' : '#C0B4A0',
+          color: active ? colors.textCream : colors.textCreamDim,
           fontSize: 12.5,
           fontWeight: active ? '800' : '600',
           letterSpacing: 0.3,
@@ -756,7 +756,7 @@ function HoldingCard({
           <Text
             numberOfLines={1}
             style={{
-              color: '#F5E9CC',
+              color: colors.textCream,
               fontSize: 16,
               fontWeight: '800',
               marginTop: 1,
@@ -784,10 +784,10 @@ function HoldingCard({
         }}
       >
         <View style={{ flex: 1, flexDirection: 'row', justifyContent: 'space-between' }}>
-          <Text style={{ color: '#C0B4A0', fontSize: 13, fontWeight: '600' }}>
+          <Text style={{ color: colors.textCreamDim, fontSize: 13, fontWeight: '600' }}>
             {lang === 'th' ? 'น้ำหนัก' : 'Weighting'}
           </Text>
-          <Text style={{ color: '#F5E9CC', fontSize: 13, fontWeight: '700' }}>
+          <Text style={{ color: colors.textCream, fontSize: 13, fontWeight: '700' }}>
             {weighting.toFixed(2)}%
           </Text>
         </View>
@@ -799,7 +799,7 @@ function HoldingCard({
           alignItems: 'center',
         }}
       >
-        <Text style={{ color: '#C0B4A0', fontSize: 13, fontWeight: '600', flex: 1 }}>
+        <Text style={{ color: colors.textCreamDim, fontSize: 13, fontWeight: '600', flex: 1 }}>
           {lang === 'th' ? 'การเปลี่ยนแปลง' : 'Change'}
         </Text>
         <View

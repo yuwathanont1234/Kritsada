@@ -113,7 +113,7 @@ function BrandTray({
         <Text
           numberOfLines={1}
           style={{
-            color: '#F5E9CC',
+            color: colors.textCream,
             fontSize: 12,
             fontWeight: '800',
             letterSpacing: 0.4,
@@ -180,7 +180,7 @@ function ThumbSlot({
           <Text style={{ color: '#ECC87A', fontSize: 18, fontWeight: '900' }}>
             +{extraCount}
           </Text>
-          <Text style={{ color: '#C0B4A0', fontSize: 9, letterSpacing: 1, marginTop: 2 }}>
+          <Text style={{ color: colors.textCreamDim, fontSize: 9, letterSpacing: 1, marginTop: 2 }}>
             MORE
           </Text>
         </View>
@@ -389,7 +389,7 @@ export default function CollectionScreen({ navigation }: any) {
                 </View>
 
                 <View style={{ flexDirection: 'row', alignItems: 'baseline', marginBottom: spacing.md }}>
-                  <Text style={{ color: '#F5E9CC', fontSize: 16, fontWeight: '700', marginRight: 6 }}>฿</Text>
+                  <Text style={{ color: colors.textCream, fontSize: 16, fontWeight: '700', marginRight: 6 }}>฿</Text>
                   <Text style={{ color: '#FFFFFF', fontSize: 32, fontWeight: '800', letterSpacing: -0.5, lineHeight: 36 }}>
                     {Math.round(metrics.totalValue * exchangeRate).toLocaleString()}
                   </Text>
@@ -466,7 +466,7 @@ export default function CollectionScreen({ navigation }: any) {
                       marginBottom: spacing.sm,
                     }}
                   >
-                    <Text style={{ color: '#E8DCC0', fontSize: 14, fontWeight: '700', letterSpacing: 0.5 }}>
+                    <Text style={{ color: colors.textGold, fontSize: 14, fontWeight: '700', letterSpacing: 0.5 }}>
                       {lang === 'th' ? 'เพิ่มล่าสุด' : 'Recently Added'}
                     </Text>
                     <Pressable
@@ -532,7 +532,7 @@ export default function CollectionScreen({ navigation }: any) {
                     >
                       <Text
                         style={{
-                          color: active ? '#F5E9CC' : '#A89E8A',
+                          color: active ? colors.textCream : '#A89E8A',
                           fontSize: 11,
                           fontWeight: '800',
                           letterSpacing: 1,
@@ -579,7 +579,7 @@ export default function CollectionScreen({ navigation }: any) {
                   <Feather name="archive" size={14} color={colors.amber} />
                 </View>
                 <View style={{ flex: 1 }}>
-                  <Text style={{ color: '#F5E9CC', fontSize: 16, fontWeight: '700' }}>
+                  <Text style={{ color: colors.textCream, fontSize: 16, fontWeight: '700' }}>
                     {lang === 'th' ? 'ตู้นาฬิกาของคุณ' : 'Your Watch Vault'}
                   </Text>
                   <Text style={{ color: '#8A8278', fontSize: 11, marginTop: 1 }}>
@@ -737,7 +737,7 @@ function StatPill({
       }}
     >
       <Feather name={icon} size={12} color={iconColor} style={{ marginRight: 5 }} />
-      <Text style={{ color: accent === 'green' ? '#D0E8D7' : '#E8DCC0', fontSize: 12, fontWeight: '700' }}>
+      <Text style={{ color: accent === 'green' ? '#D0E8D7' : colors.textGold, fontSize: 12, fontWeight: '700' }}>
         {text}
       </Text>
     </View>

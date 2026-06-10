@@ -23,7 +23,7 @@ interface VerdictHeaderProps {
 }
 
 const colorFor = (s: HeatmapSignal) =>
-  s === 'green' ? '#2ECC71' : s === 'red' ? '#EF4444' : '#ECC87A';
+  s === 'green' ? colors.success : s === 'red' ? '#EF4444' : '#ECC87A';
 
 /**
  * VerdictHeader — the single hero. Shows ONE main watch image (aspect-preserved
@@ -98,7 +98,7 @@ export default function VerdictHeader({
 
   const getVerdictBorderColor = (color: AuthColor) => {
     switch (color) {
-      case 'green': return '#2ECC71';
+      case 'green': return colors.success;
       case 'yellow': return '#F59E0B';
       case 'red': return '#EF4444';
       default: return '#ECC87A';
@@ -128,7 +128,7 @@ export default function VerdictHeader({
   // Exactly the SpecsSection palette so the two views match pixel-for-pixel.
   const weightColor = (w?: string, muted?: boolean): string =>
     muted || !w ? '#94A3B8'
-      : w === 'positive' ? '#2ECC71'
+      : w === 'positive' ? colors.success
       : w === 'negative' ? '#EF4444'
       : '#F59E0B';
   const regionLandmarkIdx = (feature: string): number => {
@@ -530,7 +530,7 @@ const styles = StyleSheet.create({
     padding: spacing.sm,
   },
   detailFeature: { fontSize: 13, fontWeight: '800', marginBottom: 3 },
-  detailObs: { color: '#E8DCC0', fontSize: 12, lineHeight: 18 },
+  detailObs: { color: colors.textGold, fontSize: 12, lineHeight: 18 },
   detailReason: { color: '#9A9088', fontSize: 11, lineHeight: 16, marginTop: 4 },
   watchDetailsBox: {
     paddingHorizontal: spacing.md,

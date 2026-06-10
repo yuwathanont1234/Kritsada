@@ -571,7 +571,7 @@ export function ResultScreen({ route, navigation }: Props) {
               >
                 {lang === 'th' ? 'การตรวจสอบจำกัด' : 'LIMITED PHOTO COVERAGE'}
               </Text>
-              <Text style={{ color: '#E8DCC0', fontSize: 13, lineHeight: 19 }}>
+              <Text style={{ color: colors.textGold, fontSize: 13, lineHeight: 19 }}>
                 {result.macroCoverageCap === 85
                   ? (lang === 'th'
                       ? 'ความเชื่อมั่นถูกจำกัดที่ 85% — เพิ่มภาพ macro อีก 1 มุม (ฝาหลัง / เม็ดมะยม / รอบ rehaut) เพื่อปลดเพดานเต็มช่วง'
@@ -601,7 +601,7 @@ export function ResultScreen({ route, navigation }: Props) {
                 ? { c: '#EF4444', icon: 'alert-triangle', bg: 'rgba(239,68,68,0.10)', bd: 'rgba(239,68,68,0.65)' }
                 : sc.status === 'format_suspect'
                 ? { c: '#ECC87A', icon: 'alert-circle', bg: 'rgba(236,200,122,0.07)', bd: 'rgba(236,200,122,0.50)' }
-                : { c: '#2ECC71', icon: 'check-circle', bg: 'rgba(46,204,113,0.07)', bd: 'rgba(46,204,113,0.45)' };
+                : { c: colors.success, icon: 'check-circle', bg: 'rgba(46,204,113,0.07)', bd: 'rgba(46,204,113,0.45)' };
             const title =
               sc.status === 'era_mismatch'
                 ? lang === 'th' ? '🚩 ซีเรียลไม่สอดคล้องยุคของรุ่น' : '🚩 SERIAL ERA MISMATCH'
@@ -628,11 +628,11 @@ export function ResultScreen({ route, navigation }: Props) {
                     {(lang === 'th' ? 'AI-DATA FUSION · ซีเรียล — ' : 'AI-DATA FUSION · SERIAL — ') + title}
                   </Text>
                   {!!sc.serial && (
-                    <Text style={{ color: '#E8DCC0', fontSize: 13, lineHeight: 19, marginBottom: 4 }}>
+                    <Text style={{ color: colors.textGold, fontSize: 13, lineHeight: 19, marginBottom: 4 }}>
                       {(lang === 'th' ? 'ซีเรียล: ' : 'Serial: ') + sc.serial}
                     </Text>
                   )}
-                  <Text style={{ color: sc.status === 'era_mismatch' ? '#FCA5A5' : '#C0B4A0', fontSize: 12.5, lineHeight: 18 }}>
+                  <Text style={{ color: sc.status === 'era_mismatch' ? '#FCA5A5' : colors.textCreamDim, fontSize: 12.5, lineHeight: 18 }}>
                     {lang === 'th' ? sc.note.th : sc.note.en}
                   </Text>
                 </View>
@@ -690,7 +690,7 @@ export function ResultScreen({ route, navigation }: Props) {
                 result.weightCheck.grade === 'mismatch'
                   ? '#EF4444'
                   : result.weightCheck.grade === 'match'
-                  ? '#2ECC71'
+                  ? colors.success
                   : '#ECC87A'
               }
               style={{ marginRight: 10, marginTop: 1 }}
@@ -702,7 +702,7 @@ export function ResultScreen({ route, navigation }: Props) {
                     result.weightCheck.grade === 'mismatch'
                       ? '#EF4444'
                       : result.weightCheck.grade === 'match'
-                      ? '#2ECC71'
+                      ? colors.success
                       : '#ECC87A',
                   fontSize: 12,
                   fontWeight: '800',
@@ -722,7 +722,7 @@ export function ResultScreen({ route, navigation }: Props) {
                       ? 'น้ำหนักใกล้เคียงสเปก'
                       : 'WEIGHT CLOSE TO SPEC')}
               </Text>
-              <Text style={{ color: '#E8DCC0', fontSize: 13, lineHeight: 19, marginBottom: 4 }}>
+              <Text style={{ color: colors.textGold, fontSize: 13, lineHeight: 19, marginBottom: 4 }}>
                 {lang === 'th'
                   ? `วัดได้ ${result.weightCheck.userWeightG}g · มาตรฐาน ${result.weightCheck.minG}-${result.weightCheck.maxG}g (${result.weightCheck.material}, nominal ${result.weightCheck.nominalG}g)`
                   : `Measured ${result.weightCheck.userWeightG}g · Spec ${result.weightCheck.minG}-${result.weightCheck.maxG}g (${result.weightCheck.material}, nominal ${result.weightCheck.nominalG}g)`}
@@ -786,7 +786,7 @@ export function ResultScreen({ route, navigation }: Props) {
               <Feather name="hash" size={18} color="#ECC87A" />
             </View>
             <View style={{ flex: 1 }}>
-              <Text style={{ color: '#F5E9CC', fontSize: 14, fontWeight: '700', marginBottom: 2 }}>
+              <Text style={{ color: colors.textCream, fontSize: 14, fontWeight: '700', marginBottom: 2 }}>
                 {lang === 'th'
                   ? 'เพิ่ม Serial Number เพื่อตรวจสอบความแท้'
                   : 'Add the serial number to verify'}
@@ -841,7 +841,7 @@ export function ResultScreen({ route, navigation }: Props) {
               <View style={{ flex: 1 }}>
                 <Text
                   style={{
-                    color: '#FFA500',
+                    color: colors.warning,
                     fontSize: 12,
                     fontWeight: '800',
                     letterSpacing: 1,
@@ -852,7 +852,7 @@ export function ResultScreen({ route, navigation }: Props) {
                     ? 'ธุรกรรมมูลค่าสูง — แนะนำให้ตรวจสอบเพิ่ม'
                     : 'HIGH-VALUE TRANSACTION — VERIFY IN PERSON'}
                 </Text>
-                <Text style={{ color: '#E8DCC0', fontSize: 13, lineHeight: 19 }}>
+                <Text style={{ color: colors.textGold, fontSize: 13, lineHeight: 19 }}>
                   {lang === 'th'
                     ? 'AI screening ผ่านรูปอย่างเดียว ≠ การรับประกันความแท้ 100% ของปลอม Grade A ในปัจจุบันสามารถทำเลียนแบบ cyclops, etched crown, และตัวอักษรบนหน้าปัดได้แนบเนียน สำหรับมูลค่าระดับนี้ แนะนำตรวจสอบเพิ่มที่ Authorized Dealer (RSC สำหรับ Rolex, ศูนย์ Tudor / Patek / AP) หรือผู้เชี่ยวชาญอิสระที่ได้รับการรับรอง'
                     : 'AI photo-only screening ≠ 100% authenticity guarantee. Modern grade-A super-clones can reproduce cyclops, etched crowns, and dial typography convincingly. For transactions at this value, additional verification by an Authorised Dealer (RSC for Rolex, Tudor/Patek/AP service centres) or a certified independent watchmaker is strongly recommended.'}
@@ -1097,7 +1097,7 @@ export function ResultScreen({ route, navigation }: Props) {
               >
                 <Feather name="hash" size={22} color={colors.amber} />
               </View>
-              <Text style={{ color: '#F5E9CC', fontSize: 18, fontWeight: '800', textAlign: 'center' }}>
+              <Text style={{ color: colors.textCream, fontSize: 18, fontWeight: '800', textAlign: 'center' }}>
                 Serial Number
               </Text>
               <Text style={{ color: '#A89E8A', fontSize: 12, marginTop: 4, textAlign: 'center', lineHeight: 17 }}>

@@ -824,7 +824,7 @@ const styles = StyleSheet.create({
   probeTextMuted: { color: colors.textMuted, fontSize: 12, fontWeight: '500' },
   probeCheck: {
     fontSize: 14,
-    color: '#2ECC71',
+    color: colors.success,
     fontWeight: '900',
     marginLeft: 'auto',
     paddingLeft: spacing.sm,

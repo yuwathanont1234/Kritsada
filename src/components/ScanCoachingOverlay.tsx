@@ -179,7 +179,7 @@ function pillContent(
           : (lang === 'th' ? '🟢 พร้อมสแกนแล้ว!' : '🟢 READY TO CAPTURE'),
         bg: 'rgba(74, 222, 128, 0.92)',
         fg: '#0A0805',
-        border: '#4ADE80',
+        border: colors.success,
       };
     case 'stabilizing':
       return {

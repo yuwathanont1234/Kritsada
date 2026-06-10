@@ -73,7 +73,18 @@ serve(async (req) => {
     const authHeader = req.headers.get('authorization') ?? ''
     const jwt = authHeader.replace(/^Bearer\s+/i, '').trim()
     const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? ''
-    const isServiceCaller = !!jwt && !!serviceKey && jwt === serviceKey
+    // Exact match + role-claim fallback: several valid service JWTs coexist
+    // on this project (legacy + rotated keys), so string equality alone
+    // mis-classified the pg_cron keep-warm as a normal caller. The role
+    // claim is trustworthy because the functions gateway (verify_jwt=true)
+    // verified the signature before invoking us.
+    let isServiceCaller = !!jwt && !!serviceKey && jwt === serviceKey
+    if (!isServiceCaller && jwt.split('.').length === 3) {
+      try {
+        const payload = JSON.parse(atob(jwt.split('.')[1].replace(/-/g, '+').replace(/_/g, '/')))
+        isServiceCaller = payload?.role === 'service_role'
+      } catch { /* not a decodable JWT */ }
+    }
     const ip = (req.headers.get("x-forwarded-for") ?? "").split(",")[0]?.trim()
     let admin: any = null
     let userId: string | null = null

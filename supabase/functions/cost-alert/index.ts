@@ -24,7 +24,21 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 serve(async (req) => {
   const serviceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
   const jwt = (req.headers.get('authorization') ?? '').replace(/^Bearer\s+/i, '').trim()
-  if (!serviceKey || jwt !== serviceKey) {
+  // Service-caller check. Exact match covers the platform-injected key; the
+  // role-claim fallback covers projects where several valid service JWTs
+  // coexist (legacy JWT + rotated/new-format keys — this project has both,
+  // verified 2026-06-10 when the exact match alone 401'd the pg_cron call).
+  // Trusting the decoded claim is sound ONLY because the functions gateway
+  // (verify_jwt=true) has already verified the signature before invoking us
+  // — never deploy this function with --no-verify-jwt.
+  let isService = !!serviceKey && jwt === serviceKey
+  if (!isService && jwt.split('.').length === 3) {
+    try {
+      const payload = JSON.parse(atob(jwt.split('.')[1].replace(/-/g, '+').replace(/_/g, '/')))
+      isService = payload?.role === 'service_role'
+    } catch { /* not a decodable JWT */ }
+  }
+  if (!isService) {
     return new Response(JSON.stringify({ error: 'unauthorized' }), {
       status: 401,
       headers: { 'Content-Type': 'application/json' },

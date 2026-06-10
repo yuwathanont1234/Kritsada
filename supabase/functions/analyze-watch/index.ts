@@ -140,6 +140,45 @@ serve(async (req) => {
       } catch (_e) { /* fail-open */ }
     }
 
+    // ── Server-side TIER gate (SHADOW until RevenueCat is live) ────────────
+    // Feature gating is otherwise client-side only — a modded client gets
+    // Premium work by just sending the label. user_membership (migration
+    // 0016) is mirrored from store-validated RevenueCat webhooks; flip
+    // TIER_GATE_ENFORCE=true once RC is configured in production. A missing
+    // or expired row counts as 'free'.
+    {
+      const LABEL_MIN_RANK: Record<string, number> = { heatmap: 3, price: 2 } // premium=3, pro=2
+      const TIER_RANK: Record<string, number> = { free: 0, standard: 1, pro: 2, premium: 3 }
+      const needRank = LABEL_MIN_RANK[label] ?? 0
+      if (needRank > 0 && admin) {
+        try {
+          const TENFORCE = (Deno.env.get('TIER_GATE_ENFORCE') ?? 'false') === 'true'
+          let tier = 'free'
+          if (userId) {
+            const { data: mrow } = await admin
+              .from('user_membership')
+              .select('tier, expires_at')
+              .eq('user_id', userId)
+              .maybeSingle()
+            const notExpired = !mrow?.expires_at || new Date(mrow.expires_at).getTime() > Date.now()
+            if (mrow?.tier && notExpired) tier = mrow.tier
+          }
+          if ((TIER_RANK[tier] ?? 0) < needRank) {
+            if (TENFORCE) {
+              console.warn(`[tier-gate:enforce] BLOCK label=${label} user=${userId?.slice(0, 8) ?? 'anon'} tier=${tier}`)
+              return new Response(
+                JSON.stringify({ error: 'ฟีเจอร์นี้สำหรับสมาชิกระดับที่สูงกว่า กรุณาอัปเกรดแพ็กเกจ', tierRequired: true }),
+                { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+              )
+            }
+            console.log(`[tier-gate:shadow] WOULD-BLOCK label=${label} user=${userId?.slice(0, 8) ?? 'anon'} tier=${tier}`)
+          }
+        } catch (te) {
+          console.warn('[tier-gate] skipped:', (te as any)?.message)
+        }
+      }
+    }
+
     // ── Per-SCAN guards (run ONCE per scan: label === 'identify') ───────────
     // Two scan-semantics checks (enforced via secrets since 2026-06-10):
     //   (A) a GLOBAL daily scan ceiling — the catastrophic-cost backstop, and

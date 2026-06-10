@@ -20,11 +20,8 @@ import {
   Text,
   View,
 } from 'react-native';
-import {
-  BONUS_SCANS_PER_MONTH,
-  grantDataConsent,
-  revokeDataConsent,
-} from '../lib/dataConsent';
+import { grantDataConsent, revokeDataConsent } from '../lib/dataConsent';
+import { useLanguage } from '../lib/localization';
 import { colors, radius, spacing } from '../lib/theme';
 
 export type ConsentContext = 'initial' | 'quota-wall' | 'nudge';
@@ -39,33 +36,35 @@ type Props = {
   remainingScans?: number;
 };
 
-/** Friend-tone copy keyed by context. Each variant is purpose-built. */
-const COPY: Record<
-  ConsentContext,
-  { title: string; subtitle: string; rewardLabel: string; ctaLabel: string }
-> = {
-  initial: {
-    title: 'Partner With Us? 🤝',
+/**
+ * Honest opt-in copy — NO reward promises. The previous variants offered
+ * "5 instant credits" for consenting, but the granted bonus fed a counter
+ * that no quota gate reads (and FREE_SCAN_BONUS is 0 since the free AI tier
+ * was cut), so users surrendered PDPA consent and received nothing. All
+ * three contexts now make the same truthful ask. Bilingual: PDPA consent
+ * must be understandable to the data subject, and the app defaults to Thai.
+ */
+type CopyVariant = { title: string; subtitle: string; missionLabel: string; ctaLabel: string };
+const COPY: Record<'en' | 'th', Record<ConsentContext, CopyVariant>> = (() => {
+  const en: CopyVariant = {
+    title: 'Help Improve the AI?',
     subtitle:
-      'Help the Luxury Authenticator team optimize our neural models.\nYour anonymized feedback directly boosts diagnostic accuracy.',
-    rewardLabel: `As a token of appreciation — receive ${BONUS_SCANS_PER_MONTH} free credits`,
-    ctaLabel: `Opt In & Claim ${BONUS_SCANS_PER_MONTH} Credits`,
-  },
-  'quota-wall': {
-    title: 'Out of Credits? 🥺',
+      'Optionally share anonymized scan metrics so our team can tune the diagnostic models.\nEntirely voluntary — nothing changes about your plan either way.',
+    missionLabel: 'Your metrics directly sharpen counterfeit detection for every collector',
+    ctaLabel: 'Opt In & Share Metrics',
+  };
+  const th: CopyVariant = {
+    title: 'ช่วยพัฒนา AI ของเราไหม?',
     subtitle:
-      'Let us top you up for free! Optimize our neural models\nby sharing anonymous metrics and stay scanning.',
-    rewardLabel: `Claim ${BONUS_SCANS_PER_MONTH} instant credits to continue diagnostics`,
-    ctaLabel: `Accept & Receive ${BONUS_SCANS_PER_MONTH} Credits`,
-  },
-  nudge: {
-    title: 'Want More Free Credits? 🎁',
-    subtitle:
-      'Support the Luxury Authenticator project\nby contributing diagnostic stats, and we\'ll credit your account.',
-    rewardLabel: `Claim ${BONUS_SCANS_PER_MONTH} complimentary scan credits`,
-    ctaLabel: `Join Cohort & Claim Credits`,
-  },
-};
+      'ร่วมแชร์สถิติการสแกนแบบไม่ระบุตัวตน เพื่อให้ทีมงานปรับจูนโมเดลวินิจฉัยให้แม่นยำขึ้น\nเป็นความสมัครใจล้วน ๆ — แพ็กเกจของคุณไม่เปลี่ยนแปลงไม่ว่าจะเลือกทางใด',
+    missionLabel: 'ข้อมูลของคุณช่วยให้ระบบจับของปลอมได้แม่นยำขึ้นสำหรับนักสะสมทุกคน',
+    ctaLabel: 'ยินยอมแชร์สถิติ',
+  };
+  return {
+    en: { initial: en, 'quota-wall': en, nudge: en },
+    th: { initial: th, 'quota-wall': th, nudge: th },
+  };
+})();
  
 export function DataConsentModal({
   visible,
@@ -74,8 +73,10 @@ export function DataConsentModal({
   context = 'initial',
   remainingScans,
 }: Props) {
+  const { lang } = useLanguage();
+  const th = lang === 'th';
   const [submitting, setSubmitting] = useState(false);
-  const copy = COPY[context];
+  const copy = COPY[lang][context] ?? COPY[lang].initial;
  
   async function handleAllow() {
     setSubmitting(true);
@@ -122,10 +123,10 @@ export function DataConsentModal({
             contentContainerStyle={s.scrollContent}
             showsVerticalScrollIndicator={false}
           >
-            {/* Hero gift bubble */}
+            {/* Hero bubble — partnership, not a gift (there is no reward) */}
             <View style={s.heroWrap}>
               <View style={s.heroBubble}>
-                <Text style={s.heroEmoji}>🎁</Text>
+                <Text style={s.heroEmoji}>🤝</Text>
               </View>
             </View>
  
@@ -134,7 +135,7 @@ export function DataConsentModal({
               <View style={s.counterChip}>
                 <Feather name="alert-circle" size={12} color={colors.amber} />
                 <Text style={s.counterChipText}>
-                  {remainingScans} scans remaining
+                  {th ? `เหลือสิทธิ์สแกน ${remainingScans} ครั้ง` : `${remainingScans} scans remaining`}
                 </Text>
               </View>
             )}
@@ -142,43 +143,44 @@ export function DataConsentModal({
             <Text style={s.title}>{copy.title}</Text>
             <Text style={s.subtitle}>{copy.subtitle}</Text>
  
-            {/* Reward chip */}
+            {/* Mission chip (replaces the old fake "reward" chip) */}
             <View style={s.rewardChip}>
-              <Feather name="gift" size={16} color="#1A1410" />
-              <Text style={s.rewardText}>{copy.rewardLabel}</Text>
+              <Feather name="trending-up" size={16} color="#1A1410" />
+              <Text style={s.rewardText}>{copy.missionLabel}</Text>
             </View>
- 
+
             {/* Two-column transparency */}
             <View style={s.twoColRow}>
               <View style={s.col}>
-                <Text style={s.colTitle}>📊 Collected Metrics</Text>
-                <CompactBullet text="Brand, model, & reference tags" />
-                <CompactBullet text="AI confidence scores" />
-                <CompactBullet text="Application client version" />
+                <Text style={s.colTitle}>{th ? '📊 ข้อมูลที่เก็บ' : '📊 Collected Metrics'}</Text>
+                <CompactBullet text={th ? 'แบรนด์ รุ่น และรหัสอ้างอิง' : 'Brand, model, & reference tags'} />
+                <CompactBullet text={th ? 'คะแนนความเชื่อมั่นของ AI' : 'AI confidence scores'} />
+                <CompactBullet text={th ? 'เวอร์ชันของแอป' : 'Application client version'} />
               </View>
- 
+
               <View style={s.col}>
-                <Text style={s.colTitle}>🚫 Never Collected</Text>
-                <CompactBullet text="Names, emails, or phone numbers" negative />
-                <CompactBullet text="Original high-res watch photos" negative />
-                <CompactBullet text="GPS coordinates or physical addresses" negative />
-                <CompactBullet text="Other application usage history" negative />
+                <Text style={s.colTitle}>{th ? '🚫 ไม่เก็บเด็ดขาด' : '🚫 Never Collected'}</Text>
+                <CompactBullet text={th ? 'ชื่อ อีเมล หรือเบอร์โทรศัพท์' : 'Names, emails, or phone numbers'} negative />
+                <CompactBullet text={th ? 'ไฟล์ภาพนาฬิกาความละเอียดสูง' : 'Original high-res watch photos'} negative />
+                <CompactBullet text={th ? 'พิกัด GPS หรือที่อยู่' : 'GPS coordinates or physical addresses'} negative />
+                <CompactBullet text={th ? 'ประวัติการใช้งานแอปอื่น ๆ' : 'Other application usage history'} negative />
               </View>
             </View>
- 
+
             {/* Use-case section */}
             <View style={s.section}>
-              <Text style={s.sectionTitle}>🎯 Ultimate Objectives</Text>
-              <Bullet text="Train and optimize DINOv3 visual layers" />
-              <Bullet text="Detect emerging counterfeit patterns and replicas" />
+              <Text style={s.sectionTitle}>{th ? '🎯 นำไปใช้เพื่อ' : '🎯 Ultimate Objectives'}</Text>
+              <Bullet text={th ? 'ฝึกและปรับจูนโมเดลวิเคราะห์ภาพ DINOv3' : 'Train and optimize DINOv3 visual layers'} />
+              <Bullet text={th ? 'ตรวจจับรูปแบบของปลอมและงานเลียนแบบรุ่นใหม่ ๆ' : 'Detect emerging counterfeit patterns and replicas'} />
             </View>
- 
+
             {/* Trust note */}
             <View style={s.trustNote}>
               <Feather name="info" size={14} color={colors.textMuted} />
               <Text style={s.trustText}>
-                Completely Optional — Refuse at any time and scan normally with standard limits.
-                Toggle consent under Settings, or request full deletion of previously shared metrics.
+                {th
+                  ? 'เป็นทางเลือกโดยสมบูรณ์ — ปฏิเสธได้โดยไม่กระทบการใช้งานตามแพ็กเกจของคุณ เปลี่ยนใจได้ทุกเมื่อที่การตั้งค่า หรือขอให้ลบข้อมูลสถิติที่เคยแชร์ทั้งหมดได้'
+                  : 'Completely optional — declining changes nothing about your plan. Toggle consent under Settings, or request full deletion of previously shared metrics.'}
               </Text>
             </View>
           </ScrollView>
@@ -194,7 +196,7 @@ export function DataConsentModal({
               disabled={submitting}
             >
               <Text style={s.btnAllowText}>
-                {submitting ? 'Saving...' : copy.ctaLabel}
+                {submitting ? (th ? 'กำลังบันทึก...' : 'Saving...') : copy.ctaLabel}
               </Text>
             </Pressable>
             <Pressable
@@ -205,7 +207,7 @@ export function DataConsentModal({
               onPress={handleDecline}
               disabled={submitting}
             >
-              <Text style={s.btnDeclineText}>Decline</Text>
+              <Text style={s.btnDeclineText}>{th ? 'ไม่ยินยอม' : 'Decline'}</Text>
             </Pressable>
           </View>
         </View>

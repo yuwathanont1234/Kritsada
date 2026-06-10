@@ -16,6 +16,7 @@ import { Feather } from '@expo/vector-icons';
 import React, { useState } from 'react';
 import { Linking, Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { grantAiConsent } from '../lib/aiConsent';
+import { useLanguage } from '../lib/localization';
 import { colors, radius, spacing } from '../lib/theme';
 
 type Props = {
@@ -25,6 +26,10 @@ type Props = {
 };
 
 export function AiProcessingConsentModal({ visible, onDecided }: Props) {
+  // PDPA requires consent the data subject can actually understand — the app
+  // defaults to Thai, so this legally-significant surface must speak Thai too.
+  const { lang } = useLanguage();
+  const th = lang === 'th';
   const [submitting, setSubmitting] = useState(false);
 
   async function handleAccept() {
@@ -56,50 +61,77 @@ export function AiProcessingConsentModal({ visible, onDecided }: Props) {
               <Feather name="shield" size={20} color={colors.amber} />
             </View>
             <View style={{ flex: 1 }}>
-              <Text style={s.title}>AI Watch Diagnostics Consent</Text>
+              <Text style={s.title}>
+                {th ? 'ความยินยอมในการประมวลผลภาพด้วย AI' : 'AI Watch Diagnostics Consent'}
+              </Text>
               <Text style={s.subtitle}>
-                Consent for Data Processing (Compliance & Apple AI Policy 2025)
+                {th
+                  ? 'คำขอความยินยอมตาม พ.ร.บ. คุ้มครองข้อมูลส่วนบุคคล (PDPA) และนโยบาย Apple AI 2025'
+                  : 'Consent for Data Processing (PDPA & Apple AI Policy 2025)'}
               </Text>
             </View>
           </View>
- 
+
           <ScrollView style={s.body} showsVerticalScrollIndicator={false}>
             {/* What happens */}
-            <Section title="📤 Data Routing & Destination">
+            <Section title={th ? '📤 ปลายทางของข้อมูล' : '📤 Data Routing & Destination'}>
               <Text style={s.bodyText}>
-                When initiating a watch scan, your timepiece photographs will be processed securely via:
+                {th
+                  ? 'เมื่อเริ่มสแกน ภาพถ่ายนาฬิกาของคุณจะถูกส่งไปประมวลผลอย่างปลอดภัยโดย:'
+                  : 'When initiating a watch scan, your timepiece photographs will be processed securely via:'}
               </Text>
-              <Bullet text="Google Gemini AI — Premium secure servers in the US (Cross-Border Transfer)" />
-              <Bullet text="Replicate AI — Advanced visual feature vector extraction in the US" />
+              <Bullet text={th
+                ? 'Google Gemini AI — เซิร์ฟเวอร์ในสหรัฐอเมริกา (มีการส่งข้อมูลข้ามพรมแดน)'
+                : 'Google Gemini AI — secure servers in the US (cross-border transfer)'} />
+              <Bullet text={th
+                ? 'Replicate AI — สกัดคุณลักษณะเชิงภาพ (feature vector) ในสหรัฐอเมริกา'
+                : 'Replicate AI — visual feature-vector extraction in the US'} />
               <Text style={s.bodyText}>
-                Both providers adhere to rigid Data Processing Addendums containing Standard Contractual Clauses (SCCs) to ensure absolute data safety.
+                {th
+                  ? 'ผู้ให้บริการทั้งสองรายอยู่ภายใต้ข้อตกลงการประมวลผลข้อมูล (DPA) พร้อมข้อสัญญามาตรฐาน (SCCs) เพื่อคุ้มครองข้อมูลของคุณ'
+                  : 'Both providers operate under Data Processing Addendums containing Standard Contractual Clauses (SCCs) to safeguard your data.'}
               </Text>
             </Section>
- 
+
             {/* What for */}
-            <Section title="🎯 Intended Use & AI Diagnostics">
-              <Bullet text="Optical analysis of timepiece brand, reference, and production era" />
-              <Bullet text="Deep-learning evaluation of optical hallmarks and micro-anomalies" />
-              <Bullet text="Generation of the Hallmark Diagnostic Map — brand-specific landmark analysis (Premium feature)" />
+            <Section title={th ? '🎯 วัตถุประสงค์การใช้งาน' : '🎯 Intended Use & AI Diagnostics'}>
+              <Bullet text={th
+                ? 'วิเคราะห์แบรนด์ รุ่น และยุคการผลิตจากภาพถ่าย'
+                : 'Optical analysis of timepiece brand, reference, and production era'} />
+              <Bullet text={th
+                ? 'ประเมินจุดสังเกต (hallmark) และความผิดปกติระดับไมโครด้วย deep learning'
+                : 'Deep-learning evaluation of optical hallmarks and micro-anomalies'} />
+              <Bullet text={th
+                ? 'สร้างแผนผังวินิจฉัย Hallmark Diagnostic Map เฉพาะแบรนด์ (ฟีเจอร์ Premium)'
+                : 'Generation of the Hallmark Diagnostic Map — brand-specific landmark analysis (Premium feature)'} />
             </Section>
- 
+
             {/* What's protected */}
-            <Section title="🔒 Privacy Safeguards & Assurances">
-              <BulletGood text="Transient Processing — Captured photos are deleted instantly after diagnosis" />
-              <BulletGood text="Zero Training Use — Your private watch images will never be used to train AI models" />
-              <BulletGood text="Anonymized Ingestion — Zero personal identifiers (Name, Email, GPS) are attached" />
-              <BulletGood text="Secure Hashing — Unique random cohort hashes prevent technical overlaps and errors" />
+            <Section title={th ? '🔒 มาตรการคุ้มครองความเป็นส่วนตัว' : '🔒 Privacy Safeguards & Assurances'}>
+              <BulletGood text={th
+                ? 'ประมวลผลชั่วคราว — แอปไม่เก็บภาพไว้หลังการวิเคราะห์เสร็จสิ้น'
+                : 'Transient processing — the app does not retain photos after diagnosis'} />
+              <BulletGood text={th
+                ? 'ไม่ใช้ฝึกโมเดล — ภาพนาฬิกาของคุณจะไม่ถูกนำไปฝึก AI'
+                : 'Zero training use — your private watch images are never used to train AI models'} />
+              <BulletGood text={th
+                ? 'ไม่ระบุตัวตน — ไม่แนบชื่อ อีเมล หรือพิกัด GPS ไปกับภาพ'
+                : 'Anonymized ingestion — no personal identifiers (name, email, GPS) are attached'} />
+              <BulletGood text={th
+                ? 'รหัสนิรนาม — ใช้ cohort hash แบบสุ่มแทนการระบุอุปกรณ์ของคุณ'
+                : 'Secure hashing — random cohort hashes stand in for your device identity'} />
             </Section>
- 
+
             {/* Withdrawal */}
             <View style={s.trustNote}>
               <Feather name="info" size={14} color={colors.textMuted} />
               <Text style={s.trustText}>
-                You may withdraw this consent at any time in Settings → Privacy & Security.
-                Please note that revoking consent disables optical scanning features, as the luxury diagnostic engine requires real-time cloud computing.
+                {th
+                  ? 'คุณสามารถถอนความยินยอมได้ทุกเมื่อที่ การตั้งค่า → ความเป็นส่วนตัว ทั้งนี้การถอนความยินยอมจะปิดการสแกนด้วย AI เนื่องจากระบบวิเคราะห์จำเป็นต้องประมวลผลบนคลาวด์'
+                  : 'You may withdraw this consent at any time in Settings → Privacy & Security. Revoking consent disables AI scanning, as the diagnostic engine requires real-time cloud computing.'}
               </Text>
             </View>
- 
+
             {/* Privacy policy link */}
             <Pressable
               onPress={() =>
@@ -108,11 +140,11 @@ export function AiProcessingConsentModal({ visible, onDecided }: Props) {
               style={s.policyLink}
             >
               <Text style={s.policyLinkText}>
-                Read our Complete Privacy Policy →
+                {th ? 'อ่านนโยบายความเป็นส่วนตัวฉบับเต็ม →' : 'Read our Complete Privacy Policy →'}
               </Text>
             </Pressable>
           </ScrollView>
- 
+
           {/* Footer — accept primary, decline secondary but visually equal */}
           <View style={s.footer}>
             <Pressable
@@ -121,7 +153,9 @@ export function AiProcessingConsentModal({ visible, onDecided }: Props) {
               disabled={submitting}
             >
               <Text style={s.btnAcceptText}>
-                {submitting ? 'Saving...' : 'Accept & Initialize Scan'}
+                {submitting
+                  ? (th ? 'กำลังบันทึก...' : 'Saving...')
+                  : (th ? 'ยอมรับและเริ่มสแกน' : 'Accept & Initialize Scan')}
               </Text>
             </Pressable>
             <Pressable
@@ -129,7 +163,7 @@ export function AiProcessingConsentModal({ visible, onDecided }: Props) {
               onPress={handleDecline}
               disabled={submitting}
             >
-              <Text style={s.btnDeclineText}>Decline</Text>
+              <Text style={s.btnDeclineText}>{th ? 'ไม่ยินยอม' : 'Decline'}</Text>
             </Pressable>
           </View>
         </View>

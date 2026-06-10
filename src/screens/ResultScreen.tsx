@@ -105,16 +105,18 @@ export function ResultScreen({ route, navigation }: Props) {
         fair: res.priceByGrade?.fair || Math.round(res.marketPrice * 0.9),
       };
     }
-    // Client-side authenticity fallback if missing to guarantee visual verdict
+    // HONEST fallback when the AI returned no verdict (engine failure or a
+    // partial response). Never fabricate a positive verdict or invented
+    // "evidence" — a broken engine must not green-light a possibly fake
+    // watch. 'uncertain' renders the yellow state with a rescan suggestion.
     if (!res.authenticityVerdict) {
-      res.authenticityVerdict = 'likely-authentic';
-      res.authenticityProbability = res.authenticityProbability ?? 95;
-      res.authenticityReasoning = res.authenticityReasoning ?? 'Pristine case architecture, precise dial typography transfers, and impeccable micro-finishing match strict manufacturer parameters.';
-      res.authenticitySignals = res.authenticitySignals ?? [
-        { signal: 'Crisp transfer typography with sharp serif definitions and zero bleed.', weight: 'positive' },
-        { signal: 'Case proportions, beveled lugs, and flank geometries conform to strict manufacturer blueprints.', weight: 'positive' },
-        { signal: 'Immaculate dial surface finishing showing uniform light-ray behavior.', weight: 'positive' }
-      ];
+      res.authenticityVerdict = 'uncertain';
+      res.authenticityProbability = res.authenticityProbability ?? 50;
+      res.authenticityReasoning = res.authenticityReasoning ??
+        'การวิเคราะห์ความแท้ไม่สมบูรณ์ — ระบบ AI ตอบกลับไม่ครบถ้วนในรอบนี้ ผลจึงยังสรุปไม่ได้ กรุณาสแกนใหม่โดยถ่ายหน้าปัด ฝาหลัง และตัวเรือนให้คมชัด / Authenticity analysis was incomplete (the AI engine returned a partial response), so no verdict can be drawn. Please rescan with sharp photos of the dial, caseback, and case.';
+      res.authenticitySignals = res.authenticitySignals ?? [];
+      // Generic self-inspection advice is still useful — framed as steps the
+      // OWNER should take, not as observations about this specific watch.
       res.checklist = res.checklist ?? [
         'Verify exact gram weight and heft distribution on scales.',
         'Inspect the cyclops magnifier for precise 2.5x curvature and date wheel centering.',
@@ -215,6 +217,7 @@ export function ResultScreen({ route, navigation }: Props) {
     }).catch(() => {});
 
     // Don't fire the peak-excitement paywall in these cases:
+    if (isExample) return; // example results already end in an upgrade CTA — don't double-paywall the showcase
     if (membership.tier !== 'free') return;
     if (route.params.savedId) return; // viewing a saved scan from Collection
     if (!isPositive) return;

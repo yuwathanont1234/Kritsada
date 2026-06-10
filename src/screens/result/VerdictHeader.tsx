@@ -367,11 +367,18 @@ export default function VerdictHeader({
         </View>
       )}
 
-      {/* ── Watch details ── */}
+      {/* ── Watch details ──
+          No fabricated identity: when the AI couldn't identify the piece,
+          say so. Defaulting to "ROLEX Cosmograph Daytona Ref: 116500LN"
+          turned every engine failure into a fake Rolex certificate. */}
       <View style={styles.watchDetailsBox}>
-        <Text style={styles.watchBrand}>{result.brand?.toUpperCase() || 'ROLEX'}</Text>
-        <Text style={styles.watchName}>{customName || result.name || 'Cosmograph Daytona'}</Text>
-        <Text style={styles.watchRef}>{result.reference ? `Ref: ${result.reference}` : 'Ref: 116500LN'}</Text>
+        <Text style={styles.watchBrand}>
+          {result.brand?.toUpperCase() || (lang === 'th' ? 'ไม่สามารถระบุแบรนด์' : 'BRAND UNIDENTIFIED')}
+        </Text>
+        <Text style={styles.watchName}>
+          {customName || result.name || (lang === 'th' ? 'ไม่ทราบรุ่น — ลองสแกนใหม่' : 'Unknown model — try rescanning')}
+        </Text>
+        {!!result.reference && <Text style={styles.watchRef}>{`Ref: ${result.reference}`}</Text>}
         {!!result.serialNumber && <Text style={styles.watchSpecs}>{`Serial: ${result.serialNumber}`}</Text>}
         <Text style={styles.watchSpecs}>{specsText}</Text>
       </View>

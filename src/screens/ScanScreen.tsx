@@ -21,11 +21,9 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { PrimaryButton } from '../components/PrimaryButton';
 import { ScanCoachingOverlay } from '../components/ScanCoachingOverlay';
 import { UpgradeModal, UpgradeReason } from '../components/UpgradeModal';
-import { DataConsentModal } from '../components/DataConsentModal';
 import { AiProcessingConsentModal } from '../components/AiProcessingConsentModal';
 import { hasValidAiConsent } from '../lib/aiConsent';
 import { getDataConsent } from '../lib/dataConsent';
-import { grantFreeScanBonus } from '../lib/storage';
 import { getMembership } from '../lib/auth';
 import { getFreeScansUsed, isFreeWindowExpired } from '../lib/storage';
 import { assessImageQuality } from '../lib/imageQuality';
@@ -232,7 +230,6 @@ export function ScanScreen({ navigation }: Props) {
   // "Hot moment" data-consent modal. Triggered when a Free user without
   // a recorded consent decision hits the quota wall — instead of the
   // generic upgrade prompt, we offer +5 credits in exchange for opt-in.
-  const [consentBridgeVisible, setConsentBridgeVisible] = useState(false);
 
   // P1 AI Processing Consent Gate — Apple AI Policy 2025 + PDPA require explicit
   // consent before sending user photos to third-party AI (Google Gemini + Replicate, USA).
@@ -413,8 +410,8 @@ export function ScanScreen({ navigation }: Props) {
           }}
         >
           {lang === 'th'
-            ? 'AI ต้องใช้กล้องเพื่อถ่ายภาพหน้าปัดและฝาหลังของนาฬิกาในระดับมาโคร — ระบบจะวิเคราะห์ความแท้แบบเชิงลึก ไม่บันทึกหรือแชร์ภาพออกจากเครื่องของคุณ'
-            : 'Our AI needs camera access to capture macro shots of your watch dial + caseback for forensic analysis. Photos stay on your device — never uploaded or shared.'}
+            ? 'AI ต้องใช้กล้องเพื่อถ่ายภาพหน้าปัดและฝาหลังของนาฬิกาในระดับมาโคร — ภาพจะถูกส่งอย่างปลอดภัยไปยังพาร์ทเนอร์ AI เพื่อวิเคราะห์ความแท้เท่านั้น (รายละเอียดอยู่ในหน้าขอความยินยอมก่อนสแกน) และไม่ถูกแชร์ต่อให้ผู้อื่น'
+            : 'Our AI needs camera access to capture macro shots of your watch dial + caseback. Photos are sent securely to our AI partners solely for this analysis (full details in the consent notice) and are never shared further.'}
         </Text>
 
         {/* 3 benefit bullets — concrete reassurance about what we do */}
@@ -422,13 +419,13 @@ export function ScanScreen({ navigation }: Props) {
           {[
             {
               icon: 'shield',
-              th: 'ภาพถูกประมวลผลแบบเข้ารหัส ไม่เก็บไว้บนเซิร์ฟเวอร์ของเรา',
-              en: 'Encrypted in transit — never stored on our servers',
+              th: 'เข้ารหัสระหว่างส่ง — ใช้เพื่อการวิเคราะห์ครั้งนี้เท่านั้น',
+              en: 'Encrypted in transit — used only for this analysis',
             },
             {
               icon: 'zap',
-              th: 'AI วิเคราะห์ภายใน 30 วินาที (เร็วกว่าผู้เชี่ยวชาญ 100×)',
-              en: 'AI verdict in 30s — 100× faster than manual expert review',
+              th: 'AI วิเคราะห์เสร็จภายในไม่ถึงนาที',
+              en: 'AI verdict in under a minute',
             },
             {
               icon: 'eye-off',
@@ -653,12 +650,10 @@ export function ScanScreen({ navigation }: Props) {
         willShowConsentBridge:
           isFreeQuotaWall && !consentForLog.grantedAt && !windowExpired,
       });
-      if (isFreeQuotaWall && !windowExpired) {
-        if (!consentForLog.grantedAt) {
-          setConsentBridgeVisible(true);
-          return;
-        }
-      }
+      // (Removed) The old "consent bridge" here offered 5 bonus credits for
+      // data consent, but FREE_SCAN_BONUS is 0 since the free AI tier was cut
+      // — users surrendered PDPA consent and received nothing, then hit a
+      // dead-end alert. Free users now go straight to the honest quota wall.
 
       // Compute caps/used details for reason payload
       let cap = 5;
@@ -1128,27 +1123,6 @@ export function ScanScreen({ navigation }: Props) {
             navigation.goBack();
           }
         }}
-      />
-
-      <DataConsentModal
-        visible={consentBridgeVisible}
-        context="quota-wall"
-        onDecided={async (granted) => {
-          if (!granted) return;
-          await grantFreeScanBonus();
-          const extras =
-            caps.templatePhotoCount === 4
-              ? ([topUri, bottomUri].filter(Boolean) as string[])
-              : [];
-          if (frontUri) {
-            navigation.replace('Loading', {
-              frontUri,
-              backUri: backUri ?? undefined,
-              extraImages: extras.length > 0 ? extras : undefined,
-            });
-          }
-        }}
-        onClose={() => setConsentBridgeVisible(false)}
       />
 
       <UpgradeModal

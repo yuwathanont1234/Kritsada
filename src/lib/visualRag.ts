@@ -96,21 +96,22 @@ export function prewarmReplicate(): void {
       console.warn(`[visualRag] tier lookup failed before prewarm:`, e?.message);
     }
 
+    // Warm via the edge function's warmOnly path. The previous implementation
+    // hit the Replicate API directly with EXPO_PUBLIC_REPLICATE_API_TOKEN —
+    // but every EXPO_PUBLIC_* value is compiled into the shipped JS bundle,
+    // so that design required embedding a live paid API token inside the app.
+    // The edge path needs only the anon key and is quota-capped server-side.
     try {
-      await fetch('https://api.replicate.com/v1/predictions', {
-        method: 'POST',
-        headers: {
-          Authorization: `Bearer ${REPLICATE_TOKEN}`,
-          'Content-Type': 'application/json',
-          Prefer: 'wait',
+      const { data, error } = await supabase.functions.invoke('embed-image', {
+        body: {
+          image: PREWARM_DATA_URL,
+          warmOnly: true,
+          deviceId: await ensureCohortHash(),
         },
-        body: JSON.stringify({
-          version: EMBED_MODEL_VERSION,
-          input: { image: PREWARM_DATA_URL, inputs: PREWARM_DATA_URL },
-        }),
       });
+      if (error) throw error;
       lastPrewarmAt = Date.now();
-      console.log(`[visualRag] Replicate prewarm done in ${Date.now() - t0}ms`);
+      console.log(`[visualRag] Replicate prewarm (edge warmOnly accepted=${(data as any)?.accepted ?? '?'}) done in ${Date.now() - t0}ms`);
     } catch (e: any) {
       console.warn(`[visualRag] Replicate prewarm failed (ignored):`, e?.message);
     }

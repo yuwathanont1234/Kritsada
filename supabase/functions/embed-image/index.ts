@@ -26,7 +26,7 @@ serve(async (req) => {
     // Keep-warm pings set warmOnly — they only need to BOOT Replicate, not get
     // an embedding back. See the warm-only branch below.
     const warmOnly = body?.warmOnly === true
-    const deviceId = body?.deviceId
+    const deviceId = body?.deviceId  // telemetry only — never a quota key (client-minted)
     const imgLen = typeof image === 'string' ? image.length : 0
     console.log(`[embed-image:${reqId}] received: imgLen=${imgLen} (${(imgLen / 1024).toFixed(1)}KB) hasImage=${!!image}`)
 
@@ -65,6 +65,31 @@ serve(async (req) => {
     const version = Deno.env.get("REPLICATE_EMBED_MODEL") || "1dcb6b130ac6ae0574282178705d0e219526ac6d9276c93eda065dfaacae772f"
     console.log(`[embed-image:${reqId}] model version=${version.slice(0, 12)}...`)
 
+    // ── Caller identity (server-derived — NEVER from the request body) ─────
+    // Same scheme as analyze-watch: verified JWT `sub`, IP fallback. The
+    // service-role key (pg_cron keep-warm, internal tooling) is recognized by
+    // exact match and bypasses per-caller caps — its cadence is fixed by the
+    // cron schedule, not user-controllable.
+    const authHeader = req.headers.get('authorization') ?? ''
+    const jwt = authHeader.replace(/^Bearer\s+/i, '').trim()
+    const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? ''
+    const isServiceCaller = !!jwt && !!serviceKey && jwt === serviceKey
+    const ip = (req.headers.get("x-forwarded-for") ?? "").split(",")[0]?.trim()
+    let admin: any = null
+    let userId: string | null = null
+    try {
+      const qUrl = Deno.env.get("SUPABASE_URL")
+      if (qUrl && serviceKey) {
+        const { createClient } = await import("https://esm.sh/@supabase/supabase-js@2")
+        admin = createClient(qUrl, serviceKey)
+        if (jwt && !isServiceCaller) {
+          const { data: u } = await admin.auth.getUser(jwt)
+          userId = u?.user?.id ?? null
+        }
+      }
+    } catch (_e) { /* identity is best-effort; the caps below fail open */ }
+    const quotaKey = userId ? `u:${userId}` : (ip ? `ip:${ip}` : "")
+
     // ── Keep-warm fast path (create-and-forget) ──────────────────────────
     // Real scans use Prefer:wait + polling to GET the embedding back, which on
     // a cold start (30-90s) exceeds the 60s edge cap → the function is killed
@@ -76,6 +101,28 @@ serve(async (req) => {
     // prediction to completion server-side (nothing aborts it), reliably warming
     // the model. We never read the result.
     if (warmOnly) {
+      // warmOnly creates BILL Replicate (each create boots and runs an
+      // instance) — previously this branch ran BEFORE any quota check, so
+      // anyone holding the public anon key had unbounded Replicate spend.
+      // The service-role caller (pg_cron keep-warm, ~288 pings/day) bypasses
+      // the cap; every other caller gets a tight dedicated daily budget.
+      if (!isServiceCaller && admin && quotaKey) {
+        try {
+          const WARM_DAILY_CAP = Number(Deno.env.get("WARM_DAILY_CAP") ?? "60")
+          const { data: q } = await admin.rpc("consume_edge_quota", {
+            p_device_id: `warm:${quotaKey}`,
+            p_cap: WARM_DAILY_CAP,
+          })
+          const row = Array.isArray(q) ? q[0] : q
+          if (row && row.allowed === false) {
+            console.warn(`[embed-image:${reqId}] warmOnly quota exceeded key=${quotaKey.slice(0, 14)} used=${row.used}/${row.cap}`)
+            return new Response(
+              JSON.stringify({ warmOnly: true, accepted: false, error: "warm quota exceeded" }),
+              { status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+            )
+          }
+        } catch (_e) { /* fail-open */ }
+      }
       const tWarm = Date.now()
       let pid: string | undefined
       let createStatus = 0
@@ -108,38 +155,41 @@ serve(async (req) => {
       )
     }
 
-    // ── Server-side abuse cap (defense-in-depth) ────────────────────────────
-    // Shares the per-device daily ceiling with analyze-watch (see migration
-    // 0008_edge_quota.sql). Only real embeds count — warmOnly returned above.
-    // Fail-OPEN: a ledger error must never block a legitimate scan.
-    {
-      const DEVICE_DAILY_CAP = Number(Deno.env.get("EDGE_DEVICE_DAILY_CAP") ?? "400")
-      const ip = (req.headers.get("x-forwarded-for") ?? "").split(",")[0]?.trim()
-      const quotaKey = (typeof deviceId === "string" && deviceId.length >= 8)
-        ? deviceId
-        : (ip ? `ip:${ip}` : "")
-      if (quotaKey) {
-        try {
-          const qUrl = Deno.env.get("SUPABASE_URL")
-          const qKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")
-          if (qUrl && qKey) {
-            const { createClient } = await import("https://esm.sh/@supabase/supabase-js@2")
-            const admin = createClient(qUrl, qKey)
-            const { data: q, error: qErr } = await admin.rpc("consume_edge_quota", {
-              p_device_id: quotaKey,
-              p_cap: DEVICE_DAILY_CAP,
-            })
-            const row = Array.isArray(q) ? q[0] : q
-            if (!qErr && row && row.allowed === false) {
-              console.warn(`[embed-image:${reqId}] device quota exceeded key=${quotaKey.slice(0, 12)} used=${row.used}/${row.cap}`)
-              return new Response(
-                JSON.stringify({ error: "ใช้สแกนครบโควต้าสูงสุดของอุปกรณ์นี้แล้ว กรุณาลองใหม่พรุ่งนี้หรืออัปเกรดสมาชิก", quotaExceeded: true }),
-                { status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-              )
-            }
-          }
-        } catch (_e) { /* fail-open */ }
-      }
+    // ── Per-caller daily cap + GLOBAL call ceiling (real embeds) ───────────
+    // Same caps as analyze-watch, keyed on the server-derived identity
+    // (JWT sub / IP — never the client-minted body deviceId). Fail-OPEN on
+    // RPC errors; the caps themselves always block when exceeded.
+    if (!isServiceCaller && admin && quotaKey) {
+      try {
+        const DEVICE_DAILY_CAP = Number(Deno.env.get("EDGE_DEVICE_DAILY_CAP") ?? "400")
+        const { data: q, error: qErr } = await admin.rpc("consume_edge_quota", {
+          p_device_id: quotaKey,
+          p_cap: DEVICE_DAILY_CAP,
+        })
+        const row = Array.isArray(q) ? q[0] : q
+        if (!qErr && row && row.allowed === false) {
+          console.warn(`[embed-image:${reqId}] caller quota exceeded key=${quotaKey.slice(0, 14)} used=${row.used}/${row.cap} clientDevice=${typeof deviceId === "string" ? deviceId.slice(0, 10) : "-"}`)
+          return new Response(
+            JSON.stringify({ error: "ใช้สแกนครบโควต้าสูงสุดของอุปกรณ์นี้แล้ว กรุณาลองใหม่พรุ่งนี้หรืออัปเกรดสมาชิก", quotaExceeded: true }),
+            { status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          )
+        }
+      } catch (_e) { /* fail-open */ }
+      try {
+        const GLOBAL_CALL_CAP = Number(Deno.env.get("GLOBAL_DAILY_CALL_CAP") ?? "3000")
+        const { data: g, error: gErr } = await admin.rpc("consume_edge_quota", {
+          p_device_id: "global:billable-calls",
+          p_cap: GLOBAL_CALL_CAP,
+        })
+        const grow = Array.isArray(g) ? g[0] : g
+        if (!gErr && grow && grow.allowed === false) {
+          console.warn(`[embed-image:${reqId}] GLOBAL call ceiling hit used=${grow.used}/${grow.cap}`)
+          return new Response(
+            JSON.stringify({ error: "ระบบมีการใช้งานหนาแน่นผิดปกติ กรุณาลองใหม่ภายหลัง", quotaExceeded: true }),
+            { status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          )
+        }
+      } catch (_e) { /* fail-open */ }
     }
 
     // Replicate POST — bounded by edge budget. AbortSignal.timeout

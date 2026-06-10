@@ -66,54 +66,89 @@ serve(async (req) => {
   try {
     const { systemInstruction, parts, enableWebSearch, disableThinking, maxOutputTokens, label, priceCacheKey, deviceId } = await req.json()
 
-    // ── Server-side abuse cap (defense-in-depth) ────────────────────────────
-    // Every product quota is enforced client-side; this is the ONLY server-side
-    // ceiling on how much a single device identity can burn. Keyed on the
-    // client cohortHash, IP fallback. Fail-OPEN: a ledger hiccup must never
-    // break a legitimate scan. See migration 0008_edge_quota.sql.
-    {
-      const DEVICE_DAILY_CAP = Number(Deno.env.get("EDGE_DEVICE_DAILY_CAP") ?? "400")
-      const ip = (req.headers.get("x-forwarded-for") ?? "").split(",")[0]?.trim()
-      const quotaKey = (typeof deviceId === "string" && deviceId.length >= 8)
-        ? deviceId
-        : (ip ? `ip:${ip}` : "")
-      if (quotaKey) {
-        try {
-          const qUrl = Deno.env.get("SUPABASE_URL")
-          const qKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")
-          if (qUrl && qKey) {
-            const { createClient } = await import("https://esm.sh/@supabase/supabase-js@2")
-            const admin = createClient(qUrl, qKey)
-            const { data: q, error: qErr } = await admin.rpc("consume_edge_quota", {
-              p_device_id: quotaKey,
-              p_cap: DEVICE_DAILY_CAP,
-            })
-            const row = Array.isArray(q) ? q[0] : q
-            if (!qErr && row && row.allowed === false) {
-              console.warn(`[analyze-watch:${label}] device quota exceeded key=${quotaKey.slice(0, 12)} used=${row.used}/${row.cap}`)
-              return new Response(
-                JSON.stringify({ error: "ใช้สแกนครบโควต้าสูงสุดของอุปกรณ์นี้แล้ว กรุณาลองใหม่พรุ่งนี้หรืออัปเกรดสมาชิก", quotaExceeded: true }),
-                { status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-              )
-            }
-          }
-        } catch (_e) { /* fail-open — never block a scan on a ledger error */ }
+    // ── Caller identity (server-derived — NEVER from the request body) ─────
+    // Quota keys are the verified JWT `sub` (real signed-in user) or the
+    // connecting IP. The body `deviceId` used to be the quota key, but it is
+    // client-minted: an attacker could send a fresh random value with every
+    // request and reset every cap. It is now logged for telemetry only.
+    const ip = (req.headers.get("x-forwarded-for") ?? "").split(",")[0]?.trim()
+    let admin: any = null
+    let userId: string | null = null
+    try {
+      const qUrl = Deno.env.get("SUPABASE_URL")
+      const qKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")
+      if (qUrl && qKey) {
+        const { createClient } = await import("https://esm.sh/@supabase/supabase-js@2")
+        admin = createClient(qUrl, qKey)
+        const authHeader = req.headers.get('authorization') ?? ''
+        const jwt = authHeader.replace(/^Bearer\s+/i, '').trim()
+        if (jwt) {
+          const { data: u } = await admin.auth.getUser(jwt)
+          userId = u?.user?.id ?? null
+        }
       }
+    } catch (_e) {
+      /* identity resolution is best-effort; the quotas below fail open */
+    }
+    const quotaKey = userId ? `u:${userId}` : (ip ? `ip:${ip}` : "")
+
+    // ── Per-caller daily cap + GLOBAL call ceiling (EVERY billable label) ──
+    // Previously only `identify` passed the scan guards, leaving `price`
+    // (grounded — the expensive one), `auth`, `heatmap`, `identify-grounded`
+    // completely unmetered for a direct caller. Both checks below run for
+    // every label. Individual RPC failures fail OPEN (never break a scan);
+    // the caps themselves always block when exceeded.
+    if (admin && quotaKey) {
+      // (1) Per-caller rolling-day cap. ~5 billable calls per scan → the
+      //     default 400 ≈ 80 scans/day per identity, far above legit use.
+      try {
+        const DEVICE_DAILY_CAP = Number(Deno.env.get("EDGE_DEVICE_DAILY_CAP") ?? "400")
+        const { data: q, error: qErr } = await admin.rpc("consume_edge_quota", {
+          p_device_id: quotaKey,
+          p_cap: DEVICE_DAILY_CAP,
+        })
+        const row = Array.isArray(q) ? q[0] : q
+        if (!qErr && row && row.allowed === false) {
+          console.warn(`[analyze-watch:${label}] caller quota exceeded key=${quotaKey.slice(0, 14)} used=${row.used}/${row.cap} clientDevice=${typeof deviceId === "string" ? deviceId.slice(0, 10) : "-"}`)
+          return new Response(
+            JSON.stringify({ error: "ใช้สแกนครบโควต้าสูงสุดของอุปกรณ์นี้แล้ว กรุณาลองใหม่พรุ่งนี้หรืออัปเกรดสมาชิก", quotaExceeded: true }),
+            { status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          )
+        }
+      } catch (_e) { /* fail-open */ }
+
+      // (2) GLOBAL ceiling on total billable calls/day across ALL callers —
+      //     bounds worst-case daily spend even under many-IP / many-account
+      //     abuse that stays under each per-caller cap. Reuses the
+      //     always-enforced edge-quota counter under a reserved key.
+      //     Default 3000 calls ≈ 600 scans/day; tune via the
+      //     GLOBAL_DAILY_CALL_CAP secret (no redeploy needed).
+      try {
+        const GLOBAL_CALL_CAP = Number(Deno.env.get("GLOBAL_DAILY_CALL_CAP") ?? "3000")
+        const { data: g, error: gErr } = await admin.rpc("consume_edge_quota", {
+          p_device_id: "global:billable-calls",
+          p_cap: GLOBAL_CALL_CAP,
+        })
+        const grow = Array.isArray(g) ? g[0] : g
+        if (!gErr && grow && grow.allowed === false) {
+          console.warn(`[analyze-watch:${label}] GLOBAL call ceiling hit used=${grow.used}/${grow.cap}`)
+          return new Response(
+            JSON.stringify({ error: "ระบบมีการใช้งานหนาแน่นผิดปกติ กรุณาลองใหม่ภายหลัง", quotaExceeded: true }),
+            { status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          )
+        }
+      } catch (_e) { /* fail-open */ }
     }
 
-    // ── Server-side scan guards (run ONCE per scan: label === 'identify') ────
-    // Two independent, fail-open, SHADOW-by-default checks:
+    // ── Per-SCAN guards (run ONCE per scan: label === 'identify') ───────────
+    // Two scan-semantics checks (enforced via secrets since 2026-06-10):
     //   (A) a GLOBAL daily scan ceiling — the catastrophic-cost backstop, and
     //   (B) the per-USER monthly ledger (Stage 1/2, audit C1/C3/C5).
-    // 'auth'/'price'/'heatmap' and the embed-image calls are part of the same
-    // scan, so they're not counted here (no double-count).
-    if (label === 'identify') {
+    // 'auth'/'price'/'heatmap' are part of the same scan so they are not
+    // counted as scans here — but they ARE metered per-call above.
+    if (label === 'identify' && admin) {
       try {
-        const lUrl = Deno.env.get('SUPABASE_URL')
-        const lKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')
-        if (lUrl && lKey) {
-          const { createClient } = await import('https://esm.sh/@supabase/supabase-js@2')
-          const admin = createClient(lUrl, lKey)
+        {
 
           // (A) GLOBAL daily scan ceiling — counts EVERY scan server-side,
           // independent of who's logged in and of the client-logged cost_events
@@ -147,14 +182,10 @@ serve(async (req) => {
           }
 
           // (B) Per-USER monthly ledger — keyed on the JWT `sub` (auth.users.id),
-          // a count a reinstall / clear-data CANNOT reset. getUser(jwt) returns
-          // no user for the anon key / service_role / expired session → those
-          // fall through to the device + global caps (keep-warm, tooling,
-          // logged-out unaffected). Backstop cap default 150 (> premium 100/mo).
-          const authHeader = req.headers.get('authorization') ?? ''
-          const jwt = authHeader.replace(/^Bearer\s+/i, '').trim()
-          const { data: u } = jwt ? await admin.auth.getUser(jwt) : { data: { user: null } as any }
-          const userId = u?.user?.id
+          // a count a reinstall / clear-data CANNOT reset. userId was resolved
+          // once at the top of the handler; anon key / service_role / expired
+          // sessions have no user and fall through to the per-caller + global
+          // caps. Backstop cap default 150 (> premium 100/mo).
           if (userId) {
             const period = new Date().toISOString().slice(0, 7) // 'YYYY-MM'
             const CAP = Number(Deno.env.get('USER_MONTHLY_SCAN_CAP') ?? '150')

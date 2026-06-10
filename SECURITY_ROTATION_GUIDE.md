@@ -13,15 +13,27 @@ Since `.env` was historically committed, all active keys are considered compromi
 2. Select your active project.
 3. Go to **Get API Key** and create a new key.
 4. **Delete** the old compromised API key to block all existing requests using it immediately.
-5. Place the new key in your local `.env` as `EXPO_PUBLIC_GEMINI_API_KEY`.
+5. Set the new key as the Supabase secret `GEMINI_API_KEY` (server-side only).
+
+> [!CAUTION]
+> Do **NOT** set `EXPO_PUBLIC_GEMINI_API_KEY` for any production build. Every
+> `EXPO_PUBLIC_*` variable is compiled into the shipped JS bundle and can be
+> extracted from the app — a paid API key there is a guaranteed leak. The
+> variable exists only for local development with `EXPO_PUBLIC_USE_EDGE_FUNCTIONS=false`.
 
 ### 2. Replicate API Token
 1. Log in to [Replicate](https://replicate.com/) and go to your **Account Settings** -> **API Tokens**.
 2. Generate a new API token (label it `luxury-authenticator-prod-new`).
 3. **Delete / Revoke** the old compromised token.
 4. Set the new token in:
-   - Your local `.env` as `EXPO_PUBLIC_REPLICATE_API_TOKEN` (used for client-side fallbacks).
-   - Supabase Secret Vault (see below for Edge Function rotation).
+   - Supabase Secret Vault as `REPLICATE_API_TOKEN` (see below for Edge Function rotation).
+
+> [!CAUTION]
+> Do **NOT** set `EXPO_PUBLIC_REPLICATE_API_TOKEN` for any production build —
+> it ships inside the app bundle. It exists only for local development with
+> `EXPO_PUBLIC_USE_EDGE_FUNCTIONS=false`. The in-app Replicate prewarm now
+> routes through the `embed-image` edge function (`warmOnly`), so no client
+> token is needed in any mode for prewarming.
 
 ### 3. Supabase Keys
 Because Supabase handles database connections and edge functions, its keys are critical:

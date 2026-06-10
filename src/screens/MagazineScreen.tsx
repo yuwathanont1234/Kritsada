@@ -64,7 +64,7 @@ const MAGAZINE_ARTICLES: Article[] = [
     illustrationColors: ['#1C2A39', '#2E4C6D', '#7FA9D1'],
     thaiContent: {
       origin: 'หัวใจสำคัญของการทำงานในนาฬิกาจักรกลทุกเรือนคือชุดปล่อยจักร (Escapement) และจักรกรอก (Balance Wheel) ซึ่งทำหน้าที่ควบคุมจังหวะการเดินรถไฟล้อเฟืองให้เที่ยงตรง Patek Philippe ได้อุทิศการวิจัยนับสิบปีเพื่อพัฒนาและจดสิทธิบัตรนวัตกรรมชิ้นส่วนสำคัญที่จะเข้ามารับมือกับแรงโน้มถ่วง ความร้อน และสนามแม่เหล็ก ซึ่งเป็นอุปสรรคสำคัญต่อความเที่ยงตรงของนาฬิกาโบราณ',
-      innovations: 'สองเทคโนโลยีที่เป็นหัวใจหลัก of Patek Philippe ได้แก่: 1. "Gyromax Balance" ซึ่งเปิดตัวในปี 1951 เป็นระบบควบคุมจักรกรอกโดยใช้การหมุนลูกตุ้มน้ำหนักขนาดเล็ก (Eccentric weights) บนขอบจักรแทนการใช้สกรูปรับความตึงแบบเดิม ช่วยลดแรงต้านอากาศและเพิ่มประสิทธิภาพการแกว่ง 2. "Spiromax Hairspring" เปิดตัวในปี 2006 เป็นใยสปริงที่ทำจากวัสดุ "Silinvar" (ซิลิกอนเคลือบออกไซด์) ปราศจากผลกระทบจากสนามแม่เหล็กและการเปลี่ยนแปลงของอุณหภูมิ มีน้ำหนักเบาเป็นพิเศษ และไม่ต้องการน้ำมันหล่อลื่น',
+      innovations: 'สองเทคโนโลยีที่เป็นหัวใจหลักของ Patek Philippe ได้แก่: 1. "Gyromax Balance" ซึ่งเปิดตัวในปี 1951 เป็นระบบควบคุมจักรกรอกโดยใช้การหมุนลูกตุ้มน้ำหนักขนาดเล็ก (Eccentric weights) บนขอบจักรแทนการใช้สกรูปรับความตึงแบบเดิม ช่วยลดแรงต้านอากาศและเพิ่มประสิทธิภาพการแกว่ง 2. "Spiromax Hairspring" เปิดตัวในปี 2006 เป็นใยสปริงที่ทำจากวัสดุ "Silinvar" (ซิลิกอนเคลือบออกไซด์) ปราศจากผลกระทบจากสนามแม่เหล็กและการเปลี่ยนแปลงของอุณหภูมิ มีน้ำหนักเบาเป็นพิเศษ และไม่ต้องการน้ำมันหล่อลื่น',
       legends: 'นวัตกรรมระบบนี้ถูกติดตั้งอยู่ในกลไกไขลานอัตโนมัติระดับไอคอนิกเกือบทั้งหมดของแบรนด์ อาทิ Caliber 324 S C, Caliber 26-330 S C (ที่ขับเคลื่อน Nautilus Ref. 5711 รุ่นหลัง และรุ่นทายาท 5811) รวมถึงกลไกระดับ Grand Complications เครื่อง Caliber 240 ทำให้นาฬิกาทุกเรือนที่ผ่านตราประทับ "Patek Philippe Seal" มีความคลาดเคลื่อนเพียง -3 ถึง +2 วินาทีต่อวันเท่านั้น',
     },
   },
@@ -811,8 +811,8 @@ export function MagazineScreen() {
         <View style={styles.header}>
           <View style={styles.headerCenter}>
             <Ionicons name="book-outline" size={14} color="#ECC87A" style={styles.headerLogo} />
-            <Text style={styles.headerTitleMain}>{t('magazine.title').toUpperCase()}</Text>
-            <Text style={styles.headerTitleSub}>{t('magazine.subtitle').toUpperCase()}</Text>
+            <Text style={styles.headerTitleMain}>{t('learn.title').toUpperCase()}</Text>
+            <Text style={styles.headerTitleSub}>{t('learn.subtitle').toUpperCase()}</Text>
           </View>
         </View>
 
@@ -865,6 +865,17 @@ export function MagazineScreen() {
 
         {/* Articles List */}
         <ScrollView contentContainerStyle={styles.listContent}>
+          {/* EN-mode language notice — shown only when the visible list
+              contains articles that have no English edition yet (those
+              fall back to the Thai essay below). */}
+          {lang === 'en' && filteredArticles.some((art) => !ARTICLES_EN[art.id]) && (
+            <View style={styles.langNoticeBanner}>
+              <Feather name="globe" size={13} color="#ECC87A" style={{ marginRight: 8 }} />
+              <Text style={styles.langNoticeText}>
+                Some editorial content is currently available in Thai only — English editions coming soon.
+              </Text>
+            </View>
+          )}
           {filteredArticles.length === 0 ? (
             <View style={styles.emptyContainer}>
               <Feather name="book" size={36} color="rgba(236, 200, 122, 0.2)" style={{ marginBottom: 12 }} />
@@ -990,6 +1001,16 @@ export function MagazineScreen() {
 
                 {/* Article Content Box */}
                 <View style={styles.modalContentBox}>
+                  {/* EN-mode language notice — this article has no English
+                      edition yet, so the body below is the Thai essay. */}
+                  {lang === 'en' && !ARTICLES_EN[activeArticle.id] && (
+                    <View style={styles.langNoticeBanner}>
+                      <Feather name="globe" size={13} color="#ECC87A" style={{ marginRight: 8 }} />
+                      <Text style={styles.langNoticeText}>
+                        This article is currently available in Thai only — its English edition is coming soon.
+                      </Text>
+                    </View>
+                  )}
                   <View style={styles.modalCategoryRow}>
                     <Text style={[
                       styles.modalEditorialTag,
@@ -1184,6 +1205,23 @@ const styles = StyleSheet.create({
     padding: spacing.md,
     gap: spacing.md,
     paddingBottom: 80,
+  },
+  langNoticeBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(236, 200, 122, 0.08)',
+    borderWidth: 1,
+    borderColor: 'rgba(236, 200, 122, 0.25)',
+    borderRadius: radius.md,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    marginBottom: spacing.sm,
+  },
+  langNoticeText: {
+    flex: 1,
+    fontSize: 11.5,
+    lineHeight: 16,
+    color: '#B5AFA5',
   },
   articleCard: {
     borderRadius: radius.lg,

@@ -235,10 +235,10 @@ export default function HomeScreen({ navigation }: any) {
                     ? (lang === 'th' ? 'สแกน AI สำหรับสมาชิก' : 'AI SCANNING — MEMBERS')
                     : (lang === 'th' ? 'เริ่มสแกน' : 'NEW SCAN')}
                 </Text>
-                <Text style={{ color: '#F5E9CC', fontSize: 26, fontWeight: '800', lineHeight: 32, marginBottom: 8 }}>
+                <Text style={{ color: colors.textCream, fontSize: 26, fontWeight: '800', lineHeight: 32, marginBottom: 8 }}>
                   {lang === 'th' ? 'ถ่ายรูปนาฬิกา\nตรวจสอบความแท้' : 'Authenticate\nYour Timepiece'}
                 </Text>
-                <Text style={{ color: '#C0B4A0', fontSize: 13, lineHeight: 19 }}>
+                <Text style={{ color: colors.textCreamDim, fontSize: 13, lineHeight: 19 }}>
                   {lang === 'th'
                     ? 'AI Visual RAG · ตรวจตราประทับ\nค้นราคาตลาดรองอัตโนมัติ'
                     : 'AI Visual RAG · Micro-hallmark detection\nLive secondary-market valuation'}
@@ -321,7 +321,7 @@ export default function HomeScreen({ navigation }: any) {
               free-scan tier: a prospect experiences the full result UI at zero
               cost, with an upgrade CTA inside each example. */}
           <View style={{ marginBottom: spacing.md }}>
-            <Text style={{ color: '#E8DCC0', fontSize: 14, fontWeight: '700', letterSpacing: 0.5, marginBottom: spacing.sm }}>
+            <Text style={{ color: colors.textGold, fontSize: 14, fontWeight: '700', letterSpacing: 0.5, marginBottom: spacing.sm }}>
               {lang === 'th' ? 'ตัวอย่างผลตรวจ' : 'Example Results'}
             </Text>
             <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: spacing.sm, paddingVertical: 2 }}>
@@ -333,7 +333,7 @@ export default function HomeScreen({ navigation }: any) {
                 >
                   <Image source={ex.image} style={{ width: 150, height: 150, backgroundColor: '#000' }} resizeMode="cover" />
                   <View style={{ position: 'absolute', top: 8, left: 8, backgroundColor: 'rgba(0, 0, 0, 0.6)', paddingHorizontal: 8, paddingVertical: 3, borderRadius: 8 }}>
-                    <Text style={{ color: '#F5E9CC', fontSize: 9, fontWeight: '700', letterSpacing: 0.5 }}>
+                    <Text style={{ color: colors.textCream, fontSize: 9, fontWeight: '700', letterSpacing: 0.5 }}>
                       {lang === 'th' ? 'ตัวอย่าง' : 'EXAMPLE'}
                     </Text>
                   </View>
@@ -341,7 +341,7 @@ export default function HomeScreen({ navigation }: any) {
                     <Text numberOfLines={1} style={{ color: '#888', fontSize: 9, letterSpacing: 1, fontWeight: '700', marginBottom: 2 }}>
                       {ex.result.brand.toUpperCase()}
                     </Text>
-                    <Text numberOfLines={1} style={{ color: '#E8DCC0', fontSize: 12.5, fontWeight: '600', marginBottom: 4 }}>
+                    <Text numberOfLines={1} style={{ color: colors.textGold, fontSize: 12.5, fontWeight: '600', marginBottom: 4 }}>
                       {ex.result.name}
                     </Text>
                     <View style={{ flexDirection: 'row', alignItems: 'center' }}>
@@ -365,7 +365,7 @@ export default function HomeScreen({ navigation }: any) {
           {portfolio.recent.length > 0 && (
             <View style={{ marginBottom: spacing.md }}>
               <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: spacing.sm }}>
-                <Text style={{ color: '#E8DCC0', fontSize: 14, fontWeight: '700', letterSpacing: 0.5 }}>
+                <Text style={{ color: colors.textGold, fontSize: 14, fontWeight: '700', letterSpacing: 0.5 }}>
                   {lang === 'th' ? 'เพิ่งสแกน' : 'Recent Scans'}
                 </Text>
                 <Pressable onPress={() => navigation.navigate('Main', { screen: 'Collection' })}>
@@ -425,7 +425,7 @@ export default function HomeScreen({ navigation }: any) {
                         </Text>
                         <Text
                           numberOfLines={2}
-                          style={{ color: '#E8DCC0', fontSize: 12, fontWeight: '600', lineHeight: 16, marginBottom: 4, minHeight: 32 }}
+                          style={{ color: colors.textGold, fontSize: 12, fontWeight: '600', lineHeight: 16, marginBottom: 4, minHeight: 32 }}
                         >
                           {w.customName || w.result?.name || '—'}
                         </Text>
@@ -462,7 +462,7 @@ export default function HomeScreen({ navigation }: any) {
 
             {/* Big total value */}
             <View style={{ flexDirection: 'row', alignItems: 'baseline', marginBottom: spacing.md }}>
-              <Text style={{ color: '#F5E9CC', fontSize: 16, fontWeight: '700', marginRight: 6 }}>฿</Text>
+              <Text style={{ color: colors.textCream, fontSize: 16, fontWeight: '700', marginRight: 6 }}>฿</Text>
               <Text style={{ color: '#FFFFFF', fontSize: 30, fontWeight: '800', letterSpacing: -0.5, lineHeight: 34 }}>
                 {Math.round(portfolio.totalValue * exchangeRate).toLocaleString()}
               </Text>
@@ -481,7 +481,7 @@ export default function HomeScreen({ navigation }: any) {
                 backgroundColor: 'rgba(236, 200, 122, 0.05)',
               }}>
                 <Feather name="layers" size={12} color={colors.amber} style={{ marginRight: 5 }} />
-                <Text style={{ color: '#E8DCC0', fontSize: 12, fontWeight: '700' }}>
+                <Text style={{ color: colors.textGold, fontSize: 12, fontWeight: '700' }}>
                   {portfolio.totalCount} {lang === 'th' ? 'เรือน' : 'pcs'}
                 </Text>
               </View>
@@ -496,7 +496,7 @@ export default function HomeScreen({ navigation }: any) {
                 backgroundColor: 'rgba(236, 200, 122, 0.05)',
               }}>
                 <Feather name="grid" size={12} color={colors.amber} style={{ marginRight: 5 }} />
-                <Text style={{ color: '#E8DCC0', fontSize: 12, fontWeight: '700' }}>
+                <Text style={{ color: colors.textGold, fontSize: 12, fontWeight: '700' }}>
                   {portfolio.brandCount} {lang === 'th' ? 'แบรนด์' : 'brands'}
                 </Text>
               </View>
@@ -601,7 +601,7 @@ export default function HomeScreen({ navigation }: any) {
                       <Text
                         numberOfLines={1}
                         style={{
-                          color: '#E8DCC0',
+                          color: colors.textGold,
                           fontSize: 11,
                           fontWeight: '700',
                           letterSpacing: 0.3,
@@ -637,7 +637,7 @@ export default function HomeScreen({ navigation }: any) {
                 {lang === 'th' ? '🎮 เกมท้าทายเวลาฝึกสายตา' : "🎮 TIMEKEEPER'S CHALLENGE"}
               </Text>
               <Text style={styles.gameDesc}>
-                {lang === 'th' ? 'จับผิดนาฬิกากลไกสวิสเลียนแบบ' : 'SPOT THE SWISS CALIBER REPLICA'}
+                {lang === 'th' ? 'ฝึกสายตานักสะสม — ทายรุ่น เดาราคา สะสม XP' : "TRAIN YOUR COLLECTOR'S EYE — GUESS MODELS, EARN XP"}
               </Text>
             </View>
             <View style={styles.gamePlayCircle}>

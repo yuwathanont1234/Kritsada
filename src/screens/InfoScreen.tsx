@@ -28,7 +28,7 @@ export default function InfoScreen({ route, navigation }: any) {
             <Text style={styles.infoSectionHeader}>1. ระบบการตรวจสอบความแท้ด้วย AI ทำงานอย่างไร?</Text>
             <Text style={styles.infoBodyText}>
               Luxury Watch Authenticator ทำงานผ่านเทคโนโลยีโมเดลสายตาคอมพิวเตอร์ขั้นสูง (Advanced Deep Computer Vision - DINOv3) ร่วมกับสถาปัตยกรรม Visual Retrieval-Augmented Generation (Visual RAG) 
-              ระบบจะสกัดชุดพิกัดเวกเตอร์จำนวน 1024 มิติจากภาพถ่ายมุมกล้องหลัก 3-4 มุม (หน้าปัด, ฝาหลัง, เม็ดมะยม และเครื่องนาฬิกาหากมี) แล้วนำเวกเตอร์ดังกล่าวเข้าเปรียบเทียบในลักษณะรูปทรง สัดส่วน ฟอนต์ตัวอักษร และรายละเอียดลายปลีกย่อยกับฐานข้อมูลอ้างอิงของแท้ (Reference Vault) กว่า 13,585 รูปแบบ เพื่อระบุตำแหน่งความสอดคล้อง (Confidence Landmarks) ในเวลาน้อยกว่า 2 วินาที
+              ระบบจะสกัดชุดพิกัดเวกเตอร์จำนวน 1024 มิติจากภาพถ่ายมุมกล้องหลัก 3-4 มุม (หน้าปัด, ฝาหลัง, เม็ดมะยม และเครื่องนาฬิกาหากมี) แล้วนำเวกเตอร์ดังกล่าวเข้าเปรียบเทียบในลักษณะรูปทรง สัดส่วน ฟอนต์ตัวอักษร และรายละเอียดลายปลีกย่อยกับฐานข้อมูลอ้างอิงของแท้ (Reference Vault) กว่า 35,000 รูปแบบ เพื่อระบุตำแหน่งความสอดคล้อง (Confidence Landmarks) โดยกระบวนการวิเคราะห์ทั้งหมดเสร็จสิ้นภายในไม่ถึงนาที
             </Text>
 
             <Text style={styles.infoSectionHeader}>2. ผลการวิเคราะห์จากระบบสามารถใช้แทนการรับรองโดยผู้เชี่ยวชาญ/ช่างเทคนิคได้หรือไม่?</Text>
@@ -39,12 +39,12 @@ export default function InfoScreen({ route, navigation }: any) {
 
             <Text style={styles.infoSectionHeader}>3. ปัจจุบันแอปพลิเคชันรองรับนาฬิการุ่นและแบรนด์ใดบ้าง?</Text>
             <Text style={styles.infoBodyText}>
-              ฐานข้อมูลครอบคลุม 8 แบรนด์นาฬิกาหรูชั้นนำระดับสากล ได้แก่ Audemars Piguet (Royal Oak, Royal Oak Offshore), Cartier (Santos, Tank), Omega (Speedmaster, Seamaster), Panerai (Luminor, Radiomir, Submersible), Patek Philippe (Nautilus, Aquanaut, Calatrava), Rolex (Submariner, Daytona, GMT-Master II, Datejust, Day-Date), Tudor (Black Bay, Pelagos) และ TAG Heuer (Carrera, Monaco, Aquaracer, Formula 1)
+              ฐานข้อมูลอ้างอิงครอบคลุมแบรนด์นาฬิกาหรูชั้นนำเกือบ 60 แบรนด์ (ปัจจุบัน 59 แบรนด์) ตั้งแต่แบรนด์หลักอย่าง Rolex (Submariner, Daytona, GMT-Master II, Datejust, Day-Date), Patek Philippe (Nautilus, Aquanaut, Calatrava), Audemars Piguet (Royal Oak, Royal Oak Offshore), Omega (Speedmaster, Seamaster), Cartier (Santos, Tank), Panerai, Tudor และ TAG Heuer ไปจนถึง Vacheron Constantin, A. Lange & Söhne, Jaeger-LeCoultre, IWC, Richard Mille, Grand Seiko และแบรนด์อิสระระดับสูงอีกหลายราย สามารถดูรายชื่อแบรนด์ที่รองรับทั้งหมดได้ที่เมนู ตั้งค่า → แบรนด์ที่รองรับ
             </Text>
 
             <Text style={styles.infoSectionHeader}>4. ดัชนีราคากลางประเมินมาจากแหล่งข้อมูลใด?</Text>
             <Text style={styles.infoBodyText}>
-              มูลค่าตลาดรองประเมิน (Estimated Market Valuation) แสดงผลทั้งในหน่วยดอลลาร์สหรัฐ (USD) และบาทไทย (฿) โดยถูกเชื่อมโยงร่วมกับดัชนีราคาจากตลาดกลางทั่วโลกแบบเรียลไทม์และประวัติการปิดประมูลสะสม รวมถึงกระดานซื้อขายชั้นนำอย่าง Chrono24 ร่วมกับเทรนด์ความต้องการเฉพาะ of ตลาดในทวีปเอเชียตะวันออกเฉียงใต้
+              มูลค่าตลาดรองประเมิน (Estimated Market Valuation) แสดงผลทั้งในหน่วยดอลลาร์สหรัฐ (USD) และบาทไทย (฿) โดยถูกเชื่อมโยงร่วมกับดัชนีราคาจากตลาดกลางทั่วโลกแบบเรียลไทม์และประวัติการปิดประมูลสะสม รวมถึงกระดานซื้อขายชั้นนำอย่าง Chrono24 ร่วมกับเทรนด์ความต้องการเฉพาะของตลาดในทวีปเอเชียตะวันออกเฉียงใต้
             </Text>
           </View>
         );
@@ -53,7 +53,7 @@ export default function InfoScreen({ route, navigation }: any) {
           <View style={styles.infoContentContainer}>
             <Text style={styles.infoSectionHeader}>1. How does the AI visual verification model work?</Text>
             <Text style={styles.infoBodyText}>
-              Luxury Watch Authenticator utilizes advanced DINOv3 deep computer vision pipelines and visual Retrieval-Augmented Generation (RAG) models. It extracts a 1024-dimensional feature embedding from high-fidelity multi-angle macro photos (dial face, bezel alignment, typography, micro-hallmarks, caliber, and caseback finishes). These embeddings are queried against a reference database of 13,585 registered luxury watch variations in less than 2 seconds to calculate optical similarity confidence.
+              Luxury Watch Authenticator utilizes advanced DINOv3 deep computer vision pipelines and visual Retrieval-Augmented Generation (RAG) models. It extracts a 1024-dimensional feature embedding from high-fidelity multi-angle macro photos (dial face, bezel alignment, typography, micro-hallmarks, caliber, and caseback finishes). These embeddings are queried against a reference database of over 35,000 registered luxury watch variations to calculate optical similarity confidence, with the full analysis completing in under a minute.
             </Text>
 
             <Text style={styles.infoSectionHeader}>2. Does this app replace a physical watchmaker inspection?</Text>
@@ -63,7 +63,7 @@ export default function InfoScreen({ route, navigation }: any) {
 
             <Text style={styles.infoSectionHeader}>3. Which watch brands and collections are supported?</Text>
             <Text style={styles.infoBodyText}>
-              We currently support 8 major luxury brands: Audemars Piguet (Royal Oak, Royal Oak Offshore), Cartier (Santos, Tank), Omega (Speedmaster, Seamaster), Panerai (Luminor, Radiomir, Submersible), Patek Philippe (Nautilus, Aquanaut, Calatrava), Rolex (Submariner, Daytona, GMT-Master II, Datejust, Day-Date), Tudor (Black Bay, Pelagos), and TAG Heuer (Carrera, Monaco, Aquaracer, Formula 1).
+              The reference database now covers nearly 60 luxury brands (59 at present) — from flagship houses such as Rolex (Submariner, Daytona, GMT-Master II, Datejust, Day-Date), Patek Philippe (Nautilus, Aquanaut, Calatrava), Audemars Piguet (Royal Oak, Royal Oak Offshore), Omega (Speedmaster, Seamaster), Cartier (Santos, Tank), Panerai, Tudor, and TAG Heuer, to Vacheron Constantin, A. Lange & Söhne, Jaeger-LeCoultre, IWC, Richard Mille, Grand Seiko, and many high-end independents. See the full catalog in Settings → Supported Brands.
             </Text>
 
             <Text style={styles.infoSectionHeader}>4. How does the dynamic market valuation index work?</Text>

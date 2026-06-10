@@ -80,7 +80,7 @@ type Rank = {
   maxXp: number; // null-like: next rank's minXp
 };
 const RANKS: Rank[] = [
-  { key: 'apprentice', th: 'ผู้ฝึกหัด',      en: 'Apprentice',     emoji: '🐣', minXp: 0,    maxXp: 100  },
+  { key: 'apprentice', th: 'ผู้ฝึกหัด',      en: 'Apprentice',     emoji: '🕰️', minXp: 0,    maxXp: 100  },
   { key: 'novice',     th: 'นักสะสมมือใหม่', en: 'Novice',         emoji: '⌚', minXp: 100,  maxXp: 300  },
   { key: 'collector',  th: 'นักสะสม',        en: 'Collector',      emoji: '🎯', minXp: 300,  maxXp: 700  },
   { key: 'expert',     th: 'ผู้เชี่ยวชาญ',   en: 'Expert',         emoji: '🔍', minXp: 700,  maxXp: 1500 },
@@ -115,15 +115,17 @@ const CATEGORIES: { key: Category; th: string; en: string; emoji: string }[] = [
 
 // ── Question data shape ───────────────────────────────────────
 type Question = {
-  imageUrl: string;
+  imageUrl: string | number; // remote URL, or a bundled require() asset (number)
   prompt: { th: string; en: string };
   options: { text: string; correct: boolean }[]; // length 4
 };
 
 // ── Fallback sample question (used if DB unavailable) ─────────
+// Uses a locally bundled image (same Submariner hero the example-scan
+// flow ships) so the fallback never hotlinks a brand CDN and always
+// renders offline.
 const FALLBACK_QUESTION: Question = {
-  imageUrl:
-    'https://content.rolex.com/dam/2024/upright-bba-with-shadow/m126610ln-0001.png',
+  imageUrl: require('../../assets/examples/submariner.jpg'),
   prompt: { th: 'นาฬิกาในภาพคือแบรนด์อะไร?', en: 'What brand is this watch?' },
   options: [
     { text: 'Rolex',          correct: true },
@@ -948,7 +950,7 @@ function ResultView({
 // sometimes block hotlinking or are slow. Without this fallback the
 // user sees an empty circle and can't tell whether the question loaded.
 // ─────────────────────────────────────────────────────────────────
-function WatchImage({ url }: { url: string }) {
+function WatchImage({ url }: { url: string | number }) {
   const [errored, setErrored] = useState(false);
   const [loaded, setLoaded] = useState(false);
 
@@ -966,12 +968,16 @@ function WatchImage({ url }: { url: string }) {
   return (
     <View style={{ width: '100%', height: '100%' }}>
       <Image
-        source={{ uri: url }}
+        source={typeof url === 'number' ? url : { uri: url }}
         style={styles.watchImage}
         resizeMode="cover"
         onLoad={() => setLoaded(true)}
         onError={(e) => {
-          console.warn('[GameScreen] image failed:', url.slice(0, 80), e.nativeEvent?.error);
+          console.warn(
+            '[GameScreen] image failed:',
+            typeof url === 'string' ? url.slice(0, 80) : '[bundled asset]',
+            e.nativeEvent?.error
+          );
           setErrored(true);
         }}
       />

@@ -24,10 +24,22 @@ export type OtpVerificationResult =
 /**
  * Checks if a phone number/SIM has already claimed a free trial.
  */
+/** Parse a JSON string-array from storage; corrupted entries reset to []. */
+function safeParseStringArray(raw: string | null): string[] {
+  if (!raw) return [];
+  try {
+    const v = JSON.parse(raw);
+    return Array.isArray(v) ? v.filter((x) => typeof x === 'string') : [];
+  } catch (e: any) {
+    console.warn('[simRegistry] corrupted storage entry — resetting:', e?.message);
+    return [];
+  }
+}
+
 export async function isSimAlreadyClaimed(phone: string): Promise<boolean> {
   const sanitized = phone.replace(/[^0-9+]/g, '');
   const raw = await AsyncStorage.getItem(KEYS.claimedSims);
-  const claimed: string[] = raw ? JSON.parse(raw) : [];
+  const claimed = safeParseStringArray(raw);
   return claimed.includes(sanitized);
 }
 
@@ -37,7 +49,7 @@ export async function isSimAlreadyClaimed(phone: string): Promise<boolean> {
 export async function registerClaimedSim(phone: string): Promise<void> {
   const sanitized = phone.replace(/[^0-9+]/g, '');
   const raw = await AsyncStorage.getItem(KEYS.claimedSims);
-  const claimed: string[] = raw ? JSON.parse(raw) : [];
+  const claimed = safeParseStringArray(raw);
   if (!claimed.includes(sanitized)) {
     claimed.push(sanitized);
     await AsyncStorage.setItem(KEYS.claimedSims, JSON.stringify(claimed));
@@ -154,7 +166,19 @@ export async function verifyPhoneOtp(phone: string, enteredCode: string): Promis
     return { success: false, message: 'ไม่มีรหัส OTP ที่เปิดใช้งานสำหรับเบอร์นี้ กรุณากดส่งขอรหัส OTP ก่อน' };
   }
 
-  const active = JSON.parse(activeStr) as { code: string; expires: number };
+  let active: { code: string; expires: number };
+  try {
+    active = JSON.parse(activeStr) as { code: string; expires: number };
+    if (typeof active?.code !== 'string' || typeof active?.expires !== 'number') {
+      throw new Error('malformed OTP record');
+    }
+  } catch (e: any) {
+    // Corrupted storage must not crash the whole sign-in flow — treat it as
+    // "no active code" and let the user request a fresh one.
+    console.warn('[simRegistry] corrupted OTP record — clearing:', e?.message);
+    await AsyncStorage.removeItem(KEYS.activeOtpCode + sanitized);
+    return { success: false, message: 'รหัส OTP ไม่ถูกต้องหรือเสียหาย กรุณากดส่งขอรหัสใหม่อีกครั้ง' };
+  }
   if (now > active.expires) {
     return { success: false, message: 'รหัส OTP หมดอายุการใช้งานแล้ว กรุณากดส่งรหัสใหม่อีกครั้ง' };
   }

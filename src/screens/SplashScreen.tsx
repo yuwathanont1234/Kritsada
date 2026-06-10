@@ -39,14 +39,16 @@ export default function SplashScreen({ navigation }: any) {
       }),
     ]).start();
 
-    // Auto navigate after 2.8s
+    // Auto navigate after 2.8s. isAuthenticated() reads the locally-persisted
+    // session, but guard with a 4s timeout anyway — a hung storage/SDK call
+    // would otherwise strand the user on the splash forever. Fail toward
+    // Login: re-authenticating is cheap, an infinite splash is not.
     const timer = setTimeout(async () => {
-      const logged = await isAuthenticated();
-      if (logged) {
-        navigation.replace('Main');
-      } else {
-        navigation.replace('Login');
-      }
+      const logged = await Promise.race([
+        isAuthenticated(),
+        new Promise<boolean>((resolve) => setTimeout(() => resolve(false), 4000)),
+      ]).catch(() => false);
+      navigation.replace(logged ? 'Main' : 'Login');
     }, 2800);
 
     return () => clearTimeout(timer);

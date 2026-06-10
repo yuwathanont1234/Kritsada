@@ -340,7 +340,7 @@ export function ResultScreen({ route, navigation }: Props) {
               { text: lang === 'th' ? 'ยกเลิก' : 'Cancel', style: 'cancel' },
               {
                 text: lang === 'th' ? 'อัปเกรด' : 'Upgrade',
-                onPress: () => navigation.navigate('Subscription', { trigger: 'collection_full' }),
+                onPress: () => navigation.navigate('Membership', { trigger: 'collection_full' }),
               },
             ]
           );
@@ -469,39 +469,28 @@ export function ResultScreen({ route, navigation }: Props) {
       />
       {/* Translucent glassmorphic header matching luxury watch mockup */}
       <View style={styles.header}>
+        {/* A recognizable back affordance — the app logo used to sit here and
+            nobody reads a logo as "go back". The old right-side search and
+            profile buttons were dead ends (a "next release" alert and a
+            Phase-2 stub screen), so they're gone until they do something. */}
         <Pressable
           onPress={() => navigation.goBack()}
           hitSlop={12}
           style={styles.headerBtn}
+          accessibilityRole="button"
+          accessibilityLabel={lang === 'th' ? 'ย้อนกลับ' : 'Go back'}
         >
-          <Image
-            source={require('../../assets/icon.png')}
-            style={styles.headerAppLogo}
-          />
+          <Feather name="chevron-left" size={24} color="#ECC87A" />
         </Pressable>
-        
+
         <View style={styles.headerCenter}>
           <Ionicons name="shield-outline" size={14} color="#ECC87A" style={styles.headerLogo} />
           <Text style={styles.headerTitleMain}>LUXURY WATCH</Text>
           <Text style={styles.headerTitleSub}>AUTHENTICATOR</Text>
         </View>
 
-        <View style={styles.headerRight}>
-          <Pressable
-            onPress={() => Alert.alert('Global Search', 'Premium reference indexing will be available in the next release.')}
-            hitSlop={12}
-            style={styles.headerBtn}
-          >
-            <Feather name="search" size={18} color="#ECC87A" />
-          </Pressable>
-          <Pressable
-            onPress={() => navigation.navigate('Profile')}
-            hitSlop={12}
-            style={styles.headerBtn}
-          >
-            <Feather name="user" size={18} color="#ECC87A" />
-          </Pressable>
-        </View>
+        {/* Spacer keeps the title optically centered */}
+        <View style={[styles.headerRight, { minWidth: 40 }]} />
       </View>
 
       <ScrollView contentContainerStyle={styles.scrollContent}>
@@ -976,7 +965,7 @@ export function ResultScreen({ route, navigation }: Props) {
           <PrimaryButton
             {...({
               label: lang === 'th' ? 'สแกนนาฬิกาของคุณเอง — อัปเกรด' : 'Scan your own watch — Upgrade',
-              onPress: () => navigation.navigate('Subscription', { trigger: 'example_cta' }),
+              onPress: () => navigation.navigate('Membership', { trigger: 'example_cta' }),
               icon: 'unlock',
               style: { backgroundColor: colors.amber },
               textStyle: { color: '#1A1410' },
@@ -1009,7 +998,7 @@ export function ResultScreen({ route, navigation }: Props) {
         onUpgrade={() => {
           setUpgradeModalVisible(false);
           // upgradeType is 'auth' (PDF/heatmap locked) or 'price' (price locked).
-          navigation.navigate('Subscription', {
+          navigation.navigate('Membership', {
             trigger: upgradeType === 'auth' ? 'pdf_locked' : 'price_locked',
           });
         }}

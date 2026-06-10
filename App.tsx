@@ -55,21 +55,8 @@ import { getUserProfile } from './src/lib/userProfile';
 import { configurePushHandler } from './src/lib/pushNotifications';
 import * as Notifications from 'expo-notifications';
 
-import { styles } from './src/screens/AppStyles';
-
 const Stack = createNativeStackNavigator<RootStackParamList>();
 const Tab = createBottomTabNavigator();
-
-// Additional stubs for other unused routes
-const DummyScreen = (title: string) => ({ navigation }: any) => (
-  <SafeAreaView style={styles.stubContainer}>
-    <Text style={styles.stubTitle}>{title}</Text>
-    <Text style={styles.stubDetails}>This feature is scheduled for release in the upcoming Phase 2 updates.</Text>
-    <Pressable style={styles.stubCloseBtn} onPress={() => navigation.goBack()}>
-      <Text style={styles.stubCloseBtnText}>RETURN</Text>
-    </Pressable>
-  </SafeAreaView>
-);
 
 // Tab Navigator Setup
 function MainTabNavigator() {
@@ -267,29 +254,14 @@ export default function App() {
 
             {/* Core App Upgrade Screens */}
             <Stack.Screen name="Membership" component={MembershipScreen} />
-            <Stack.Screen name="Subscription" component={MembershipScreen} />
 
-            {/* Sub-Stubs and Utilities */}
+            {/* Utilities */}
             <Stack.Screen name="Info" component={InfoScreen} />
             <Stack.Screen name="Game" component={GameScreen} />
-            <Stack.Screen name="RefCompare" component={DummyScreen('Horological Comparison')} />
-            <Stack.Screen name="ResultDetail" component={DummyScreen('In-Depth Authentication Analytics')} />
-            <Stack.Screen name="CollectionGoals" component={DummyScreen('Collector Portfolio Milestones')} />
-            <Stack.Screen name="Transactions" component={DummyScreen('Asset Transactions Log')} />
-            <Stack.Screen name="TrayDetail" component={DummyScreen('Brand Vault Trays')} />
-            <Stack.Screen name="Articles" component={DummyScreen('Horology Academy')} />
-            <Stack.Screen name="ArticleDetail" component={DummyScreen('Academy Article')} />
-            <Stack.Screen name="News" component={DummyScreen('Industry News')} />
-            <Stack.Screen name="DeviceInfo" component={DummyScreen('System Diagnostics')} />
-            <Stack.Screen name="PrivacySettings" component={DummyScreen('Privacy Preferences')} />
-            <Stack.Screen name="ManageAccount" component={DummyScreen('Collector Profile Credentials')} />
-            <Stack.Screen name="Profile" component={DummyScreen('User Portfolio Profile')} />
-            <Stack.Screen name="ImageCredits" component={DummyScreen('Scan Credits & Entitlements')} />
-            <Stack.Screen name="AuthGuide" component={DummyScreen('Authenticity Reference Library')} />
-            <Stack.Screen name="AuthGuideList" component={DummyScreen('Reference Library Index')} />
-            <Stack.Screen name="AdminDashboard" component={DummyScreen('System Administrator Console')} />
-            <Stack.Screen name="ErrorReport" component={DummyScreen('Diagnostic Error Report')} />
-            <Stack.Screen name="Capture" component={DummyScreen('Timepiece Image Capture')} />
+            {/* 19 "Phase 2" DummyScreen stub routes removed 2026-06-10 —
+                18 were unreachable; the one reachable entry (Profile, from
+                the Result header) was a dead end and its button is gone.
+                Re-register a route when its real screen ships. */}
           </Stack.Navigator>
         </NavigationContainer>
       </SafeAreaProvider>

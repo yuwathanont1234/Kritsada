@@ -11,7 +11,7 @@ interface ErrorStateProps {
 }
 
 export function ErrorState({ errorMsg, onRetry, onCancel }: ErrorStateProps) {
-  const { t } = useLanguage();
+  const { t, lang } = useLanguage();
 
   // Try to determine the nature of the error to show localized context
   let displayTitle = t('error.title');
@@ -54,7 +54,9 @@ export function ErrorState({ errorMsg, onRetry, onCancel }: ErrorStateProps) {
 
         {/* Raw Developer Diagnostics (collapsed & styled subtly) */}
         <View style={styles.diagnosticsBox}>
-          <Text style={styles.diagnosticsLabel}>DIAGNOSTIC LOG (RAW):</Text>
+          <Text style={styles.diagnosticsLabel}>
+            {lang === 'th' ? 'บันทึกวินิจฉัยระบบ (RAW):' : 'DIAGNOSTIC LOG (RAW):'}
+          </Text>
           <Text style={styles.diagnosticsText} numberOfLines={3}>
             {errorMsg}
           </Text>

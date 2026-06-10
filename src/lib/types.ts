@@ -231,49 +231,16 @@ export type RootStackParamList = {
     soldNotes?: string;
   };
   Collection: undefined;
-  CollectionGoals: undefined;
   Portfolio: undefined;
-  Transactions: undefined;
-  TrayDetail: { filter: string }; // category id, '__all__', or '__none__'
-  Articles: undefined;
-  ArticleDetail: { articleId: string };
-  News: undefined;
   Info: { kind: 'faq' | 'terms' | 'privacy' | 'contact' | 'guide' };
-  DeviceInfo: undefined;
-  PrivacySettings: undefined;
   Settings: undefined;
-  ManageAccount: undefined;
-  Profile: undefined;
   // `trigger` records WHY the paywall opened — used by MembershipScreen
   // to fire paywall_viewed with attribution. Falls back to 'unknown' if
   // omitted (legacy callers).
-  Subscription: { trigger?: string } | undefined;
   Membership: { trigger?: string } | undefined;
-  ImageCredits: undefined;
   Game: undefined;
-  AuthGuide: { watchId: string };
-  AuthGuideList: undefined;
-  AdminDashboard: undefined;
-  ErrorReport: undefined;
-  RefCompare: {
-    referenceId: string;
-    userImageUri: string;
-  };
-  ResultDetail: {
-    section:
-      | 'price'
-      | 'authenticity'
-      | 'reference'
-      | 'description'
-      | 'signals'
-      | 'checklist'
-      | 'recommendation';
-    result: ScanResult;
-    frontUri: string;
-    matchedRefId?: string;
-  };
-  Capture: {
-    onCapture: (uri: string) => void;
-    title?: string;
-  };
+  // NOTE: 19 "Phase 2" stub routes (RefCompare, ResultDetail, Profile,
+  // Subscription alias, AuthGuide, …) were removed 2026-06-10 — they all
+  // rendered the same DummyScreen dead end and only one was even reachable.
+  // Re-add a route here when its real screen ships.
 };

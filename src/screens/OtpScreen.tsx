@@ -264,6 +264,11 @@ export default function LoginScreen({ navigation }: any) {
                     maxLength={6}
                     editable={!busy}
                     autoFocus
+                    // OS-level OTP autofill: iOS reads textContentType, Android
+                    // reads autoComplete. Without these the system never offers
+                    // the code from Mail/Messages and users retype 6 digits.
+                    textContentType="oneTimeCode"
+                    autoComplete="one-time-code"
                   />
                 </View>
 

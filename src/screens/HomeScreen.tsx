@@ -187,7 +187,15 @@ export default function HomeScreen({ navigation }: any) {
               not gold-on-gold). The CTA button is a separate prominent
               pill so the tap target reads clearly. */}
           <Pressable
-            onPress={() => navigation.navigate('Scan')}
+            // Free (non-trial) users have ZERO AI scans — sending them into
+            // the camera flow only to hit the quota wall AFTER they staged
+            // and photographed their watch was the most expensive way to
+            // say no. Route them to the paywall up front instead.
+            onPress={() =>
+              membership?.tier === 'free' && !membership?.isTrialing
+                ? navigation.navigate('Membership', { trigger: 'home_hero_free' })
+                : navigation.navigate('Scan')
+            }
             style={{
               borderRadius: 22,
               borderWidth: 1,
@@ -223,7 +231,9 @@ export default function HomeScreen({ navigation }: any) {
             <View style={{ padding: 20, flexDirection: 'row', alignItems: 'center' }}>
               <View style={{ flex: 1, paddingRight: 12 }}>
                 <Text style={{ color: colors.amber, fontSize: 11, fontWeight: '700', letterSpacing: 1.5, marginBottom: 8 }}>
-                  {lang === 'th' ? 'เริ่มสแกน' : 'NEW SCAN'}
+                  {membership?.tier === 'free' && !membership?.isTrialing
+                    ? (lang === 'th' ? 'สแกน AI สำหรับสมาชิก' : 'AI SCANNING — MEMBERS')
+                    : (lang === 'th' ? 'เริ่มสแกน' : 'NEW SCAN')}
                 </Text>
                 <Text style={{ color: '#F5E9CC', fontSize: 26, fontWeight: '800', lineHeight: 32, marginBottom: 8 }}>
                   {lang === 'th' ? 'ถ่ายรูปนาฬิกา\nตรวจสอบความแท้' : 'Authenticate\nYour Timepiece'}
@@ -292,9 +302,16 @@ export default function HomeScreen({ navigation }: any) {
                   end={{ x: 1, y: 1 }}
                   style={StyleSheet.absoluteFillObject}
                 />
-                <Feather name="camera" size={15} color="#1A130C" style={{ marginRight: 8 }} />
+                <Feather
+                  name={membership?.tier === 'free' && !membership?.isTrialing ? 'unlock' : 'camera'}
+                  size={15}
+                  color="#1A130C"
+                  style={{ marginRight: 8 }}
+                />
                 <Text style={{ color: '#1A130C', fontSize: 14, fontWeight: '800', letterSpacing: 0.4 }}>
-                  {lang === 'th' ? 'เริ่มสแกนเลย' : 'Start Scanning'}
+                  {membership?.tier === 'free' && !membership?.isTrialing
+                    ? (lang === 'th' ? 'อัปเกรดเพื่อเริ่มสแกน' : 'Upgrade to Scan')
+                    : (lang === 'th' ? 'เริ่มสแกนเลย' : 'Start Scanning')}
                 </Text>
               </View>
             </View>

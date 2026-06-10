@@ -356,20 +356,24 @@ function ProgressAiDots({ count, activeUpTo }: { count: number; activeUpTo?: num
   );
 }
 
+// MUST match the de-faked paywall claims (MembershipScreen: "3-Engine /
+// 4-Engine / Full 6-Engine"). This screen previously re-inflated the count
+// to "Ensemble of 12 AIs" right where users stare the longest. `free` only
+// reaches Loading during the Premium trial, so it shows the Premium count.
 const AI_COUNT_BY_TIER: Record<string, number> = {
-  free: 2,
-  standard: 4,
-  pro: 7,
-  premium: 12,
+  free: 6,
+  standard: 3,
+  pro: 4,
+  premium: 6,
 };
 
 export function LoadingScreen({ route, navigation }: Props) {
   const { t, lang } = useLanguage();
   const { frontUri, backUri, extraImages, extraImageRoles } = route.params;
-  const [, setTipIdx] = useState(0);
+  const [tipIdx, setTipIdx] = useState(0);
   const [elapsed, setElapsed] = useState(0);
   const [error, setError] = useState<string | null>(null);
-  const [aiCount, setAiCount] = useState(7);
+  const [aiCount, setAiCount] = useState(4);
   const [retry, setRetry] = useState<RetryStatus | null>(null);
   useEffect(() => subscribeRetry(setRetry), []);
 
@@ -441,7 +445,7 @@ export function LoadingScreen({ route, navigation }: Props) {
     (async () => {
       try {
         const membership = await getMembership();
-        setAiCount(AI_COUNT_BY_TIER[membership.tier] ?? 7);
+        setAiCount(AI_COUNT_BY_TIER[membership.tier] ?? 4);
 
         // 0. Anti-Abuse Check
         const antiAbuseCheck = await checkAntiAbuse(
@@ -449,9 +453,11 @@ export function LoadingScreen({ route, navigation }: Props) {
           membership.isTrialing
         );
         if (!antiAbuseCheck.allowed) {
-          Alert.alert('Security Alert', antiAbuseCheck.userMessage, [
-            { text: 'OK', onPress: () => navigation.goBack() },
-          ]);
+          Alert.alert(
+            lang === 'th' ? 'แจ้งเตือนความปลอดภัย' : 'Security Alert',
+            antiAbuseCheck.userMessage,
+            [{ text: lang === 'th' ? 'ตกลง' : 'OK', onPress: () => navigation.goBack() }]
+          );
           return;
         }
 
@@ -463,9 +469,11 @@ export function LoadingScreen({ route, navigation }: Props) {
             ? 'ระบบตรวจพบพฤติกรรมการใช้งานที่น่าสงสัย (อัปโหลดรูปไม่ถูกต้องติดต่อกัน) เพื่อความปลอดภัย ระบบได้ระงับการสแกนชั่วคราวเป็นเวลา 15 นาที'
             : preflight.userMessage;
 
-          Alert.alert('Image Verification', finalMsg, [
-            { text: 'OK', onPress: () => navigation.goBack() },
-          ]);
+          Alert.alert(
+            lang === 'th' ? 'การตรวจสอบรูปภาพ' : 'Image Verification',
+            finalMsg,
+            [{ text: lang === 'th' ? 'ตกลง' : 'OK', onPress: () => navigation.goBack() }]
+          );
           return;
         }
 
@@ -510,9 +518,11 @@ export function LoadingScreen({ route, navigation }: Props) {
           if (!gate.allowed) {
             console.warn('[LoadingScreen] re-gate blocked the scan:', gate.reason);
             Alert.alert(
-              'สแกนครบโควต้า',
-              gate.reason || 'ใช้สิทธิ์สแกนครบแล้ว กรุณาอัปเกรดสมาชิก',
-              [{ text: 'OK', onPress: () => navigation.goBack() }]
+              lang === 'th' ? 'สแกนครบโควต้า' : 'Scan Quota Reached',
+              gate.reason || (lang === 'th'
+                ? 'ใช้สิทธิ์สแกนครบแล้ว กรุณาอัปเกรดสมาชิก'
+                : 'Your scan allowance is used up — please upgrade to continue.'),
+              [{ text: lang === 'th' ? 'ตกลง' : 'OK', onPress: () => navigation.goBack() }]
             );
             return;
           }
@@ -678,14 +688,27 @@ export function LoadingScreen({ route, navigation }: Props) {
         </View>
 
         <Text style={styles.timeHint}>
-          {/* Empirical scan-time range, May 2026. Telemetry shows:
-              - p50 (median): ~22s (cache miss + warm Replicate + Gemini Flash)
-              - p90:          ~45s (cache miss + Gemini grounding for price)
-              - cache-hit:    ~8-12s (cheap-brand bypass + cached price)
-              - cold start:   ~60-80s (first scan after Replicate scale-to-zero)
-              Showing 15-30s as the realistic median band — better to
-              under-promise than to leave users staring past 15s wondering. */}
-          {elapsed > 0 ? `${elapsed}s · ` : ''}{lang === 'th' ? 'ปกติใช้เวลาประมาณ 15-30 วินาที' : 'Typically 15-30s'}
+          {/* Empirical scan-time telemetry, May 2026: p50 ~22s, p90 ~45s,
+              cache-hit 8-12s, cold start 60-80s. The copy ESCALATES with
+              elapsed time — a static "15-30s" next to a counter at 47s
+              read as "something is broken" during cold starts. */}
+          {elapsed > 0 ? `${elapsed}s · ` : ''}
+          {elapsed <= 30
+            ? (lang === 'th' ? 'ปกติใช้เวลาประมาณ 15-30 วินาที' : 'Typically 15-30s')
+            : elapsed <= 55
+              ? (lang === 'th'
+                  ? 'สแกนแรกของรอบอาจใช้เวลาถึง 1 นาที — เครื่องยนต์ AI กำลังอุ่นระบบ'
+                  : 'First scan of the session can take up to a minute — engines warming up')
+              : (lang === 'th'
+                  ? 'ใกล้เสร็จแล้ว — กรุณาเปิดแอปค้างไว้'
+                  : 'Almost there — please keep the app open')}
+        </Text>
+
+        {/* Horology trivia — rotates every 3.5s; gives the eye somewhere to
+            go during the wait. (The rotation state existed but was never
+            rendered — the translated strings were shipping as dead weight.) */}
+        <Text style={[styles.timeHint, { marginTop: 6, opacity: 0.7, fontStyle: 'italic' }]}>
+          💡 {translations[lang].loading.tips[tipIdx % translations[lang].loading.tips.length]}
         </Text>
 
         {retry && (
@@ -694,8 +717,8 @@ export function LoadingScreen({ route, navigation }: Props) {
             <View style={{ flex: 1 }}>
               <Text style={styles.retryTitle}>
                 {lang === 'th'
-                  ? `เครือข่าย AI หนาแน่น — กำลังลองใหม่ (${retry.attempt}/{retry.maxAttempts})`
-                  : `AI Network Congested — Retrying (${retry.attempt}/{retry.maxAttempts})`}
+                  ? `เครือข่าย AI หนาแน่น — กำลังลองใหม่ (${retry.attempt}/${retry.maxAttempts})`
+                  : `AI Network Congested — Retrying (${retry.attempt}/${retry.maxAttempts})`}
               </Text>
               <Text style={styles.retrySub}>
                 {retry.nextModel === 'pro'

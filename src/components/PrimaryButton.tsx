@@ -112,7 +112,9 @@ const styles = StyleSheet.create({
     marginRight: spacing.sm,
   },
   label: { fontSize: 16, fontWeight: '600' },
-  labelPrimary: { color: '#fff' },
+  // Dark espresso on the gold fill — white-on-gold measured ~1.6:1 contrast,
+  // far below WCAG; every hand-rolled gold button elsewhere uses dark text.
+  labelPrimary: { color: '#1A1410' },
   labelSecondary: { color: colors.primary },
   labelGhost: { color: colors.primary },
 });

@@ -64,13 +64,14 @@ export function UpgradeModal({
   body,
   benefits,
   ctaText,
-  cancelText = 'Not Now',
+  cancelText,
   reason,
 }: Props) {
-  const { t } = useLanguage();
+  const { t, lang } = useLanguage();
   const tierLabel =
     tier === 'standard' ? 'STANDARD' : tier === 'pro' ? 'PRO' : 'PREMIUM';
-  const finalCtaText = ctaText ?? `UPGRADE TO ${tierLabel}`;
+  const finalCtaText = ctaText ?? (lang === 'th' ? `อัปเกรดเป็น ${tierLabel}` : `UPGRADE TO ${tierLabel}`);
+  const finalCancelText = cancelText ?? (lang === 'th' ? 'ไว้ภายหลัง' : 'Not Now');
 
   const renderReasonAlert = () => {
     if (!reason) return null;
@@ -188,7 +189,7 @@ export function UpgradeModal({
                 pressed && { opacity: 0.6 },
               ]}
             >
-              <Text style={styles.cancelText}>{cancelText}</Text>
+              <Text style={styles.cancelText}>{finalCancelText}</Text>
             </Pressable>
           </View>
         </View>

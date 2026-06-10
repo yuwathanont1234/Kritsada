@@ -884,7 +884,7 @@ export default function SettingsScreen({ navigation }: any) {
               textAlign: 'center',
               marginTop: 4
             }}>
-              SECURE AUTHENTICATION LAYER
+              {lang === 'th' ? 'ระบบยืนยันตัวตนแบบปลอดภัย' : 'SECURE AUTHENTICATION LAYER'}
             </Text>
           </View>
  

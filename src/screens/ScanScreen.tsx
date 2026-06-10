@@ -564,7 +564,10 @@ export function ScanScreen({ navigation }: Props) {
       assignToSide(side, croppedUri);
       setSide(nextEmptySide(side, croppedUri));
     } catch (e) {
-      Alert.alert('CAMERA ERROR', 'Failed to capture timepiece exposure: ' + String(e));
+      Alert.alert(
+        lang === 'th' ? 'กล้องขัดข้อง' : 'Camera Error',
+        (lang === 'th' ? 'ถ่ายภาพไม่สำเร็จ: ' : 'Failed to capture the photo: ') + String(e)
+      );
     } finally {
       setBusy(false);
     }
@@ -993,7 +996,12 @@ export function ScanScreen({ navigation }: Props) {
 
       <SafeAreaView style={styles.overlay} edges={['top', 'bottom']} pointerEvents="box-none">
         <View style={styles.topBar}>
-          <Pressable style={styles.iconBtn} onPress={() => navigation.goBack()}>
+          <Pressable
+            style={styles.iconBtn}
+            onPress={() => navigation.goBack()}
+            accessibilityRole="button"
+            accessibilityLabel={lang === 'th' ? 'ปิดกล้อง' : 'Close camera'}
+          >
             <Feather name="x" size={20} color="#fff" />
           </Pressable>
           <View style={styles.sideBadge}>
@@ -1048,7 +1056,12 @@ export function ScanScreen({ navigation }: Props) {
           </View>
 
           <View style={styles.controls}>
-            <Pressable style={styles.galleryBtn} onPress={pickFromGallery}>
+            <Pressable
+              style={styles.galleryBtn}
+              onPress={pickFromGallery}
+              accessibilityRole="button"
+              accessibilityLabel={lang === 'th' ? 'เลือกรูปจากคลังภาพ' : 'Pick a photo from the gallery'}
+            >
               <Feather name="image" size={24} color="#fff" />
             </Pressable>
             <Pressable
@@ -1066,6 +1079,9 @@ export function ScanScreen({ navigation }: Props) {
               <View style={styles.shutterInner} />
             </Pressable>
             <Pressable
+              accessibilityRole="switch"
+              accessibilityState={{ checked: autoShutter }}
+              accessibilityLabel={lang === 'th' ? 'โหมดถ่ายอัตโนมัติเมื่อภาพนิ่ง' : 'Auto-capture when steady'}
               style={[
                 styles.autoShutterBtn,
                 autoShutter && styles.autoShutterBtnOn,
@@ -1097,12 +1113,23 @@ export function ScanScreen({ navigation }: Props) {
           </View>
 
           {(() => {
+            // The dial shot is the only hard requirement. The button used to
+            // stay HIDDEN until every tier slot was filled — even though the
+            // extra slots are labeled "optional" — leaving e.g. a Premium
+            // user who can't shoot a clasp with no way to start at all. The
+            // photo-coverage confidence ceiling already gives the honest
+            // incentive to add more angles.
             const filledCount = [frontUri, backUri, topUri, bottomUri].filter(Boolean).length;
             const required = caps.templatePhotoCount;
-            if (filledCount < required) return null;
+            if (!frontUri) return null;
+            const complete = filledCount >= required;
             const label = lang === 'th'
-              ? (required === 1 ? 'เริ่มวิเคราะห์ (เฉพาะหน้าปัด)' : `✓ เริ่มวิเคราะห์ด้วย AI (${filledCount} ภาพ)`)
-              : (required === 1 ? 'ANALYZE (DIAL ONLY)' : `✓ AI DIAGNOSIS (${filledCount} PHOTOS)`);
+              ? (complete
+                  ? `✓ เริ่มวิเคราะห์ด้วย AI (${filledCount} ภาพ)`
+                  : `เริ่มวิเคราะห์ (${filledCount}/${required} ภาพ — ครบมุมยิ่งแม่น)`)
+              : (complete
+                  ? `✓ AI DIAGNOSIS (${filledCount} PHOTOS)`
+                  : `ANALYZE (${filledCount}/${required} — more angles, higher confidence)`);
             return (
               <PrimaryButton
                 label={label}

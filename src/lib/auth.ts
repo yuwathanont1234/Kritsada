@@ -272,11 +272,12 @@ export async function getMembership(): Promise<MembershipStatus> {
       trialDaysLeft = daysLeft;
       activeTrialStart = trialStart;
     } else {
-      // Trial expired or scan limit exceeded -> automatically convert to PAID 'standard' tier!
-      await setMembership('standard');
-      tier = 'standard';
+      // Trial expired or scan limit exhausted → fall back to FREE. (This used
+      // to auto-grant the paid 'standard' tier with copy claiming a bound
+      // credit card was charged — no billing flow exists, so it was a free
+      // giveaway wrapped in a false statement. Paid tiers only ever come
+      // from the IAP layer.)
       await AsyncStorage.removeItem(KEYS.trialStart);
-      await AsyncStorage.setItem('@luxuryauthenticator/auto_billed_triggered', 'true');
       void runPostTrialCleanupIfNeeded(trialStart);
     }
   }
@@ -287,6 +288,32 @@ export async function getMembership(): Promise<MembershipStatus> {
       'monthly') as BillingPeriod;
     const startedAt = (await AsyncStorage.getItem(KEYS.membershipStartedAt)) ?? undefined;
     const expiresAt = (await AsyncStorage.getItem(KEYS.membershipExpiresAt)) ?? undefined;
+
+    // Fail-closed expiry: the local tier is only a CACHE of the store
+    // subscription. Once past expiry (+3-day renewal grace, so an active
+    // renewal that hasn't re-synced yet doesn't flap), drop to free and let
+    // RevenueCat re-grant on its next sync. Without this, a tier set in
+    // mock mode (or while RC was unreachable) lived forever.
+    if (expiresAt) {
+      const GRACE_MS = 3 * 24 * 60 * 60 * 1000;
+      if (Date.now() > new Date(expiresAt).getTime() + GRACE_MS) {
+        await setMembership('free');
+        try {
+          const iap = await import('./iap');
+          if (iap.isIapConfigured()) void iap.syncMembershipFromIap();
+        } catch {
+          /* iap module unavailable — stay free until next launch */
+        }
+        return {
+          tier: 'free',
+          isTrialing,
+          trialDaysLeft,
+          trialStart: activeTrialStart,
+          isActive: isTrialing,
+          cancelable: true,
+        };
+      }
+    }
 
     const cancelable =
       period === 'monthly' ||

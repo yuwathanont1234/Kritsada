@@ -686,7 +686,7 @@ export async function checkScanAllowed(
   if (tier === 'free' && !trialStart) {
     return {
       allowed: false,
-      reason: 'ไม่มีระบบสแกนฟรี — กรุณาผูกบัตรเครดิตเพื่อเริ่มสิทธิ์ทดลองใช้ Premium ฟรี 7 วัน (สูงสุด 5 สแกน)',
+      reason: 'แพ็กเกจฟรีไม่มีสิทธิ์สแกนด้วย AI — ดูตัวอย่างผลตรวจได้ฟรี หรืออัปเกรดสมาชิกเพื่อเริ่มสแกน',
       remaining: 0,
     };
   }
@@ -698,7 +698,7 @@ export async function checkScanAllowed(
     if (remaining <= 0) {
       return {
         allowed: false,
-        reason: `ใช้ครบโควต้าทดลองใช้ ${TRIAL_SCAN_LIMIT} ครั้งแล้ว — ระบบทำการหักชำระเงินผ่านบัตรเครดิตที่ผูกไว้เพื่อเริ่มใช้งานแผนสแตนดาร์ดอัตโนมัติ`,
+        reason: `ใช้ครบโควต้าทดลองใช้ ${TRIAL_SCAN_LIMIT} ครั้งแล้ว — อัปเกรดเป็นสมาชิกเพื่อสแกนต่อ`,
         remaining: 0,
       };
     }
@@ -741,7 +741,7 @@ export async function checkScanAllowed(
     if (await isFreeWindowExpired()) {
       return {
         allowed: false,
-        reason: `ครบ ${FREE_WINDOW_DAYS} วันที่ใช้สแกนฟรีแล้ว — อัปเกรดสมาชิก หรือซื้อเครดิตเพื่อสแกนต่อ`,
+        reason: `ครบ ${FREE_WINDOW_DAYS} วันที่ใช้สแกนฟรีแล้ว — อัปเกรดสมาชิกเพื่อสแกนต่อ`,
         remaining: 0,
       };
     }
@@ -752,9 +752,9 @@ export async function checkScanAllowed(
     const effectiveLimit = FREE_SCAN_LIMIT + bonus;
     const remaining = Math.max(0, effectiveLimit - used);
     if (remaining <= 0) {
-      const hint = bonus > 0
-        ? 'อัปเกรดสมาชิก หรือซื้อเครดิตเพื่อสแกนต่อ'
-        : 'แชร์ข้อมูลเพื่อรับเพิ่ม 5 เครดิต · อัปเกรด · หรือซื้อเครดิต';
+      // No share-for-credits nudge: FREE_SCAN_BONUS is 0 (free AI was cut),
+      // and no purchasable credit system exists — only a real upgrade helps.
+      const hint = 'อัปเกรดสมาชิกเพื่อสแกนต่อ';
       return {
         allowed: false,
         reason: `ใช้ครบสแกนฟรี ${effectiveLimit} ครั้งแล้ว — ${hint}`,
@@ -782,7 +782,7 @@ export async function checkScanAllowed(
     const countdown = days > 0 ? `${days} วัน ${hours} ชม.` : `${hours} ชม.`;
     return {
       allowed: false,
-      reason: `ใช้ครบโควต้า ${caps.monthlyScanLimit} ครั้งของเดือนนี้แล้ว · ซื้อเครดิตเพื่อสแกนต่อทันที หรือรออีก ${countdown}`,
+      reason: `ใช้ครบโควต้า ${caps.monthlyScanLimit} ครั้งของเดือนนี้แล้ว — รอรีเซ็ตในอีก ${countdown} หรืออัปเกรดแพ็กเกจ`,
       remaining: 0,
       total: caps.monthlyScanLimit,
     };

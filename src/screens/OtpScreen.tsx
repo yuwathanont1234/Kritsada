@@ -17,6 +17,8 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { Feather, AntDesign } from '@expo/vector-icons';
 import { colors, shadow } from '../lib/theme';
 import { loginMock, sendEmailOtp, verifyEmailOtp, signInWithGoogle } from '../lib/auth';
+import { identifyIapUser } from '../lib/iap';
+import { supabase } from '../lib/supabase';
 import { useLanguage } from '../lib/localization';
 import { getUserProfile } from '../lib/userProfile';
 import { styles, screenW, screenH } from './AppStyles';
@@ -56,6 +58,15 @@ export default function LoginScreen({ navigation }: any) {
   // After any successful auth, first-time users (no completed quiz) go to the
   // Onboarding segmentation screen; returning users go straight to Main.
   const routeAfterAuth = async () => {
+    // Bind RevenueCat to the Supabase auth UUID so entitlements follow the
+    // same identity the server-side scan ledger keys on (JWT sub). Fire and
+    // forget — login must never block on the purchases SDK.
+    try {
+      const { data } = await supabase.auth.getSession();
+      if (data.session?.user?.id) void identifyIapUser(data.session.user.id);
+    } catch {
+      /* __DEV__ mock login or offline — RC stays anonymous */
+    }
     const profile = await getUserProfile();
     if (!profile.onboardingDone) {
       navigation.replace('Onboarding');

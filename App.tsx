@@ -8,6 +8,7 @@ import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import { colors } from './src/lib/theme';
 import { RootStackParamList } from './src/lib/types';
 import { getMembership, getAuthUser } from './src/lib/auth';
+import { supabase } from './src/lib/supabase';
 import { LanguageProvider, useLanguage } from './src/lib/localization';
 import { initIap, syncMembershipFromIap, listenIapChanges } from './src/lib/iap';
 import { initSentry, ErrorBoundary } from './src/lib/sentry';
@@ -142,13 +143,23 @@ export default function App() {
       }
     })();
 
-    // Initialize IAP (RevenueCat). Pass current user email as appUserId so
-    // subscription state follows the user across reinstalls. Safe to call
-    // even when RevenueCat key is not configured (degrades to mock mode).
+    // Initialize IAP (RevenueCat). Use the Supabase auth UUID as appUserId —
+    // it is immutable and matches the key the server-side scan ledger uses
+    // (JWT sub), so entitlements and quotas describe the same identity.
+    // Email is only a fallback for the __DEV__ sandbox mock login, which has
+    // no Supabase session. Safe to call even when RevenueCat key is not
+    // configured (degrades to mock mode).
     (async () => {
       try {
+        let rcUserId: string | null = null;
+        try {
+          const { data } = await supabase.auth.getSession();
+          rcUserId = data.session?.user?.id ?? null;
+        } catch {
+          /* offline cold start — fall through to local mirror */
+        }
         const user = await getAuthUser();
-        await initIap(user?.email ?? null);
+        await initIap(rcUserId ?? user?.email ?? null);
         // Pull the latest subscription state from the store of record —
         // covers cases where a subscription expired or was refunded while
         // the app was closed.

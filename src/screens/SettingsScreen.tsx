@@ -441,9 +441,9 @@ export default function SettingsScreen({ navigation }: any) {
             </View>
              <Text style={styles.planDetails}>
               {membership?.isTrialing
-                ? (lang === 'th' ? `กำลังอยู่ในช่วงทดลองใช้พรีเมียมฟรี (${membership?.trialDaysLeft} วันที่เหลือ, จำกัด 5 สแกน) ระบบผูกบัตรเครดิตเรียบร้อย` : `Active in Free Premium Trial (${membership?.trialDaysLeft} days remaining, max 5 scans). Credit card bound.`)
+                ? (lang === 'th' ? `กำลังอยู่ในช่วงทดลองใช้พรีเมียมฟรี (เหลืออีก ${membership?.trialDaysLeft} วัน, จำกัด 5 สแกน)` : `Active in Free Premium Trial (${membership?.trialDaysLeft} days remaining, max 5 scans).`)
                 : membership?.tier === 'free'
-                  ? (lang === 'th' ? 'ยังไม่ได้เปิดสิทธิ์ทดลองใช้ — กรุณาผูกบัตรเครดิตเพื่อเริ่มสิทธิ์ทดลองใช้ Premium ฟรี 7 วัน (สูงสุด 5 สแกน)' : 'Trial not active — Bind credit card to start 7-Day Premium Trial (max 5 scans)')
+                  ? (lang === 'th' ? 'แพ็กเกจฟรี — ดูตัวอย่างผลตรวจได้ไม่จำกัด อัปเกรดสมาชิกเพื่อเริ่มสแกนด้วย AI' : 'Free plan — browse example reports anytime. Upgrade to start AI scanning.')
                   : membership?.tier === 'standard'
                     ? (lang === 'th' ? 'ระดับสแตนดาร์ด (Standard) (สูงสุด 20 สแกน/เดือน, ช่องถ่าย 2 มุม)' : 'Standard tier (up to 20 scans/month, 2 photo slots)')
                     : membership?.tier === 'pro'
@@ -454,7 +454,12 @@ export default function SettingsScreen({ navigation }: any) {
               <Text style={styles.planUpgradeText}>{t('settings.manageSub')}</Text>
             </Pressable>
 
-            {membership?.tier === 'free' && !membership?.isTrialing && (
+            {/* DEV-ONLY trial entry. The phone-OTP flow behind this button is a
+                SIMULATION (the "SMS gateway" renders its own code on screen) —
+                it must never ship as a production path: it both deceives the
+                user and hands out free Premium trials with real AI scans.
+                A real trial belongs in RevenueCat as an intro offer. */}
+            {__DEV__ && membership?.tier === 'free' && !membership?.isTrialing && (
               <Pressable
                 style={[
                   styles.planUpgradeBtn,
@@ -479,7 +484,7 @@ export default function SettingsScreen({ navigation }: any) {
                 }}
               >
                 <Text style={[styles.planUpgradeText, { color: '#000', fontWeight: 'bold' }]}>
-                  {lang === 'th' ? '💳 ยืนยันสิทธิ์เริ่มทดลองใช้ฟรี 7 วัน' : '💳 Verify & Start 7-Day Free Trial'}
+                  {lang === 'th' ? '(DEV) ทดลองใช้ฟรี 7 วัน' : '(DEV) Start 7-Day Trial'}
                 </Text>
               </Pressable>
             )}

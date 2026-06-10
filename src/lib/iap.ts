@@ -278,8 +278,19 @@ export async function purchaseTier(
 ): Promise<PurchaseResult> {
   const Purchases = await getPurchases();
 
-  // ── MOCK MODE ─────────────────────────────────────────────────────
+  // ── MOCK MODE (DEV builds only) ───────────────────────────────────
+  // A production build must never grant a tier without payment. Purchases
+  // is null both when RevenueCat keys are missing AND when the native
+  // module fails to import — either way, fail closed outside __DEV__.
   if (!Purchases) {
+    if (!__DEV__) {
+      return {
+        success: false,
+        activeTier: null,
+        userCancelled: false,
+        errorMessage: 'In-app purchases are unavailable in this build. Please update the app or contact support.',
+      };
+    }
     const { setMembership } = await import('./auth');
     await setMembership(tier);
     console.log(`[iap] MOCK purchase succeeded: ${tier}`);
@@ -331,7 +342,15 @@ export async function purchaseTier(
 export async function restorePurchases(): Promise<PurchaseResult> {
   const Purchases = await getPurchases();
   if (!Purchases) {
-    // In mock mode, just return current local membership.
+    if (!__DEV__) {
+      return {
+        success: false,
+        activeTier: null,
+        userCancelled: false,
+        errorMessage: 'In-app purchases are unavailable in this build. Please update the app or contact support.',
+      };
+    }
+    // DEV mock mode: just return current local membership.
     const { getMembership } = await import('./auth');
     const m = await getMembership();
     return { success: true, activeTier: m.tier, userCancelled: false };
@@ -374,6 +393,11 @@ export async function syncMembershipFromIap(): Promise<MembershipTier | null> {
         // Subscription expired — downgrade to free.
         await setMembership('free' as MembershipTier);
       }
+    } else if (tier !== 'free') {
+      // Same paid tier re-confirmed by RevenueCat — roll the local 30-day
+      // expiry window forward so getMembership()'s fail-closed expiry check
+      // doesn't lapse a continuously-renewing subscriber.
+      await setMembership(tier);
     }
     return tier;
   } catch (e: any) {

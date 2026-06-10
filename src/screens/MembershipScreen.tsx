@@ -32,6 +32,13 @@ const TIER_PRICE_THB: Record<MembershipTier, number> = {
   premium: 4990,
 };
 
+// Credit packs stay hidden until BOTH exist: real consumable IAP products
+// (lux_credit_20 / lux_credit_40 in RevenueCat + the stores) AND a server-side
+// credit balance that scans actually decrement. The previous buttons were
+// stubs that alerted "Purchase Successful!" without charging or granting
+// anything — a guaranteed App Store rejection and a consumer-trust violation.
+const CREDIT_PACKS_ENABLED = false;
+
 /**
  * Segment-aware "Recommended for You" ribbon.
  *
@@ -251,8 +258,8 @@ export default function MembershipScreen({ navigation, route }: any) {
             <Pressable style={styles.upgradeClose} onPress={() => navigation.goBack()}>
               <Feather name="arrow-left" size={24} color="#fff" />
             </Pressable>
-            <Text style={styles.upgradeTitle}>Upgrade Membership</Text>
-            <Text style={styles.upgradeSubtitle}>SELECT MEMBERSHIP PLAN</Text>
+            <Text style={styles.upgradeTitle}>{t('membership.upgradeTitle')}</Text>
+            <Text style={styles.upgradeSubtitle}>{t('membership.selectPlan')}</Text>
             <Text style={[styles.upgradeSubtitle, { fontSize: 12, color: colors.textSecondary, marginTop: 4 }]}>
               {/* Segment-aware sub-headline. Role data from Onboarding. */}
               {userRole === 'dealer'
@@ -465,7 +472,8 @@ export default function MembershipScreen({ navigation, route }: any) {
             </Pressable>
           </View>
 
-          {/* Section: Pay-Per-Scan Credit Packs */}
+          {/* Section: Pay-Per-Scan Credit Packs (see CREDIT_PACKS_ENABLED) */}
+          {CREDIT_PACKS_ENABLED && (
           <View style={[styles.creditPacksContainer, { marginTop: spacing.lg }]}>
             <Text style={[styles.upgradeTitle, { fontSize: 20, textAlign: 'center', marginBottom: spacing.xs }]}>
               {t('membership.scanCredits')}
@@ -531,6 +539,7 @@ export default function MembershipScreen({ navigation, route }: any) {
               </Pressable>
             </View>
           </View>
+          )}
 
           {/* Restore Purchases — REQUIRED by App Store guideline 3.1.1. */}
           {/* Must be prominently visible on every paywall screen. */}

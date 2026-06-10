@@ -67,7 +67,10 @@ export default function PriceCard({
               <Pressable
                 onPress={handleRefreshPrices}
                 disabled={refreshingPrices}
-                hitSlop={12}
+                hitSlop={16}
+                accessibilityRole="button"
+                accessibilityLabel={lang === 'th' ? 'อัปเดตราคาตลาด' : 'Refresh market price'}
+                accessibilityState={{ busy: refreshingPrices }}
                 style={{
                   marginLeft: 6,
                   backgroundColor: 'rgba(236, 200, 122, 0.1)',

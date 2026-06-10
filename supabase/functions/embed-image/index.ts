@@ -108,7 +108,12 @@ serve(async (req) => {
       // the cap; every other caller gets a tight dedicated daily budget.
       if (!isServiceCaller && admin && quotaKey) {
         try {
-          const WARM_DAILY_CAP = Number(Deno.env.get("WARM_DAILY_CAP") ?? "60")
+          // Default 400 (not lower): if the vault's service_role_jwt ever
+          // diverges from SUPABASE_SERVICE_ROLE_KEY, the pg_cron pings stop
+          // matching isServiceCaller and fall into this cap — 400/day still
+          // covers the 288/day cron cadence, so keep-warm can't brick itself,
+          // while any one abuser stays bounded per identity per day.
+          const WARM_DAILY_CAP = Number(Deno.env.get("WARM_DAILY_CAP") ?? "400")
           const { data: q } = await admin.rpc("consume_edge_quota", {
             p_device_id: `warm:${quotaKey}`,
             p_cap: WARM_DAILY_CAP,

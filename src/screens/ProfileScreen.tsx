@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import {
   View,
   ScrollView,
+  FlatList,
   Text,
   Pressable,
   Image,
@@ -331,9 +332,30 @@ export default function CollectionScreen({ navigation }: any) {
       />
       <StatusBar style="light" />
       <SafeAreaView style={styles.safeAreaZero} edges={['top']}>
-        <ScrollView
+        {/* Outer container is a FlatList so the drill-down WatchRow list (up to
+            the 100-watch vault cap for one brand) is virtualized. All other
+            sections — hero, toggle, winder, recent carousel (≤8), brand trays
+            (≤4/tray) — are bounded and live unchanged in ListHeaderComponent. */}
+        <FlatList
+          data={!isEmpty && viewMode === 'list' && selectedBrand ? drilldownWatches : []}
+          keyExtractor={(w) => w.id}
+          renderItem={({ item }) => (
+            <WatchRow
+              w={item}
+              lang={lang}
+              exchangeRate={exchangeRate}
+              onPress={() => openWatch(item)}
+              onDelete={() => handleDelete(item.id, item.customName || item.result.name)}
+            />
+          )}
+          showsVerticalScrollIndicator={false}
+          initialNumToRender={8}
+          maxToRenderPerBatch={8}
+          windowSize={7}
+          removeClippedSubviews
           contentContainerStyle={{ padding: spacing.md, paddingBottom: spacing.xl * 2 }}
-        >
+          ListHeaderComponent={(
+            <>
           {isEmpty ? (
             <View style={[styles.emptyContainer, { paddingTop: spacing.xl * 2 }]}>
               <Feather name="folder-minus" size={48} color={colors.textMuted} />
@@ -679,23 +701,17 @@ export default function CollectionScreen({ navigation }: any) {
                       ? 'piece'
                       : 'pieces'}
                   </Text>
-                  {drilldownWatches.map((w) => (
-                    <WatchRow
-                      key={w.id}
-                      w={w}
-                      lang={lang}
-                      exchangeRate={exchangeRate}
-                      onPress={() => openWatch(w)}
-                      onDelete={() => handleDelete(w.id, w.customName || w.result.name)}
-                    />
-                  ))}
+                  {/* The WatchRow list itself is rendered by the FlatList below
+                      (virtualized) — only this section title lives in the header. */}
                 </View>
               )}
               </>
               )}
             </>
           )}
-        </ScrollView>
+            </>
+          )}
+        />
       </SafeAreaView>
     </View>
   );

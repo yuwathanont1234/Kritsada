@@ -1,6 +1,8 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as WebBrowser from 'expo-web-browser';
 import * as Linking from 'expo-linking';
+import * as AppleAuthentication from 'expo-apple-authentication';
+import * as Crypto from 'expo-crypto';
 import { supabase } from './supabase';
 
 // Required so the in-app browser tab dismisses and returns control to the
@@ -237,6 +239,68 @@ export async function signInWithGoogle(): Promise<AuthUser> {
   }
 
   throw new Error('OAuth redirect contained no code or tokens');
+}
+
+/**
+ * Sign in with Apple (iOS only). REQUIRED by App Store Guideline 4.8 because
+ * the app also offers Google sign-in. Uses the native Apple flow → an
+ * identity token, which we hand to Supabase via signInWithIdToken.
+ *
+ * Nonce hardening (replay protection): we generate a random nonce, send its
+ * SHA-256 to Apple, and pass the RAW nonce to Supabase. Supabase verifies the
+ * token's hashed `nonce` claim matches the raw value — so a stolen token can't
+ * be replayed. Apple returns the user's name ONLY on first authorization, so
+ * we capture it then.
+ */
+export async function signInWithApple(): Promise<AuthUser> {
+  const rawNonce = `${Crypto.randomUUID()}${Crypto.randomUUID()}`.replace(/-/g, '');
+  const hashedNonce = await Crypto.digestStringAsync(
+    Crypto.CryptoDigestAlgorithm.SHA256,
+    rawNonce
+  );
+
+  let credential: AppleAuthentication.AppleAuthenticationCredential;
+  try {
+    credential = await AppleAuthentication.signInAsync({
+      requestedScopes: [
+        AppleAuthentication.AppleAuthenticationScope.FULL_NAME,
+        AppleAuthentication.AppleAuthenticationScope.EMAIL,
+      ],
+      nonce: hashedNonce,
+    });
+  } catch (e: any) {
+    // User tapped Cancel on the Apple sheet — mirror the Google flow's signal.
+    if (e?.code === 'ERR_REQUEST_CANCELED') throw new Error('cancelled');
+    throw e;
+  }
+
+  if (!credential.identityToken) {
+    throw new Error('Apple sign-in returned no identity token');
+  }
+
+  const { data, error } = await supabase.auth.signInWithIdToken({
+    provider: 'apple',
+    token: credential.identityToken,
+    nonce: rawNonce,
+  });
+  if (error) throw error;
+  if (!data.user) throw new Error('Apple sign-in returned no user');
+
+  const merged = await syncAuthUserFromSupabase(data.user);
+
+  // First-authorization-only: Apple gives the real name once. If our display
+  // name is still just the email prefix, upgrade it to the Apple-provided name.
+  const given = credential.fullName?.givenName;
+  const family = credential.fullName?.familyName;
+  if (given || family) {
+    const appleName = [given, family].filter(Boolean).join(' ').trim();
+    const looksLikeEmailPrefix =
+      !merged.displayName || merged.displayName === merged.email.split('@')[0];
+    if (appleName && looksLikeEmailPrefix) {
+      return (await updateUser({ displayName: appleName })) ?? merged;
+    }
+  }
+  return merged;
 }
 
 export async function getMembership(): Promise<MembershipStatus> {

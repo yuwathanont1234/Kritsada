@@ -15,10 +15,11 @@
     },
     "ios": {
       "supportsTablet": false,
+      "usesAppleSignIn": true,
       "bundleIdentifier": "com.kritsada.luxuryauthenticator",
       "infoPlist": {
-        "NSCameraUsageDescription": "This app requires camera access to take high-resolution photos of luxury watches for AI authenticity checks.",
-        "NSPhotoLibraryUsageDescription": "This app requires photo library access to upload watch photos for scanning."
+        "NSCameraUsageDescription": "ใช้กล้องเพื่อถ่ายภาพนาฬิกาความละเอียดสูงสำหรับการตรวจสอบความแท้ด้วย AI · Camera access is used to take high-resolution watch photos for AI authenticity checks.",
+        "NSPhotoLibraryUsageDescription": "ใช้คลังภาพเพื่อเลือกรูปนาฬิกาสำหรับการสแกน · Photo library access is used to pick watch images for scanning."
       }
     },
     "android": {
@@ -30,8 +31,7 @@
       "edgeToEdgeEnabled": true,
       "predictiveBackGestureEnabled": false,
       "permissions": [
-        "android.permission.CAMERA",
-        "android.permission.READ_EXTERNAL_STORAGE"
+        "android.permission.CAMERA"
       ],
       "blockedPermissions": [
         "android.permission.RECORD_AUDIO",
@@ -81,7 +81,9 @@
         "projectId": "a694d76a-4616-41b8-a109-a3ab58f666cd"
       }
     },
-    "runtimeVersion": "1.0.0",
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
     "owner": "yuwathanont"
   }
 }

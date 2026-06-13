@@ -10,13 +10,15 @@ import {
   ActivityIndicator,
   Alert,
   StyleSheet,
+  Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Feather, AntDesign } from '@expo/vector-icons';
+import * as AppleAuthentication from 'expo-apple-authentication';
 import { colors, shadow } from '../lib/theme';
-import { loginMock, sendEmailOtp, verifyEmailOtp, signInWithGoogle } from '../lib/auth';
+import { loginMock, sendEmailOtp, verifyEmailOtp, signInWithGoogle, signInWithApple } from '../lib/auth';
 import { identifyIapUser } from '../lib/iap';
 import { supabase } from '../lib/supabase';
 import { useLanguage } from '../lib/localization';
@@ -33,6 +35,14 @@ export default function LoginScreen({ navigation }: any) {
   const [sending, setSending] = useState(false); // sending the OTP email
   const [loading, setLoading] = useState(false); // verifying the code
   const [googleLoading, setGoogleLoading] = useState(false);
+  const [appleLoading, setAppleLoading] = useState(false);
+  // Apple sign-in is iOS-only and only on real devices that support it.
+  const [appleAvailable, setAppleAvailable] = useState(false);
+  useEffect(() => {
+    if (Platform.OS === 'ios') {
+      AppleAuthentication.isAvailableAsync().then(setAppleAvailable).catch(() => {});
+    }
+  }, []);
   const tickAnim = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
@@ -151,6 +161,25 @@ export default function LoginScreen({ navigation }: any) {
     }
   };
 
+  const handleApple = async () => {
+    setAppleLoading(true);
+    try {
+      await signInWithApple();
+      await routeAfterAuth();
+    } catch (e: any) {
+      if (e?.message !== 'cancelled') {
+        alertErr(
+          'Apple Sign-In Failed',
+          'เข้าสู่ระบบด้วย Apple ไม่สำเร็จ',
+          e?.message || 'Please try again.',
+          e?.message || 'กรุณาลองใหม่อีกครั้ง'
+        );
+      }
+    } finally {
+      setAppleLoading(false);
+    }
+  };
+
   // DEV-only sandbox bypass — local mock user, no Supabase session.
   const handleMockLogin = async (presetEmail: string) => {
     setLoading(true);
@@ -164,7 +193,7 @@ export default function LoginScreen({ navigation }: any) {
     }
   };
 
-  const busy = loading || sending || googleLoading;
+  const busy = loading || sending || googleLoading || appleLoading;
 
   return (
     <View style={{ flex: 1, backgroundColor: colors.background }}>
@@ -313,6 +342,34 @@ export default function LoginScreen({ navigation }: any) {
               </Text>
               <View style={{ flex: 1, height: 1, backgroundColor: 'rgba(236, 200, 122, 0.18)' }} />
             </View>
+
+            {/* Sign in with Apple — REQUIRED on iOS (Guideline 4.8) because
+                Google sign-in is offered. Rendered above Google, equal weight. */}
+            {appleAvailable && (
+              <View style={{ marginBottom: 12 }}>
+                {appleLoading ? (
+                  <View
+                    style={{
+                      height: 48,
+                      borderRadius: 12,
+                      backgroundColor: '#fff',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                    }}
+                  >
+                    <ActivityIndicator size="small" color="#000" />
+                  </View>
+                ) : (
+                  <AppleAuthentication.AppleAuthenticationButton
+                    buttonType={AppleAuthentication.AppleAuthenticationButtonType.SIGN_IN}
+                    buttonStyle={AppleAuthentication.AppleAuthenticationButtonStyle.WHITE}
+                    cornerRadius={12}
+                    style={{ width: '100%', height: 48 }}
+                    onPress={handleApple}
+                  />
+                )}
+              </View>
+            )}
 
             {/* Google OAuth */}
             <Pressable

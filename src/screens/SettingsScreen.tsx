@@ -21,6 +21,7 @@ import * as ImagePicker from 'expo-image-picker';
 import { colors, radius, spacing } from '../lib/theme';
 import { AuthUser, getAuthUser, getMembership, startTrialAgain, clearTrial, MembershipTier, setMembership, updateUser, logout } from '../lib/auth';
 import { requestPhoneOtp, verifyPhoneOtp } from '../lib/simRegistry';
+import { supabase } from '../lib/supabase';
 import { useLanguage } from '../lib/localization';
 import { styles } from './AppStyles';
 import {
@@ -299,16 +300,44 @@ export default function SettingsScreen({ navigation }: any) {
         text: t('settings.wipeConfirmTitle'),
         style: 'destructive',
         onPress: async () => {
+          // 1. Delete the SERVER account first (auth user + ledger + membership)
+          //    when signed in. This is the compliance-critical step — if it
+          //    fails we abort and let the user retry rather than wiping local
+          //    data and falsely claiming the account was deleted.
+          try {
+            const { data: sess } = await supabase.auth.getSession();
+            if (sess.session) {
+              const { data, error } = await supabase.functions.invoke('delete-account');
+              const serverErr = error?.message || (data as any)?.error;
+              if (serverErr) throw new Error(serverErr);
+            }
+          } catch (err: any) {
+            console.warn('[SettingsScreen] server account deletion failed:', err?.message);
+            Alert.alert(
+              lang === 'th' ? 'ลบบัญชีไม่สำเร็จ' : 'Account Deletion Failed',
+              lang === 'th'
+                ? 'ไม่สามารถลบบัญชีบนเซิร์ฟเวอร์ได้ กรุณาตรวจสอบการเชื่อมต่ออินเทอร์เน็ตแล้วลองใหม่อีกครั้ง'
+                : 'We could not delete your account on the server. Check your connection and try again.'
+            );
+            return; // do NOT clear local data or claim success
+          }
+
+          // 2. Best-effort: erase anonymous analytics (cohort-keyed) + local data.
           try {
             const { eraseMyData } = await import('../lib/dataConsent');
             await eraseMyData();
           } catch (err) {
             console.warn('[SettingsScreen] eraseMyData failed during account deletion:', err);
           }
+          try {
+            await supabase.auth.signOut();
+          } catch {
+            /* already signed out server-side by the delete */
+          }
           await AsyncStorage.clear();
-          await load();
           if (globalUpdateAppTier) globalUpdateAppTier('free');
           Alert.alert(t('common.success'), t('settings.wipeSuccess'));
+          navigation.replace('Login');
         },
       },
     ]);

@@ -70,15 +70,38 @@ if (typeof v !== 'string' || !/^\d+\.\d+\.\d+/.test(v)) {
 }
 
 if (rv !== undefined) {
+  // This project is CNG/prebuild (no committed android/ ios/ dirs), so the
+  // policy-object form is valid and preferred (auto native↔JS compat). A
+  // bare workflow would need a string literal instead — re-add that guard
+  // only if native dirs get committed.
+  const POLICIES = ['appVersion', 'nativeVersion', 'fingerprint'];
   if (typeof rv === 'object') {
-    errs.push(
-      `app.json expo.runtimeVersion: object form ({"policy":"..."}) fails in ` +
-      `bare workflow — use a string literal like "${v}" instead`
-    );
+    if (!POLICIES.includes(rv.policy)) {
+      errs.push(
+        `app.json expo.runtimeVersion.policy must be one of ${POLICIES.join('|')}, ` +
+        `got ${JSON.stringify(rv.policy)}`
+      );
+    }
   } else if (typeof rv !== 'string') {
-    errs.push(`app.json expo.runtimeVersion must be string, got ${typeof rv}`);
+    errs.push(`app.json expo.runtimeVersion must be a semver string or {policy}, got ${typeof rv}`);
   }
 }
+
+// Reminder: the production build's secrets live in the EAS-hosted environment,
+// not in eas.json, so we can't read them here — but a missing one ships a
+// dead-on-arrival app (supabase.ts now hard-fails on the placeholder). Surface
+// the required set so the operator can confirm before building.
+const REQUIRED_PROD_ENV = [
+  'EXPO_PUBLIC_SUPABASE_URL',
+  'EXPO_PUBLIC_SUPABASE_ANON_KEY',
+  'EXPO_PUBLIC_REVENUECAT_API_KEY_IOS',
+  'EXPO_PUBLIC_REVENUECAT_API_KEY_ANDROID',
+  'EXPO_PUBLIC_SENTRY_DSN',
+];
+warns.push(
+  `Confirm these are set in the EAS "production" environment (not visible from ` +
+  `eas.json): ${REQUIRED_PROD_ENV.join(', ')}`
+);
 
 const testerProfiles = ['tester', 'tester-store'];
 const prodProfile = profiles.production;

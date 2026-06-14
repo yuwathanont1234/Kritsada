@@ -18,7 +18,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { Feather, AntDesign } from '@expo/vector-icons';
 import * as AppleAuthentication from 'expo-apple-authentication';
 import { colors, shadow } from '../lib/theme';
-import { loginMock, sendEmailOtp, verifyEmailOtp, signInWithGoogle, signInWithApple } from '../lib/auth';
+import { loginMock, sendEmailOtp, verifyEmailOtp, signInWithGoogle, signInWithApple, signInWithPassword } from '../lib/auth';
 import { identifyIapUser } from '../lib/iap';
 import { supabase } from '../lib/supabase';
 import { useLanguage } from '../lib/localization';
@@ -36,6 +36,9 @@ export default function LoginScreen({ navigation }: any) {
   const [loading, setLoading] = useState(false); // verifying the code
   const [googleLoading, setGoogleLoading] = useState(false);
   const [appleLoading, setAppleLoading] = useState(false);
+  // Passwordless by default; this opt-in path is mainly for store reviewers.
+  const [passwordMode, setPasswordMode] = useState(false);
+  const [password, setPassword] = useState('');
   // Apple sign-in is iOS-only and only on real devices that support it.
   const [appleAvailable, setAppleAvailable] = useState(false);
   useEffect(() => {
@@ -161,6 +164,32 @@ export default function LoginScreen({ navigation }: any) {
     }
   };
 
+  const handlePasswordLogin = async () => {
+    if (!email.includes('@') || !password) {
+      alertErr(
+        'Missing Details',
+        'ข้อมูลไม่ครบ',
+        'Enter your email and password.',
+        'กรุณากรอกอีเมลและรหัสผ่าน'
+      );
+      return;
+    }
+    setLoading(true);
+    try {
+      await signInWithPassword(email, password);
+      await routeAfterAuth();
+    } catch (e: any) {
+      alertErr(
+        'Sign-In Failed',
+        'เข้าสู่ระบบไม่สำเร็จ',
+        e?.message || 'Check your email and password, then try again.',
+        e?.message || 'ตรวจสอบอีเมลและรหัสผ่านแล้วลองใหม่อีกครั้ง'
+      );
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleApple = async () => {
     setAppleLoading(true);
     try {
@@ -257,20 +286,67 @@ export default function LoginScreen({ navigation }: any) {
                   />
                 </View>
 
-                <Pressable style={styles.loginPremiumBtn} onPress={handleSendOtp} disabled={busy}>
-                  <LinearGradient
-                    colors={['#ECC87A', '#C59A45', '#9A7326']}
-                    start={{ x: 0, y: 0 }}
-                    end={{ x: 1, y: 1 }}
-                    style={StyleSheet.absoluteFillObject}
-                  />
-                  {sending ? (
-                    <ActivityIndicator size="small" color="#000" />
-                  ) : (
-                    <Text style={styles.loginPremiumBtnText}>
-                      {lang === 'th' ? 'ส่งรหัสเข้าสู่ระบบ' : 'SEND SIGN-IN CODE'}
-                    </Text>
-                  )}
+                {!passwordMode && (
+                  <Pressable style={styles.loginPremiumBtn} onPress={handleSendOtp} disabled={busy}>
+                    <LinearGradient
+                      colors={['#ECC87A', '#C59A45', '#9A7326']}
+                      start={{ x: 0, y: 0 }}
+                      end={{ x: 1, y: 1 }}
+                      style={StyleSheet.absoluteFillObject}
+                    />
+                    {sending ? (
+                      <ActivityIndicator size="small" color="#000" />
+                    ) : (
+                      <Text style={styles.loginPremiumBtnText}>
+                        {lang === 'th' ? 'ส่งรหัสเข้าสู่ระบบ' : 'SEND SIGN-IN CODE'}
+                      </Text>
+                    )}
+                  </Pressable>
+                )}
+
+                {/* Opt-in password sign-in (mainly so store reviewers can sign
+                    in without an emailed OTP). Hidden behind a subtle toggle. */}
+                {passwordMode && (
+                  <>
+                    <View style={[styles.inputContainer, { borderColor: 'rgba(236, 200, 122, 0.25)', marginTop: 12 }]}>
+                      <Feather name="lock" size={18} color={colors.amber} style={styles.inputIcon} />
+                      <TextInput
+                        style={styles.textInput}
+                        placeholder={lang === 'th' ? 'รหัสผ่าน' : 'Password'}
+                        placeholderTextColor={colors.textMuted}
+                        value={password}
+                        onChangeText={setPassword}
+                        secureTextEntry
+                        autoCapitalize="none"
+                        autoCorrect={false}
+                        editable={!busy}
+                        textContentType="password"
+                      />
+                    </View>
+                    <Pressable style={[styles.loginPremiumBtn, { marginTop: 12 }]} onPress={handlePasswordLogin} disabled={busy}>
+                      <LinearGradient
+                        colors={['#ECC87A', '#C59A45', '#9A7326']}
+                        start={{ x: 0, y: 0 }}
+                        end={{ x: 1, y: 1 }}
+                        style={StyleSheet.absoluteFillObject}
+                      />
+                      {loading ? (
+                        <ActivityIndicator size="small" color="#000" />
+                      ) : (
+                        <Text style={styles.loginPremiumBtnText}>
+                          {lang === 'th' ? 'เข้าสู่ระบบด้วยรหัสผ่าน' : 'SIGN IN WITH PASSWORD'}
+                        </Text>
+                      )}
+                    </Pressable>
+                  </>
+                )}
+
+                <Pressable onPress={() => setPasswordMode((v) => !v)} disabled={busy} style={{ marginTop: 14, alignItems: 'center' }}>
+                  <Text style={{ color: colors.textMuted, fontSize: 12 }}>
+                    {passwordMode
+                      ? (lang === 'th' ? '‹ กลับไปใช้รหัส OTP ทางอีเมล' : '‹ Use email OTP instead')
+                      : (lang === 'th' ? 'เข้าสู่ระบบด้วยรหัสผ่าน' : 'Sign in with a password')}
+                  </Text>
                 </Pressable>
               </>
             ) : (

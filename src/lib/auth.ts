@@ -170,6 +170,23 @@ export async function verifyEmailOtp(email: string, token: string): Promise<Auth
   return syncAuthUserFromSupabase(data.user);
 }
 
+/**
+ * Email + password sign-in. The app is passwordless by default (OTP / Google /
+ * Apple); this path exists mainly so App Store & Play reviewers can sign in
+ * WITHOUT waiting on an emailed OTP — the operator creates one review account
+ * with a password (Supabase allows password + OTP on the same user) and puts
+ * the credentials in the review notes. Ordinary users never see a password.
+ */
+export async function signInWithPassword(email: string, password: string): Promise<AuthUser> {
+  const { data, error } = await supabase.auth.signInWithPassword({
+    email: email.trim().toLowerCase(),
+    password,
+  });
+  if (error) throw error;
+  if (!data.user) throw new Error('signInWithPassword returned no user');
+  return syncAuthUserFromSupabase(data.user);
+}
+
 /** Pull access/refresh tokens out of an implicit-flow redirect fragment. */
 function parseFragmentTokens(url: string): {
   access_token?: string;

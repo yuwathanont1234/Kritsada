@@ -190,7 +190,14 @@ Not a quality problem — the engineering is in good shape. It was a **complianc
 - **MEDIUM — Dead deps / stale perms:** removed `expo-speech-recognition` + `expo-speech`; removed Android `READ_EXTERNAL_STORAGE`; `runtimeVersion` → `{policy:"appVersion"}` (valid here — repo is CNG, validator updated); bilingual TH/EN permission purpose strings + camera string de-duplicated.
 - **Dropped finding:** `withTabletSupport.js` is correct as-is (Android-only camera-feature optionality so Play doesn't filter tablets) — not an iOS conflict.
 
-Still open from the original list (external, below): RevenueCat go-live (#3), iOS 26 SDK image (#4), Sentry/Supabase prod env (#5), reviewer login (#6).
+### ✅ REMEDIATED — second pass (store-listing batch)
+
+- **HIGH — Token storage → Keychain/Keystore:** added `expo-secure-store` + a chunked `secureStorage` adapter (`src/lib/secureStorage.ts`); `supabase.ts` now persists the session there instead of AsyncStorage. (No production migration — pre-launch.)
+- **App-review — Reviewer login (was a guaranteed reject: OTP-only):** added `signInWithPassword` (`auth.ts`) + an opt-in "Sign in with a password" path on the login screen (`OtpScreen.tsx`). Real users keep OTP/Google/Apple; reviewers get a password account. Setup + review-notes in `STORE_LISTING.md`.
+- **Analytics — In-app feedback:** "Rate the App" row in Settings via `expo-store-review`.
+- **Store content:** `STORE_LISTING.md` — bilingual description, subtitle/short-desc, keywords, promo text, **reviewer demo-account steps + review notes**, and an accurate Data-Safety / App-Privacy mapping to paste into both consoles.
+
+Still open (external/console only): RevenueCat go-live (#3), iOS 26 SDK image (#4), Sentry/Supabase prod env (#5), store assets (screenshots/feature graphic), console forms (Data Safety, content rating), closed testing. Deferred code polish (non-blocking): tiny-font/Dynamic Type sweep.
 
 ## NEEDS MANUAL VERIFICATION (cannot determine from the repo)
 

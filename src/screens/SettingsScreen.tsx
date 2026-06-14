@@ -22,6 +22,7 @@ import { colors, radius, spacing } from '../lib/theme';
 import { AuthUser, getAuthUser, getMembership, startTrialAgain, clearTrial, MembershipTier, setMembership, updateUser, logout } from '../lib/auth';
 import { requestPhoneOtp, verifyPhoneOtp } from '../lib/simRegistry';
 import { supabase } from '../lib/supabase';
+import * as StoreReview from 'expo-store-review';
 import { useLanguage } from '../lib/localization';
 import { styles } from './AppStyles';
 import {
@@ -293,6 +294,21 @@ export default function SettingsScreen({ navigation }: any) {
     navigation.replace('Login');
   };
 
+  const handleRateApp = async () => {
+    try {
+      // Native in-app review prompt when available (no-op in dev / Expo Go);
+      // otherwise deep-link to the store listing.
+      if (await StoreReview.isAvailableAsync()) {
+        await StoreReview.requestReview();
+        return;
+      }
+      const url = await StoreReview.storeUrl();
+      if (url) await Linking.openURL(url);
+    } catch (e) {
+      console.warn('[SettingsScreen] rate app failed:', e);
+    }
+  };
+
   const handleClearData = async () => {
     Alert.alert(t('settings.wipeConfirmTitle'), t('settings.wipeConfirmDesc'), [
       { text: t('common.cancel'), style: 'cancel' },
@@ -540,6 +556,12 @@ export default function SettingsScreen({ navigation }: any) {
             <Pressable style={styles.menuItem} onPress={() => navigation.navigate('Info', { kind: 'privacy' })}>
               <Feather name="lock" size={18} color={colors.amber} style={{ opacity: 0.85 }} />
               <Text style={styles.menuItemText}>{t('settings.privacy')}</Text>
+              <Feather name="chevron-right" size={16} color={colors.textMuted} />
+            </Pressable>
+
+            <Pressable style={styles.menuItem} onPress={handleRateApp}>
+              <Feather name="star" size={18} color={colors.amber} style={{ opacity: 0.85 }} />
+              <Text style={styles.menuItemText}>{lang === 'th' ? 'ให้คะแนนแอป' : 'Rate the App'}</Text>
               <Feather name="chevron-right" size={16} color={colors.textMuted} />
             </Pressable>
 

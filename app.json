@@ -73,7 +73,8 @@
           "color": "#D4B98C",
           "defaultChannel": "default"
         }
-      ]
+      ],
+      "expo-secure-store"
     ],
     "extra": {
       "appName": "Luxury Authenticator",

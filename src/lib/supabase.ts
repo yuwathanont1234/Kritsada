@@ -1,6 +1,6 @@
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { AppState } from 'react-native';
 import { createClient } from '@supabase/supabase-js';
+import { secureStorage } from './secureStorage';
 
 const PLACEHOLDER_URL = 'https://placeholder-project.supabase.co';
 const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL || PLACEHOLDER_URL;
@@ -24,9 +24,10 @@ if (
 
 export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
   auth: {
-    // Persist the auth session in AsyncStorage so the user stays signed in
-    // across app restarts. autoRefreshToken keeps the access token fresh.
-    storage: AsyncStorage,
+    // Persist the session in the device Keychain/Keystore (see secureStorage)
+    // — bearer tokens must not sit in plaintext AsyncStorage. autoRefreshToken
+    // keeps the access token fresh.
+    storage: secureStorage,
     autoRefreshToken: true,
     persistSession: true,
     // React Native has no URL bar — OAuth redirects are handled manually

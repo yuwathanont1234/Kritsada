@@ -200,10 +200,10 @@ export default function FamilyScreen({ navigation }: Props) {
             placeholder={t('family.codePlaceholder')}
             placeholderTextColor={colors.textMuted}
             value={codeInput}
-            onChangeText={(v) => setCodeInput(v.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 6))}
+            onChangeText={(v) => setCodeInput(v.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 8))}
             autoCapitalize="characters"
             autoCorrect={false}
-            maxLength={6}
+            maxLength={8}
             editable={!busy}
           />
           <Pressable style={[styles.primaryBtn, busy && styles.btnDisabled]} onPress={handleRedeem} disabled={busy}>

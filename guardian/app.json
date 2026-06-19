@@ -1,0 +1,46 @@
+{
+  "expo": {
+    "name": "ผู้พิทักษ์",
+    "slug": "guardian-thai",
+    "scheme": "guardianthai",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "light",
+    "newArchEnabled": true,
+    "splash": {
+      "resizeMode": "contain",
+      "backgroundColor": "#1E40AF"
+    },
+    "assetBundlePatterns": ["**/*"],
+    "ios": {
+      "supportsTablet": false,
+      "bundleIdentifier": "com.guardian.thai",
+      "infoPlist": {
+        "NSPhotoLibraryUsageDescription": "ใช้คลังภาพเพื่อเลือกภาพสกรีนช็อตสำหรับตรวจสอบความเสี่ยงจากการหลอกลวง"
+      }
+    },
+    "android": {
+      "package": "com.guardian.thai",
+      "edgeToEdgeEnabled": true,
+      "adaptiveIcon": {
+        "backgroundColor": "#1E40AF"
+      },
+      "permissions": [
+        "android.permission.READ_MEDIA_IMAGES"
+      ]
+    },
+    "plugins": [
+      "expo-secure-store",
+      "expo-notifications",
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "ใช้คลังภาพเพื่อเลือกภาพสกรีนช็อตสำหรับตรวจสอบความเสี่ยงจากการหลอกลวง"
+        }
+      ]
+    ],
+    "extra": {
+      "appName": "ผู้พิทักษ์"
+    }
+  }
+}

@@ -28,7 +28,7 @@ export async function registerForPush(): Promise<string | null> {
     const { data: sess } = await supabase.auth.getSession();
     const uid = sess.session?.user?.id;
     if (uid) {
-      await supabase.from('guardian_push_tokens').upsert(
+      const { error: upsertErr } = await supabase.from('guardian_push_tokens').upsert(
         {
           user_id: uid,
           expo_token: token,
@@ -37,9 +37,11 @@ export async function registerForPush(): Promise<string | null> {
         },
         { onConflict: 'user_id,expo_token' }
       );
+      if (upsertErr) console.warn('[notifications] push token upsert failed:', upsertErr.message);
     }
     return token;
-  } catch {
+  } catch (e: unknown) {
+    console.warn('[notifications] registerForPush failed:', (e as Error)?.message);
     return null;
   }
 }

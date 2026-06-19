@@ -85,7 +85,8 @@ function extractIdentifiers(text: string): IdentifierInput[] {
   }
 
   // URLs / bare domains → normalize to host (strip scheme, www, path).
-  const urlRe = /\b(?:https?:\/\/)?(?:www\.)?([a-z0-9][a-z0-9-]*(?:\.[a-z0-9-]+)+)(?:\/[^\s]*)?/gi
+  // Each label must start with [a-z0-9] to exclude invalid leading-hyphen labels (RFC 1123).
+  const urlRe = /\b(?:https?:\/\/)?(?:www\.)?([a-z0-9][a-z0-9-]*(?:\.[a-z0-9][a-z0-9-]*)+)(?:\/[^\s]*)?/gi
   for (const m of text.matchAll(urlRe)) {
     const host = (m[1] || '').toLowerCase().split('/')[0]
     if (host.includes('.')) add('url', host)
@@ -106,29 +107,42 @@ function extractIdentifiers(text: string): IdentifierInput[] {
 }
 
 // ── Layer 1: identifier lookup (worst-wins) ──────────────────────────────
+// Single batched query per type: avoids N serial round-trips for common
+// multi-identifier inputs (phone + bank account + URL extracted from text).
 async function checkIdentifiers(admin: any, ids: IdentifierInput[]): Promise<Layer1Result> {
   if (!admin || ids.length === 0) return { status: 'UNKNOWN' }
 
+  // Normalize values and group by type.
+  const byType = new Map<string, { value: string; original: IdentifierInput }[]>()
+  for (const id of ids) {
+    const value = id.type === 'url' ? id.value.toLowerCase().trim() : id.value.trim()
+    if (!byType.has(id.type)) byType.set(id.type, [])
+    byType.get(id.type)!.push({ value, original: id })
+  }
+
+  // One query per type (at most 4 types: phone, bank_account, url, promptpay).
   let worst: Layer1Status = 'UNKNOWN'
   let matched: IdentifierInput | undefined
   let detail: string | undefined
 
-  for (const id of ids) {
-    const value = id.type === 'url' ? id.value.toLowerCase().trim() : id.value.trim()
-    const { data } = await admin
+  for (const [type, entries] of byType) {
+    const values = entries.map((e) => e.value)
+    const { data: rows } = await admin
       .from('guardian_identifiers')
-      .select('status, source_detail')
-      .eq('identifier_type', id.type)
-      .eq('identifier_value', value)
-      .maybeSingle()
-    if (!data) continue
+      .select('identifier_value, status, source_detail')
+      .eq('identifier_type', type)
+      .in('identifier_value', values)
+    if (!rows) continue
 
-    const s = data.status as Layer1Status
-    if (s === 'BAD') {
-      return { status: 'BAD', matched: id, source_detail: data.source_detail }  // worst — stop
-    }
-    if (s === 'LICENSED' && worst !== 'BAD') {
-      worst = 'LICENSED'; matched = id; detail = data.source_detail
+    for (const row of rows as { identifier_value: string; status: string; source_detail?: string }[]) {
+      const s = row.status as Layer1Status
+      const original = entries.find((e) => e.value === row.identifier_value)?.original
+      if (s === 'BAD') {
+        return { status: 'BAD', matched: original, source_detail: row.source_detail }
+      }
+      if (s === 'LICENSED' && worst !== 'BAD') {
+        worst = 'LICENSED'; matched = original; detail = row.source_detail
+      }
     }
   }
   return { status: worst, matched, source_detail: detail }
@@ -352,6 +366,9 @@ serve(async (req) => {
     if (!content || (contentType !== 'text' && contentType !== 'image')) {
       return json({ error: 'content and content_type ("text"|"image") are required' }, 400)
     }
+    if (content.length > 5_000_000) {
+      return json({ error: 'content too large (max 5 MB)' }, 413)
+    }
 
     const apiKey = Deno.env.get('ANTHROPIC_API_KEY')
     if (!apiKey) return json({ error: 'ANTHROPIC_API_KEY not configured' }, 500)
@@ -364,7 +381,9 @@ serve(async (req) => {
       try {
         const jwt = (req.headers.get('authorization') ?? '').replace(/^Bearer\s+/i, '').trim()
         if (jwt) userId = (await admin.auth.getUser(jwt))?.data?.user?.id ?? null
-      } catch { /* best-effort */ }
+      } catch (e: unknown) {
+        console.warn('[guardian-analyze] JWT verify failed:', (e as Error)?.message)
+      }
     }
 
     // Cache lookup (server-computed hash).

@@ -1,11 +1,12 @@
 import { supabase } from './supabase';
 import type { FamilyLink } from './types';
 
-/** 6-char invite code; omits ambiguous 0/O/1/I for easy reading aloud. */
+/** 8-char invite code; omits ambiguous 0/O/1/I for easy reading aloud.
+ *  32^8 ≈ 1.1 trillion combinations — brute-force infeasible at sane request rates. */
 function genCode(): string {
   const alphabet = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
   let s = '';
-  for (let i = 0; i < 6; i++) s += alphabet[Math.floor(Math.random() * alphabet.length)];
+  for (let i = 0; i < 8; i++) s += alphabet[Math.floor(Math.random() * alphabet.length)];
   return s;
 }
 
@@ -24,7 +25,7 @@ export async function createInvite(): Promise<FamilyLink> {
       .select()
       .single();
     if (!error && data) return data as FamilyLink;
-    if (error && !`${error.message}`.toLowerCase().includes('duplicate')) throw error;
+    if (error && !(error?.message ?? '').toLowerCase().includes('duplicate')) throw error;
   }
   throw new Error('could_not_generate_code');
 }

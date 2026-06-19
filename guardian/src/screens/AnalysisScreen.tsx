@@ -44,6 +44,9 @@ export default function AnalysisScreen({ route, navigation }: Props) {
     analyzeContent({ content, content_type, identifiers })
       .then(async (response) => {
         if (cancelled) return;
+        if (!response?.risk_level || !Array.isArray(response?.red_flags)) {
+          throw new Error('invalid_response');
+        }
         const preview = content_type === 'text' ? content.slice(0, 80).trim() : '[ภาพ / Image]';
         await saveRecentCheck({
           id: Crypto.randomUUID(),

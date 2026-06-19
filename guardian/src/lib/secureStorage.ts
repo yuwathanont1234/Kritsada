@@ -56,9 +56,9 @@ export const secureStorage = {
     if (isWeb) return AsyncStorage.removeItem(key);
     const n = await getChunkCount(key);
     for (let i = 0; i < n; i++) {
-      await SecureStore.deleteItemAsync(`${key}__${i}`);
+      try { await SecureStore.deleteItemAsync(`${key}__${i}`); } catch { /* ignore missing chunks */ }
     }
-    if (n > 0) await SecureStore.deleteItemAsync(`${key}__n`);
-    await SecureStore.deleteItemAsync(key);
+    if (n > 0) { try { await SecureStore.deleteItemAsync(`${key}__n`); } catch { /* ignore */ } }
+    try { await SecureStore.deleteItemAsync(key); } catch { /* ignore */ }
   },
 };

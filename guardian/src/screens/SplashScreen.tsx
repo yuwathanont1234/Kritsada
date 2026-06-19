@@ -17,7 +17,9 @@ export default function SplashScreen({ navigation }: Props) {
     (async () => {
       // Checking scams never requires login; we only refresh the push token if
       // a session already exists, then land on Home.
-      const authed = await isAuthenticated();
+      // 5 s timeout guards against a hung Supabase connection on first launch.
+      const authTimeout = new Promise<boolean>((resolve) => setTimeout(() => resolve(false), 5000));
+      const authed = await Promise.race([isAuthenticated(), authTimeout]);
       if (authed) registerForPush().catch(() => {});
       setTimeout(() => {
         if (!cancelled) navigation.replace('Home');

@@ -384,7 +384,268 @@ const styles = StyleSheet.create({
 
 ---
 
-## ส่วนที่ 4 — คลังหนังสือ UI/UX ฟรี (Reference Library)
+## ส่วนที่ 4 — ความรู้จากคลัง eBooks (Reference Library Applied)
+
+> สกัดจากหนังสือใน [justinhartman/ui-ux-design-library](https://github.com/justinhartman/ui-ux-design-library) มาเป็น actionable skills
+
+---
+
+### ทักษะที่ 9 — Card UI Design (จาก Mobile Card Interfaces)
+
+#### หลักการออกแบบ Card
+
+Cards = containers ที่รวม 1 concept ต่อ 1 card เสมอ — ห้ามใส่เนื้อหาหลายหัวข้อในการ์ดเดียว
+
+**โครงสร้าง Card ที่ดี:**
+
+```
+┌──────────────────────────────┐
+│  [Image / Hero Area]         │  ← Media (optional, 16:9 หรือ 4:3)
+│──────────────────────────────│
+│  Header Text       (18px 700)│  ← ชื่อหลัก
+│  Subheading        (14px 400)│  ← ข้อมูลรอง
+│                              │
+│  Body text max 3 lines ~100  │  ← Supporting text (ไม่เกิน 100 ตัวอักษร)
+│  characters                  │
+│──────────────────────────────│
+│  [Secondary]  [PRIMARY CTA]  │  ← Actions: secondary ซ้าย, primary ขวา
+└──────────────────────────────┘
+```
+
+**Spacing & Visual Rules:**
+
+| Element | ค่าแนะนำ |
+|---------|---------|
+| Padding ภายใน card | 16px ทุกด้าน |
+| Border radius | 12–16px (soft, modern) |
+| Shadow | `elevation: 2` (Android) / `shadowOffset: {0,2}, shadowOpacity: 0.1` (iOS) |
+| Gap ระหว่าง card | 12px |
+| Image ratio | 16:9 หรือ 4:3 (crop consistent) |
+
+**Dos & Don'ts:**
+
+| ✅ ทำ | ❌ อย่าทำ |
+|------|---------|
+| 1 concept ต่อ 1 card | ใส่เนื้อหาหลายหัวข้อในการ์ดเดียว |
+| Text ≤ 3 บรรทัด / ~100 ตัวอักษร | ข้อความยาวจนล้น card |
+| Primary filled + Secondary outline | ปุ่มทั้งคู่ใช้ style เดียวกัน |
+| Swipe gesture 1 ทิศทางต่อ card | Swipe หลายทิศทางในการ์ดเดียว |
+| รักษา hierarchy: Header → Sub → Body | ขนาดข้อความเท่ากันทุก level |
+
+**การใช้งานใน Luxury Authenticator — Collection Card:**
+```tsx
+// ✅ Watch collection card ที่ถูกต้อง
+<TouchableOpacity style={styles.card}>
+  <Image style={styles.cardImage} source={...} />   {/* 16:9 ratio */}
+  <View style={styles.cardBody}>
+    <Text style={styles.cardTitle}>Rolex Daytona</Text>       {/* 18px 700 */}
+    <Text style={styles.cardSub}>Ref. 116500LN • 2021</Text>  {/* 14px 400 */}
+    <Text style={styles.cardMeta} numberOfLines={2}>          {/* ≤ 2 บรรทัด */}
+      ผลตรวจ: แท้ • สแกนเมื่อ 3 วันที่แล้ว
+    </Text>
+  </View>
+</TouchableOpacity>
+
+const styles = StyleSheet.create({
+  card: {
+    borderRadius: 14,
+    padding: 16,
+    marginBottom: 12,
+    backgroundColor: '#FFFFFF',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 8,
+    elevation: 2,
+  },
+  cardImage: { width: '100%', aspectRatio: 16/9, borderRadius: 8 },
+  cardTitle: { fontSize: 18, fontWeight: '700', color: '#1A1A1A', marginTop: 12 },
+  cardSub: { fontSize: 14, fontWeight: '400', color: '#555555', marginTop: 4 },
+  cardMeta: { fontSize: 13, color: '#888888', marginTop: 8, lineHeight: 18 },
+});
+```
+
+---
+
+### ทักษะที่ 10 — Mobile Typography System (จาก Meaningful Mobile Typography)
+
+#### Type Scale มาตรฐาน (สำหรับ React Native)
+
+| Role | Size | Line Height | Weight | Letter Spacing | Use Case |
+|------|------|-------------|--------|---------------|---------|
+| Display | 32px | 40px (1.25) | 700 | -0.5px | Confidence %, ราคา |
+| H1 | 24px | 32px (1.33) | 700 | -0.3px | ชื่อแบรนด์/รุ่นใน Result |
+| H2 | 20px | 28px (1.4) | 600 | 0 | Section header |
+| Body | 16px | 24px (1.5) | 400 | 0 | เนื้อหาทั่วไป (ขั้นต่ำ!) |
+| Body SM | 14px | 22px (1.57) | 400 | 0 | รายละเอียดรอง |
+| Caption | 12px | 18px (1.5) | 400 | +0.2px | Timestamp, badge label |
+| Label | 11px | 16px (1.45) | 500 | +0.3px | Tab label, badge |
+
+> **กฎ:** Body text ต้องไม่ต่ำกว่า **16px** — ต่ำกว่านี้อ่านยากบน iPhone SE / Android compact
+
+#### Line Length (Characters per Line)
+
+| หน้าจอ | ความยาวบรรทัดที่เหมาะสม |
+|-------|----------------------|
+| มือถือ < 375px | 35–40 ตัวอักษร |
+| มือถือ 375–430px | 40–45 ตัวอักษร |
+| Tablet | ไม่เกิน 75 ตัวอักษร |
+
+#### Font Pairing แนะนำสำหรับ Luxury App
+```
+Heading: System font bold (SF Pro Display / Roboto Bold)
+Body: System font regular (SF Pro Text / Roboto Regular)
+```
+ใช้ system font ก่อน — เร็ว, อ่านง่าย, ไม่ต้อง load เพิ่ม
+
+#### Letter Spacing
+- **Bold / Heavy (700+):** `-0.3` ถึง `-0.5px` — ช่วยให้ heading ดู cohesive
+- **Regular body:** `0` — อย่าแตะ
+- **Caption / Label เล็ก:** `+0.2` ถึง `+0.4px` — ช่วยอ่านง่ายขึ้น
+
+---
+
+### ทักษะที่ 11 — Interaction Design: 5 Dimensions (จาก About Face + IxD Best Practices)
+
+#### The 5 Dimensions of IxD
+
+| Dimension | คืออะไร | ตัวอย่างใน Luxury Authenticator |
+|-----------|---------|-------------------------------|
+| **1D Words** | Text บน UI: button labels, error messages, instructions | "เริ่มสแกน" แทน "Scan" / "ผล: น่าจะแท้" แทน "Authentic: True" |
+| **2D Visuals** | Icons, typography, layout, สี | Verdict badge สีเขียว/แดง, confidence ring, heatmap overlay |
+| **3D Space** | Physical device + ท่าทาง interact (tap, swipe, pinch) | Shutter button ขนาด 72px ให้กด thumb ได้ง่าย |
+| **4D Time** | Animation, transition, loading states | Scan animation ≤ 300ms, skeleton screen ขณะ AI คำนวณ |
+| **5D Behavior** | ระบบตอบสนองต่อ action อย่างไร | Toast "บันทึกแล้ว" หลังกด save, error state เมื่อ scan ล้มเหลว |
+
+#### Micro-copy (Words) Best Practices
+
+```
+ปุ่ม CTA: กริยา + noun สั้นๆ
+  ✅ "สแกนนาฬิกา"     ❌ "คลิกเพื่อเริ่มต้นการสแกน"
+  ✅ "บันทึกผล"        ❌ "บันทึกผลการตรวจสอบนี้"
+  ✅ "ดูคอลเลคชัน"     ❌ "ไปที่หน้าคอลเลคชันของฉัน"
+
+Error message: ระบุปัญหา + วิธีแก้
+  ✅ "ภาพไม่ชัดพอ — ลองถ่ายใหม่ในที่มีแสงสว่าง"
+  ❌ "เกิดข้อผิดพลาด กรุณาลองใหม่"
+
+Empty state: อธิบาย + CTA
+  ✅ "ยังไม่มีรายการ — เริ่มสแกนนาฬิกาเรือนแรกของคุณ"
+  ❌ "ไม่มีข้อมูล"
+```
+
+---
+
+### ทักษะที่ 12 — Microinteractions & Delight (จาก Demystifying Delightful Interaction Design)
+
+#### Framework: Trigger → Rules → Feedback → Loops
+
+```
+Trigger:  ผู้ใช้กดปุ่ม Shutter
+Rules:    ถ่ายภาพ → ส่ง AI → รอ response
+Feedback: ภาพ flash ขาว → ripple effect → skeleton loading
+Loops:    ถ้า AI ล้มเหลว → แสดง error + retry button
+```
+
+#### Animation Timing Guidelines
+
+| ประเภท | Duration | Easing | ตัวอย่าง |
+|--------|---------|--------|--------|
+| Instant feedback (tap) | 100–150ms | ease-out | ripple บนปุ่ม |
+| State transition | 200–300ms | ease-in-out | modal slide up |
+| Complex transition | 300–500ms | spring | scan result reveal |
+| Loading / progress | — | linear | progress bar |
+| ห้ามเกิน | 500ms | — | ทุก interaction ที่ user trigger |
+
+> **กฎทอง:** Animation ที่ดีที่สุดคือ "animation ที่ผู้ใช้ไม่รู้สึกว่ามี" — ทำให้ transition รู้สึก natural
+
+#### Haptic Feedback (React Native)
+
+```tsx
+import * as Haptics from 'expo-haptics';
+
+// ✅ ใช้ให้ถูกประเภท
+Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);   // tap บนปุ่มทั่วไป
+Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);  // confirm action
+Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);   // destructive action
+Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success); // scan สำเร็จ ✅
+Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);   // scan ล้มเหลว ❌
+Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning); // quota ใกล้เต็ม ⚠️
+```
+
+#### Delight Moments ที่ควรมีใน Luxury Authenticator
+
+| จุด | Microinteraction |
+|-----|----------------|
+| Scan สำเร็จ — ผลแท้ | ✅ checkmark animation + Success haptic + สีเขียว pulse |
+| Scan สำเร็จ — ผลปลอม | ❌ X animation + Error haptic + สีแดง pulse |
+| บันทึกลง Collection | 📌 bookmark fill animation + Light haptic |
+| Upgrade tier สำเร็จ | 🎉 confetti / sparkle animation + Success haptic |
+| ลบรายการ (swipe) | trash icon reveals progressively + Warning haptic ก่อน confirm |
+
+#### Skeleton Screen (แทน Spinner)
+
+```tsx
+// ✅ ใช้ skeleton แทน spinner เมื่อรอ AI result
+// Skeleton: แสดงโครงสร้างของ content ที่กำลังจะมา
+const SkeletonCard = () => (
+  <View style={styles.card}>
+    <Animated.View style={[styles.skeletonImage, pulseAnim]} />
+    <View style={styles.cardBody}>
+      <Animated.View style={[styles.skeletonLine, { width: '70%' }, pulseAnim]} />
+      <Animated.View style={[styles.skeletonLine, { width: '50%' }, pulseAnim]} />
+    </View>
+  </View>
+);
+// ❌ อย่าแสดงแค่ <ActivityIndicator /> กลางหน้าจอ
+```
+
+---
+
+### ทักษะที่ 13 — Progressive Disclosure & Adaptive UI (จาก Mobile UI Design Patterns)
+
+#### Progressive Disclosure
+
+**หลักการ:** แสดงเฉพาะข้อมูลที่จำเป็น ณ ขณะนั้น — ซ่อนความซับซ้อนไว้ก่อน
+
+```
+Level 1 (ทุกคนเห็น):   ผลการตรวจ + ราคาตลาด + ปุ่ม "บันทึก"
+Level 2 (กด "ดูเพิ่ม"): Spec Sheet, Serial, Year, Movement type
+Level 3 (Pro/Premium):  Heatmap overlay, AI Q&A, PDF export
+```
+
+**ทำไมสำคัญสำหรับ Luxury Authenticator:**
+- ผู้ใช้ใหม่ไม่ถูก overwhelm ด้วย technical specs
+- ผู้ใช้ Pro เห็น advanced features ใน context ที่เหมาะสม
+- Paywall gate ปรากฏ "เมื่อผู้ใช้อยากใช้จริงๆ" ไม่ใช่แสดงตั้งแต่แรก
+
+#### Adaptive UI
+
+| Condition | การปรับ UI |
+|-----------|-----------|
+| ไม่มี internet | แสดง offline badge + ปุ่ม "ใช้ผลเดิมจาก cache" |
+| Quota ใกล้เต็ม (80%) | แสดง subtle warning bar ใต้ header |
+| Quota เต็มแล้ว | Shutter button disabled + tooltip "อัปเกรดเพื่อสแกนต่อ" |
+| Dark mode | ปรับ shadow เป็น lighter หรือ border แทน |
+| iOS safe area | paddingBottom = insets.bottom บน tab bar + bottom sheets |
+
+#### Thumb Zone — ตำแหน่ง interactive elements
+
+```
+┌──────────────────┐
+│  ❌ Hard Reach   │  ← ห้ามใส่ action สำคัญ (มุมบน)
+│                  │
+│  ⚠️ OK w/ Stretch│  ← secondary actions ได้
+│                  │
+│  ✅ Easy Reach   │  ← Primary CTA, scan button, bottom tab
+└──────────────────┘
+```
+- Primary CTA (เช่น "สแกน") ต้องอยู่ใน lower 40% ของหน้าจอ
+- Touch target ≥ **44×44pt** (iOS) / **48×48dp** (Android) ทุก element
+
+---
+
+## ส่วนที่ 5 — คลังหนังสือ UI/UX ฟรี (Reference Library)
 
 > Repository: [justinhartman/ui-ux-design-library](https://github.com/justinhartman/ui-ux-design-library)  
 > ⭐ 569 stars — คอลเลกชัน eBooks & PDFs ฟรีกว่า 80+ เล่ม จัดหมวดหมู่ครบ 12 หมวด

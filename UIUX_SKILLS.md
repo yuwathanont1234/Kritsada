@@ -384,10 +384,124 @@ const styles = StyleSheet.create({
 
 ---
 
+## ส่วนที่ 4 — คลังหนังสือ UI/UX ฟรี (Reference Library)
+
+> Repository: [justinhartman/ui-ux-design-library](https://github.com/justinhartman/ui-ux-design-library)  
+> ⭐ 569 stars — คอลเลกชัน eBooks & PDFs ฟรีกว่า 80+ เล่ม จัดหมวดหมู่ครบ 12 หมวด
+
+### หมวดที่เกี่ยวข้องกับ Luxury Authenticator มากที่สุด
+
+#### 📱 Mobile Design — ตรงประเด็นที่สุด (React Native App)
+
+| ชื่อหนังสือ | ประโยชน์ |
+|-----------|--------|
+| Mobile UI Design Patterns — A Deeper Look At The Hottest Apps Today | Pattern library สำหรับ mobile UI components |
+| Guide to Mobile UX Research | วิธีทำ user research บนมือถือ |
+| Mobile Card Interfaces | การออกแบบ card-based UI (เหมาะกับหน้า scan result) |
+| Push Notification Best Practices | การออกแบบ notification ที่ไม่รบกวนผู้ใช้ |
+| Flat Mobile Design Evolved | แนวทาง flat design บน mobile ยุคใหม่ |
+| Mobile Design Book of Trends | ภาพรวม mobile design trends |
+
+#### 🔤 Typography
+
+| ชื่อหนังสือ | ประโยชน์ |
+|-----------|--------|
+| Mobile UI Trends — Meaningful Mobile Typography | Typography สำหรับหน้าจอมือถือโดยเฉพาะ (อ่านก่อนปรับ font scale) |
+| Web UI Trends — Dramatic Typography | ใช้ Typography เพื่อสร้าง visual impact |
+
+#### 🎯 Interaction Design
+
+| ชื่อหนังสือ | ประโยชน์ |
+|-----------|--------|
+| About Face Ed. 4 — The Essentials of Interaction Design | หนังสือ interaction design ฉบับสมบูรณ์ (ต้องอ่าน) |
+| Interaction Design Best Practices — Mastering Words, Visuals, Space | Micro-copy, spacing, และ visual balance |
+| Interaction Design Best Practices — Mastering Time, Responsiveness, Behavior | Animation timing, loading states, error states |
+| Demystifying Delightful Interaction Design | สร้าง delight moments ในแอป (เช่น scan success animation) |
+| The 5 Building Blocks of Interaction Design | Framework พื้นฐาน interaction |
+
+#### 🧪 Usability Testing
+
+| ชื่อหนังสือ | ประโยชน์ |
+|-----------|--------|
+| Complete Guide to User Testing | วิธีทำ usability testing ตั้งแต่ต้น |
+| Lessons Learned from Watching 200,000 User Testing Videos | Insights จากการดู user test จำนวนมาก |
+| Practical User Research For Enterprise UX | Research methodology สำหรับ product team |
+
+#### 🎨 Style Guides
+
+| ชื่อหนังสือ | ประโยชน์ |
+|-----------|--------|
+| Style Guides: An Overview For Modern Designers | เริ่มต้นสร้าง design system |
+| The Critical Components Of Web UI Style Guides | Components ที่ต้องมีใน style guide |
+
+#### 📚 Introductory (สำหรับทีมที่เพิ่งเริ่ม)
+
+| ชื่อหนังสือ | ประโยชน์ |
+|-----------|--------|
+| The Elements of User Experience | หนังสือคลาสสิก Jesse James Garrett — พื้นฐาน UX ที่ทุกคนต้องรู้ |
+| Field Guide to Human-Centered Design | กระบวนการ design thinking แบบ IDEO |
+| UX Design for Startups | UX สำหรับทีมเล็ก (ตรงกับ context solo founder) |
+| Pixel Perfect Precision | คู่มือ precision design จาก ustwo |
+| Introduction to Good Usability | Usability basics สำหรับมือใหม่ |
+
+### วิธีเข้าถึง eBooks
+
+1. ไปที่ [github.com/justinhartman/ui-ux-design-library](https://github.com/justinhartman/ui-ux-design-library)
+2. คลิกโฟลเดอร์หมวดหมู่ที่ต้องการ
+3. ดาวน์โหลด PDF ได้ฟรีทันที
+
+### ลำดับการอ่านแนะนำสำหรับทีม Luxury Authenticator
+
+```
+สัปดาห์ 1 (พื้นฐาน):
+  ├── The Elements of User Experience
+  └── Introduction to Good Usability
+
+สัปดาห์ 2 (Mobile):
+  ├── Mobile UI Design Patterns
+  ├── Mobile Card Interfaces
+  └── Mobile UI Trends — Meaningful Mobile Typography
+
+สัปดาห์ 3 (Interaction):
+  ├── Interaction Design Best Practices — Mastering Words, Visuals, Space
+  └── Demystifying Delightful Interaction Design
+
+สัปดาห์ 4 (Paywall & Growth):
+  └── Field Guide to Human-Centered Design
+```
+
+---
+
+## เครื่องมือแนะนำ
+
+| เครื่องมือ | วัตถุประสงค์ |
+|-----------|------------|
+| [Mobbin](https://mobbin.com/) | ดู UI reference จากแอปจริงระดับโลก |
+| [uxpeak+](https://www.uxpeak.com/) | คอร์ส UI/UX redesign แบบ before/after |
+| [UI/UX Design Library](https://github.com/justinhartman/ui-ux-design-library) | คลัง eBooks & PDFs ฟรี 80+ เล่ม |
+| Figma Contrast Plugin | เช็ค contrast ratio ขณะออกแบบ |
+| [WebAIM Contrast Checker](https://webaim.org/resources/contrastchecker/) | ตรวจ WCAG compliance |
+
+---
+
+## บริบทเฉพาะของ Luxury Authenticator
+
+เนื่องจากแอปนี้เน้น **ความน่าเชื่อถือ** และ **ความหรูหรา** สำหรับผู้ใช้ที่ซื้อขายนาฬิกาและกระเป๋าราคาสูง:
+
+- ใช้ **spacing เยอะ** — ความโล่งบ่งบอก luxury ไม่ใช่ความถี่ขององค์ประกอบ
+- **Typography weight 600–700** สำหรับชื่อแบรนด์/รุ่น — แสดงถึงความชัดเจนและน่าเชื่อถือ
+- **Color palette เย็น/neutral** (ไม่ใช่สีสดใส) — ดู premium และมืออาชีพ
+- Verdict badge (แท้/ปลอม) ต้องมี contrast สูงสุด — ข้อมูลนี้คือ core value ของแอป
+- **Confidence % (เช่น 97%)** ต้องแสดงด้วย font ใหญ่สุดในหน้า — ใช้ Tip ทักษะที่ 4
+- **Bottom tab** ควรมี 4–5 tabs: หน้าหลัก / สแกน / คอลเลคชัน / เรียนรู้ / โปรไฟล์
+
+---
+
 แหล่งอ้างอิง:
 - [Top 3 UX/UI Redesigns That Make You Design Like a Pro — UXPeak](https://www.youtube.com/watch?v=zr37ibqXl1U)
 - [Top 5 Advanced UX/UI Design Tips – Part 3 — UXPeak](https://www.youtube.com/watch?v=Xzh8xjimmp8)
 - [How to Design a Great Bottom Mobile Navigation Bar – Part 6 — UXPeak](https://www.youtube.com/watch?v=wLJ40GV2XEc)
 - [Bottom Navigation Bar Design Tips — UXPeak on Medium](https://medium.com/@uxpeak.com/top-ui-ux-design-tips-how-to-design-a-great-bottom-mobile-navigation-bar-part-6-97acd8b28453)
+- [UI/UX Design Library — justinhartman/ui-ux-design-library](https://github.com/justinhartman/ui-ux-design-library)
 - [Alignment in Design — UXPin](https://www.uxpin.com/studio/blog/alignment-in-design-making-text-and-visuals-more-appealing/)
 - [Typography in UX/UI — Supercharge Design](https://supercharge.design/blog/typography-in-ux-ui-a-complete-guide)

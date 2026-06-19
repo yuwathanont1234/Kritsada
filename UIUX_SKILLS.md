@@ -17,6 +17,67 @@
 2. **Visual Hierarchy** — ลำดับความสำคัญของข้อมูลผ่านสายตา
 3. **Typography & Contrast** — ตัวอักษรและความเปรียบต่างสี
 
+### Case Study — Paywall Redesign (Screen A → Screen B)
+
+> กรณีศึกษาจากวิดีโอ: การ redesign หน้า subscription paywall ของแอปเกม
+
+#### Screen A (Before) — ปัญหาที่พบ
+
+| จุดอ่อน | รายละเอียด |
+|--------|-----------|
+| ขายฟีเจอร์ ไม่ขาย "ผลลัพธ์" | แสดง features list แต่ผู้ใช้ไม่รู้ว่าทดลองใช้แล้วจะเกิดอะไรขึ้น |
+| ไม่มี trial timeline | ผู้ใช้กังวลว่าจะถูกเก็บเงินเมื่อไหร่ ทำให้กด subscribe ไม่ลง |
+| CTA กำกวม | "Subscribe and start 7 days for free" — ยาวเกินไป, focus ที่ "Subscribe" (น่ากลัว) |
+| ไม่มีวันที่ชัดเจน | ไม่รู้ว่า free trial สิ้นสุดวันไหน ความไม่แน่นอนเพิ่ม anxiety |
+
+#### Screen B (After) — สิ่งที่แก้ไข
+
+| การปรับปรุง | เหตุผล |
+|-----------|------|
+| เปลี่ยน heading เป็น "How your free trial works" | บอกชัดว่ากำลังอธิบาย trial ไม่ใช่ขาย subscription |
+| แสดง Timeline (Today → Day 5 → Day 7) | ผู้ใช้รู้ว่าจะเกิดอะไรขึ้น ลด anxiety เพราะ "ไม่มีอะไรซ่อน" |
+| ระบุวันที่ตัดเงินจริง ("03 Mar 2026") | ความโปร่งใส = ความเชื่อถือ |
+| CTA: "Start my free trial" | focus ที่ "free" และ "trial" — ไม่น่ากลัว |
+| Subtext: "Start in 2 taps, cancel anytime." | ลด friction และตอบคำถามก่อนผู้ใช้จะถาม |
+
+#### บทเรียนสำคัญ: Reduce Anxiety = Increase Conversion
+
+> **"ผู้ใช้ไม่ได้กลัวจ่ายเงิน — พวกเขากลัวเรื่อง surprise charge"**
+
+แทนที่จะขาย features → **ขาย clarity** (ความชัดเจนในสิ่งที่จะเกิดขึ้น)
+
+#### การนำไปใช้กับ MembershipScreen ของ Luxury Authenticator
+
+```tsx
+// ✅ แนะนำ — แสดง "What happens next" timeline แทน features list เปล่าๆ
+
+// แทนที่:
+<Text>• Unlimited scan</Text>
+<Text>• PDF Export</Text>
+<Text>• Priority support</Text>
+
+// ใช้:
+<TimelineStep
+  icon="today"
+  title="วันนี้"
+  description="สแกนนาฬิกาได้ทันที ไม่จำกัดจำนวน ใช้ Pro ฟรี 7 วัน"
+/>
+<TimelineStep
+  icon="bell"
+  title="วันที่ 5"
+  description="เราจะส่ง reminder ก่อนสิ้นสุด trial"
+/>
+<TimelineStep
+  icon="calendar"
+  title={`วันที่ 7 — ${trialEndDate}`}
+  description="ถ้าไม่ยกเลิก จะเริ่มเก็บ ฿1,990/เดือน ยกเลิกได้ทุกเมื่อ"
+/>
+
+// CTA:
+<Button label="เริ่มทดลองฟรี 7 วัน" />
+<Text style={styles.subtext}>ยกเลิกได้ทุกเมื่อ ไม่มีค่าธรรมเนียมซ่อน</Text>
+```
+
 ---
 
 ## ทักษะที่ 1 — Spacing & Whitespace (การจัดระยะห่าง)

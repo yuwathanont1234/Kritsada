@@ -211,7 +211,11 @@ export default function FamilyScreen({ navigation }: Props) {
         {/* Links */}
         <Text style={styles.sectionTitle}>{t('family.linksTitle')}</Text>
         {links.length === 0 ? (
-          <Text style={styles.emptyText}>{t('family.noLinks')}</Text>
+          <View style={styles.emptyCard}>
+            <Text style={styles.emptyIcon}>🤝</Text>
+            <Text style={styles.emptyTitle}>{t('family.noLinks')}</Text>
+            <Text style={styles.emptyHint}>{t('family.noLinksHint')}</Text>
+          </View>
         ) : (
           links.map((link) => {
             const isGuardian = link.guardian_user_id === myUid;
@@ -301,7 +305,18 @@ const styles = StyleSheet.create({
   primaryBtnText: { fontSize: 15, fontWeight: '700', color: colors.textOnPrimary },
   btnDisabled: { opacity: 0.5 },
   sectionTitle: { ...typography.h3, marginTop: spacing.md, marginBottom: spacing.md },
-  emptyText: { ...typography.body, color: colors.textMuted, textAlign: 'center' },
+  emptyCard: {
+    backgroundColor: colors.surface,
+    borderRadius: radius.md,
+    borderWidth: 1,
+    borderColor: colors.border,
+    padding: spacing.xl,
+    alignItems: 'center',
+    marginTop: spacing.sm,
+  },
+  emptyIcon: { fontSize: 36, marginBottom: spacing.md },
+  emptyTitle: { ...typography.bodyBold, color: colors.textSecondary, marginBottom: spacing.xs },
+  emptyHint: { ...typography.caption, color: colors.textMuted, textAlign: 'center', lineHeight: 20 },
   linkRow: {
     flexDirection: 'row',
     alignItems: 'center',

@@ -1,11 +1,12 @@
 # UI/UX Skills — ทีมออกแบบ Luxury Authenticator
 
-> แหล่งความรู้จาก UXPeak YouTube Channel — อัปเดต: 2026-06-19
+> แหล่งความรู้จาก UXPeak YouTube Channel + คู่มือ Mobile UX/UI — อัปเดต: 2026-06-20
 
 แหล่งอ้างอิงวิดีโอ:
 1. [Top 3 UX/UI Redesigns That Make You Design Like a Pro](https://youtu.be/zr37ibqXl1U?si=xbtOJbHWIFrjW_Si)
 2. [Top 5 Advanced UX/UI Design Tips and Tricks – Part 3](https://youtu.be/Xzh8xjimmp8?si=Q7XCdH9uhOs2sSor)
 3. [How to Design a Great Bottom Mobile Navigation Bar – Part 6](https://youtu.be/wLJ40GV2XEc?si=XodxbmUJL0is1P71)
+4. "คู่มือออกแบบ Mobile App UX/UI ฉบับนักพัฒนาเดี่ยว" — สังเคราะห์จากวิดีโอ UX Peak 9 ตอน
 
 ---
 
@@ -358,6 +359,22 @@ const styles = StyleSheet.create({
 - [ ] Active state เปลี่ยนอย่างน้อย 2 จุด (สี + style)
 - [ ] Notification badge ใช้เฉพาะเมื่อจำเป็นจริงๆ
 
+**Interaction Cost & Content (จากทักษะที่ 16)**
+- [ ] เนื้อหาที่มีคุณค่าแสดงตรงๆ — ไม่ซ่อนหลังแบนเนอร์หรือต้องกดเพิ่ม
+- [ ] ใช้การ "เลือก" แทนการ "พิมพ์" เมื่อทำได้ (dropdown, chip, slider)
+- [ ] วิธีกรอกข้อมูลเหมาะกับบริบท (slider = ตั้งค่าครั้งเดียว, stepper/text = กรอกซ้ำบ่อย)
+
+**Empty State (จากทักษะที่ 17)**
+- [ ] ทุก empty state มีข้อความให้กำลังใจ + ภาพประกอบ + ปุ่ม CTA ชัดเจน
+
+**Shadow & Color (จากทักษะที่ 15)**
+- [ ] เงา (shadow) นุ่ม — shadowOpacity ≤ 0.1, shadowRadius ≥ 6
+- [ ] สีเงาจับคู่กับสีพื้นหลัง (ไม่ใช้เงาดำล้วนบนพื้นสี)
+
+**Transparency & Trust (จากทักษะที่ 21)**
+- [ ] หน้า paywall/upgrade แสดงไทม์ไลน์ชัดเจน + วันที่ตัดเงินจริง
+- [ ] ราคา/เงื่อนไขยกเลิกแสดงอย่างโปร่งใส ตอบข้อกังวลก่อนถูกถาม
+
 ---
 
 ## เครื่องมือแนะนำ
@@ -645,7 +662,348 @@ Level 3 (Pro/Premium):  Heatmap overlay, AI Q&A, PDF export
 
 ---
 
-## ส่วนที่ 5 — คลังหนังสือ UI/UX ฟรี (Reference Library)
+## ส่วนที่ 5 — จาก "คู่มือออกแบบ Mobile App UX/UI ฉบับนักพัฒนาเดี่ยว"
+
+> สังเคราะห์จากวิดีโอ UX Peak 9 ตอน เรียบเรียงเป็นภาษาไทยสำหรับ Solo Owner  
+> หลักคิดหลัก: **"ทุกองค์ประกอบบนหน้าจอกำลังถามคำถามกับผู้ใช้ — คำถามที่คุณเลือกถาม ตัดสินว่าเขาจะลงมือหรือลังเล"**
+
+---
+
+### ทักษะที่ 14 — Jacob's Law & Mental Models (กฎของเจคอบ)
+
+#### หลักการ
+
+ผู้ใช้ใช้เวลาส่วนใหญ่อยู่กับแอปอื่น ไม่ใช่แอปของคุณ พวกเขาคาดหวังว่าแอปจะทำงานเหมือนแอปที่คุ้นเคย
+
+> **"คิดนอกกรอบได้ — แต่ห้ามแลกมาด้วยความเข้าใจง่าย"**
+
+#### สัญลักษณ์มาตรฐานที่ห้ามเปลี่ยน
+
+| ฟังก์ชัน | ไอคอนที่ต้องใช้ | ห้ามทดแทนด้วย |
+|--------|--------------|-------------|
+| ค้นหา | แว่นขยาย | กล้องส่องทางไกลหรือไอคอนแปลกใหม่ |
+| ย้อนกลับ | ลูกศรซ้าย (iOS) / ลูกศรซ้าย (Android) | X กลางจอ |
+| แชร์ | square + arrow up (iOS) | ไอคอนที่ต้องเดา |
+| แจ้งเตือน | กระดิ่ง | สัญลักษณ์ที่ไม่คุ้นเคย |
+
+#### คำถามที่ต้องตอบได้ก่อนวางองค์ประกอบแรก
+
+```
+1. ผู้ใช้ของเราคือใคร อายุเท่าไร คุ้นเคยกับเทคโนโลยีแค่ไหน?
+2. เขาใช้แอปเพื่อแก้ปัญหาอะไร และใช้บนอุปกรณ์แบบไหน?
+3. เขาใช้ในบริบทใด — รีบเร่ง, เดินทาง, หรือพักผ่อนกลางคืน?
+```
+
+#### การนำไปใช้กับ Luxury Authenticator
+
+- ใช้ bottom tab bar มาตรฐาน (3–5 tabs) — ไม่ทดลองรูปแบบแปลกใหม่
+- ผู้ใช้กลุ่มเก็บนาฬิกา (อายุ 30–60 ปี) → ต้องมีป้ายข้อความใต้ไอคอนทุกตัว ไม่ใช่ไอคอนล้วน
+- ไอคอน: ค้นหา = แว่นขยาย, สแกน = กล้อง, คอลเลคชัน = grid/collection icon
+
+---
+
+### ทักษะที่ 15 — Shadow Design: เงาที่ดูแพงและเป็นมืออาชีพ
+
+#### กฎ 2 ข้อ
+
+**1. เงานุ่ม ไม่ใช่เงาแข็ง**
+
+| เงาแข็ง (❌) | เงานุ่ม (✅) |
+|-----------|-----------|
+| `shadowRadius: 2, shadowOpacity: 0.5` | `shadowRadius: 8, shadowOpacity: 0.08` |
+| ดูเก่า, ปี 2010 | ดู premium, ทันสมัย |
+
+**2. จับคู่สีเงากับสีพื้นหลัง**
+
+```
+พื้นขาว   → shadowColor: '#1A1A1A' (ใกล้ดำ, ค่า default ยังได้)
+พื้นสีทอง → shadowColor: '#7A5800' (เงาโทนน้ำตาลทอง)
+พื้นสีเขียว (badge REAL) → shadowColor: '#1B5E20' (เงาโทนเขียวเข้ม)
+พื้นสีแดง (badge FAKE) → shadowColor: '#7F0000' (เงาโทนแดงเข้ม)
+ห้ามใช้เงาดำล้วนบนพื้นหลังสี — ดูขัดตาและไม่มืออาชีพ
+```
+
+#### Code Pattern สำหรับ Luxury Authenticator
+
+```tsx
+const cardShadow = {
+  shadowColor: '#1A1A1A',
+  shadowOffset: { width: 0, height: 2 },
+  shadowOpacity: 0.08,   // ต่ำ = นุ่ม
+  shadowRadius: 8,        // ใหญ่ = ฟุ้ง
+  elevation: 2,           // Android
+};
+
+const verdictBadgeShadow = (isGenuine: boolean) => ({
+  shadowColor: isGenuine ? '#1B5E20' : '#7F0000',
+  shadowOffset: { width: 0, height: 4 },
+  shadowOpacity: 0.2,
+  shadowRadius: 12,
+  elevation: 4,
+});
+```
+
+---
+
+### ทักษะที่ 16 — Interaction Cost Reduction + Visual Cues
+
+#### นิยาม
+
+Interaction Cost = ความพยายาง (ความคิด + ร่างกาย + เวลา) ที่ผู้ใช้ต้องเสียเพื่อไปถึงเป้าหมาย  
+**ทุกขั้นตอนที่ตัดออกได้คือประสบการณ์ที่ดีขึ้น**
+
+#### 4 เทคนิคลด Interaction Cost
+
+**1. เปิดเนื้อหาตรงๆ — ไม่ซ่อนหลังแบนเนอร์**
+
+| ❌ เพิ่ม Friction | ✅ ลด Friction |
+|----------------|-------------|
+| "ค้นพบนาฬิกา 1,000+ รุ่น → [กด]" | แสดง 10 นาฬิกายอดนิยมบนหน้าหลักทันที |
+| "สแกนเพื่อดูผลลัพธ์" (แล้วมีขั้นตอนเพิ่ม) | สแกนแล้วได้ผลทันที ไม่ต้องกดยืนยันเพิ่ม |
+
+**2. เลือกแทนพิมพ์ (Choose > Type)**
+
+```
+กรณีที่เหมาะกับ "เลือก":    กรณีที่เหมาะกับ "พิมพ์":
+- ประเภทของนาฬิกา           - Serial number (ไม่มีชุดเลข default)
+- สภาพสินค้า (Mint/Good/Fair)- ชื่อผู้ซื้อ/ผู้ขาย
+- งบประมาณ (range slider)   - หมายเหตุเพิ่มเติม
+- ยี่ห้อนาฬิกา (chip select) - ราคาที่ต้องการขาย (ต้องแม่นยำ)
+```
+
+**3. เลือกวิธีกรอกตามบริบท**
+
+| บริบท | วิธีที่เหมาะ |
+|------|-----------|
+| ตั้งค่าครั้งเดียว (น้ำหนัก, ส่วนสูง) | Slider / วงล้อเลื่อน — เร็ว แรงน้อย |
+| กรอกซ้ำบ่อยและต้องแม่น (ราคา, ล็อตสินค้า) | TextInput + numeric keyboard — แม่นยำ |
+| เลือกจากตัวเลือกที่รู้จัก | Chip select / Bottom sheet |
+
+**4. Visual Cues — สื่อสารด้วยภาพ ไม่ใช่แค่ข้อความ**
+
+| Visual Cue | ผลลัพธ์ |
+|-----------|--------|
+| Badge สีเขียว "REAL" | รู้ผลก่อนอ่านข้อความ |
+| Badge สีแดง "FAKE" / เหลือง "SUSPICIOUS" | รู้ความเสี่ยงในพริบตา |
+| รูปนาฬิกาจริงในรายการ collection | จำรุ่นได้เร็วกว่าอ่านชื่อ |
+| Heatmap overlay บนรูปที่สแกน | เห็นว่า AI มองที่จุดไหน — สร้างความเชื่อถือ |
+
+---
+
+### ทักษะที่ 17 — Empty State Design (หน้าจอว่างที่ดึงดูด)
+
+#### Empty State ไม่ใช่ Error — คือโอกาส
+
+```
+❌ หน้าจอว่าง Default:           ✅ หน้าจอว่างที่ออกแบบดี:
+"คุณยังไม่มีรายการ"              "เริ่มสร้างคอลเลคชันของคุณ
+(ทางตัน — ไม่มี CTA)              สแกนนาฬิกาเรือนแรกเลย!"
+```
+
+#### 3 องค์ประกอบบังคับ
+
+```
+┌─────────────────────────────┐
+│    [ภาพประกอบ / Illustration] │ ← ดูเป็นมิตร ไม่ทำให้รู้สึกว่า error
+│                             │
+│   ข้อความให้กำลังใจ          │ ← บอกว่า "อยากทำอะไร" และ "ทำอย่างไร"
+│   "ยังไม่มีนาฬิกาในคอลเลคชัน │
+│    — สแกนเรือนแรกเลย!"      │
+│                             │
+│      [ เริ่มสแกน ]           │ ← ปุ่ม CTA ชัดเจน
+└─────────────────────────────┘
+```
+
+#### Localization Keys สำหรับ Luxury Authenticator
+
+```typescript
+// src/lib/localization.ts
+emptyCollection: {
+  th: 'ยังไม่มีนาฬิกาในคอลเลคชัน\nสแกนเรือนแรกเลย!',
+  en: 'No watches in your collection yet.\nScan your first one!',
+},
+emptyCollectionCta: { th: 'เริ่มสแกน', en: 'Start Scanning' },
+emptyHistory: {
+  th: 'ยังไม่มีประวัติการสแกน\nเริ่มตรวจสอบนาฬิกาได้เลย',
+  en: 'No scan history yet.\nStart authenticating!',
+},
+emptyHistoryCta: { th: 'สแกนเลย', en: 'Scan Now' },
+```
+
+---
+
+### ทักษะที่ 18 — Senior Designer Thinking
+
+#### วิธีคิดต่างจากมือใหม่
+
+| มือใหม่ | Senior Designer |
+|--------|----------------|
+| ทำหน้าจอให้ "สวย" | เข้าใจผู้ใช้ลึกถึงความต้องการและบริบทก่อน |
+| ใส่ข้อมูลให้ครบทุกช่อง | ตัดข้อมูลที่ไม่จำเป็นออก เน้นเฉพาะสิ่งที่ต้องการ |
+| แยกทุก field เท่ากันหมด | เน้นช่องที่ใช้บ่อยสุดให้ใหญ่เด่น |
+| แสดง "กำลังประมวลผล..." | Skeleton screen + บอกว่ากำลังทำอะไร |
+| Error: "การสแกนล้มเหลว" | "ภาพไม่ชัดพอ — ถ่ายในที่มีแสงสว่าง แล้วลองอีกครั้ง" |
+
+#### เคส: หน้าโอนเงิน (Bank Transfer) — หลักการที่ย้ายมาใช้กับ Luxury Authenticator
+
+| มือใหม่ | Senior Designer |
+|--------|----------------|
+| ช่องจำนวนเงิน = ขนาดเดียวกับอื่น | **ช่องจำนวนเงินใหญ่เด่นสุด** (ค่าสำคัญสุด) |
+| ไม่แสดงยอดคงเหลือหลังทำรายการ | แสดง **"ยอดคงเหลือใหม่"** ทันที = ความโปร่งใส |
+| ผู้รับเป็นแค่ชื่อ/เลขบัญชี | เพิ่มรูปโปรไฟล์ผู้รับ = "จำได้ดีกว่าให้นึกเอง" |
+
+---
+
+### ทักษะที่ 19 — Personalization by User Journey
+
+#### 3 ระดับผู้ใช้
+
+| ประเภทผู้ใช้ | เกณฑ์ | ควรเห็นอะไร |
+|------------|------|-----------|
+| **ผู้ใช้ใหม่** | < 3 scans | Tutorial overlay + ตัวอย่างผลลัพธ์ที่น่าประทับใจ + ยี่ห้อยอดนิยม |
+| **ผู้ใช้กลับมา** | 3–20 scans | ผลล่าสุด + นาฬิกาที่กำลังติดตาม + quota เหลือ |
+| **ผู้ใช้ตัวยง** | > 20 scans | สถิติคอลเลคชัน + แนวโน้มราคา + shortcut ไปฟีเจอร์ขั้นสูง |
+
+#### Implementation
+
+```typescript
+// อ่านผ่าน effectiveCaps() เสมอ — ห้ามอ่าน raw tier field
+const caps = effectiveCaps(userProfile);
+const scanCount = userProfile.totalScans;
+
+const getHomeScreen = () => {
+  if (scanCount < 3) return <NewUserHomeScreen />;
+  if (scanCount > 20) return <PowerUserDashboard />;
+  return <ReturningUserHomeScreen />;
+};
+```
+
+---
+
+### ทักษะที่ 20 — Smart Search UX
+
+#### หลักการ: ช่องค้นหาต้องไม่ว่างเปล่า
+
+เมื่อผู้ใช้แตะช่องค้นหา = "ช่วงเวลาแห่งความตั้งใจ" — ให้ช่วยเหลือทันที
+
+#### 3 ระดับตัวช่วย
+
+```
+ระดับ 1 — คำค้นล่าสุด (Recent):
+  "Rolex Submariner" | "AP Royal Oak" | "Omega Speedmaster"
+
+ระดับ 2 — ยอดนิยมในแอป (Popular):
+  ยอดนิยม: Rolex | Patek Philippe | Audemars Piguet | Hermès
+
+ระดับ 3 — แนะนำเฉพาะบุคคล (Personalized):
+  "คุณอาจสนใจ: Patek 5711" (จากประวัติ scan)
+```
+
+#### Pattern
+
+```tsx
+const SearchScreen = () => {
+  const [query, setQuery] = useState('');
+  const { t } = useLanguage();
+
+  return (
+    <View>
+      <TextInput placeholder={t('searchPlaceholder')} onChangeText={setQuery} />
+      {!query && (
+        <>
+          <RecentSearches />
+          <PopularBrands />
+          <PersonalizedSuggestions />
+        </>
+      )}
+      {query ? <SearchResults query={query} /> : null}
+    </View>
+  );
+};
+```
+
+---
+
+### ทักษะที่ 21 — Psychology of Conversion (จิตวิทยาการแปลงผู้ใช้)
+
+#### 4 หลักการจาก A/B Test จริง
+
+**1. Transparency Bias — ยิ่งบอกข้อเสียล่วงหน้า ผู้ใช้ยิ่งไว้ใจ**
+
+```
+❌ "สมาชิก Premium ฿1,990/เดือน"
+
+✅ ไทม์ไลน์ 3 ขั้น:
+   วันนี้  → เริ่มทดลองฟรี ไม่มีค่าใช้จ่าย
+   วันที่ 5 → เราส่ง reminder ก่อนหมดทดลอง
+   วันที่ 7 → เริ่มเก็บ ฿1,990 (ยกเลิกได้ทุกเมื่อ)
+```
+
+**2. Evaluative Ease — ยิ่งตัดสินใจง่าย ยิ่งมีโอกาสซื้อ**
+
+```
+❌ "฿800–฿1,200 ต่อการตรวจสอบ" ← สมองคำนวณ + ไม่แน่ใจ → ลังเล
+✅ "฿990/เดือน"                  ← เปรียบ 3 plan ได้ใน 2 วินาที → ตัดสินใจ
+```
+
+**3. Anchoring — ราคาอ้างอิงทำให้รู้สึกคุ้มกว่า**
+
+```tsx
+// ราคาขีดฆ่า + ราคาจริง + ป้าย % ลด
+<Text style={styles.strikePrice}>฿2,990</Text>
+<Text style={styles.realPrice}>฿1,990</Text>
+<Badge label="-33%" backgroundColor="#2E7D32" />
+```
+
+**4. Emotional Design — ทำให้ผู้ใช้ "รู้สึก" ไม่ใช่แค่ "รับรู้"**
+
+```
+❌ "Confidence: 97%, Status: REAL"    ← ข้อมูลล้วนๆ ไม่สร้างอารมณ์
+✅ Heatmap overlay บนรูปนาฬิกา       ← เห็นว่า AI วิเคราะห์จุดไหน
+   Badge "GENUINE" สีเขียวใหญ่เด่น   ← โล่งใจ, ตื่นเต้น
+   Haptic Success feedback            ← สัมผัสยืนยัน = ความรู้สึกจริง
+```
+
+> **"Paywall ที่ดีที่สุดคือหน้าที่ทำให้ผู้ใช้รู้สึก 'ปลอดภัย' ไม่ใช่ 'ถูกขาย'"**
+
+---
+
+### ทักษะที่ 22 — Figma Workflow & Shortcuts สำหรับ Solo Owner
+
+#### ลำดับการทำงาน Design System ที่ถูกต้อง
+
+```
+1. Brief + กลุ่มเป้าหมาย (ก่อนเปิด Figma)
+   ↓
+2. Color Styles (สีหลัก #B8860B, สีรอง, neutral, error #D32F2F)
+   ↓
+3. Text Styles (Display 32px → H1 24px → H2 20px → Body 16px → Caption 12px)
+   ↓
+4. Auto Layout สำหรับ Frame หลัก + Grid (4 columns)
+   ↓
+5. Component Library (Card, Button, Input, Badge, Tab Bar)
+   ↓
+6. Screen Composition (ใช้ components + styles ที่สร้างไว้)
+```
+
+#### 10 Figma Shortcut ที่ต้องรู้
+
+| Shortcut | วิธีใช้ | ใช้เพื่ออะไร |
+|---------|--------|-----------|
+| **Delete & Heal** | เลือกจุดบนเส้น → Shift+Delete | ลบจุดโดยไม่ตัดเส้น |
+| **Select All With** | Edit → Select all with… | เลือกทุก element ที่มี style เดียวกัน |
+| **Smart Selection** | เลือกหลายวัตถุเรียงแถว → ไอคอน Grid | จัดระยะ/สลับตำแหน่งทันที |
+| **Nudge Amount** | ลูกศร = 1px, Shift+ลูกศร = 10px | ปรับค่าใน Preferences (เช่น 8px grid) |
+| **Image as Style** | สร้าง style จากรูป | นำไปใช้กับ shape/text เหมือน color style |
+| **Arc Tool** | ลาก handle วงกลม | สร้าง progress arc หรือ donut chart |
+| **Multiple Fills** | เพิ่ม fill หลายชั้นบนรูป | gradient overlay โดยไม่เพิ่ม layer |
+| **Copy/Paste Properties** | คลิกขวา → Copy → Paste properties | ลอก style ข้ามวัตถุ |
+| **Ignore Auto Layout** | กด Space ค้างขณะลาก | ขยับอิสระชั่วคราวใน Auto Layout |
+| **Calculator in Fields** | พิมพ์สูตรในช่องค่า (`+16`, `÷2`, `*1.5`) | คำนวณ spacing โดยตรง |
+
+---
+
+## ส่วนที่ 6 — คลังหนังสือ UI/UX ฟรี (Reference Library)
 
 > Repository: [justinhartman/ui-ux-design-library](https://github.com/justinhartman/ui-ux-design-library)  
 > ⭐ 569 stars — คอลเลกชัน eBooks & PDFs ฟรีกว่า 80+ เล่ม จัดหมวดหมู่ครบ 12 หมวด
@@ -762,7 +1120,12 @@ Level 3 (Pro/Premium):  Heatmap overlay, AI Q&A, PDF export
 - [Top 3 UX/UI Redesigns That Make You Design Like a Pro — UXPeak](https://www.youtube.com/watch?v=zr37ibqXl1U)
 - [Top 5 Advanced UX/UI Design Tips – Part 3 — UXPeak](https://www.youtube.com/watch?v=Xzh8xjimmp8)
 - [How to Design a Great Bottom Mobile Navigation Bar – Part 6 — UXPeak](https://www.youtube.com/watch?v=wLJ40GV2XEc)
+- [Top 5 UX/UI Design Tips – Part 1 — UXPeak](https://www.youtube.com/watch?v=8pMUkEbAM7g)
+- [Junior to Senior UX/UI Designer — UXPeak](https://www.youtube.com/watch?v=YlN28RNChl0)
+- [Top 5 UX/UI Design Tips – Part 2 — UXPeak](https://www.youtube.com/watch?v=gG4urkinFQI)
+- [10 Game-Changing Figma Tips & Tricks — UXPeak](https://www.youtube.com/watch?v=GFYc5ZT-vFI)
 - [Bottom Navigation Bar Design Tips — UXPeak on Medium](https://medium.com/@uxpeak.com/top-ui-ux-design-tips-how-to-design-a-great-bottom-mobile-navigation-bar-part-6-97acd8b28453)
 - [UI/UX Design Library — justinhartman/ui-ux-design-library](https://github.com/justinhartman/ui-ux-design-library)
 - [Alignment in Design — UXPin](https://www.uxpin.com/studio/blog/alignment-in-design-making-text-and-visuals-more-appealing/)
 - [Typography in UX/UI — Supercharge Design](https://supercharge.design/blog/typography-in-ux-ui-a-complete-guide)
+- คู่มือออกแบบ Mobile App UX/UI ฉบับนักพัฒนาเดี่ยว — สังเคราะห์จากวิดีโอ UX Peak 9 ตอน (มิถุนายน 2569)

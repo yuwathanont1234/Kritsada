@@ -79,6 +79,7 @@ export type FamilyLink = {
 // Navigation
 export type TabParamList = {
   Home: undefined;
+  History: undefined;
   Family: undefined;
   Settings: undefined;
 };
@@ -86,6 +87,7 @@ export type TabParamList = {
 export type RootStackParamList = {
   Splash: undefined;
   Login: undefined;
+  Onboarding: undefined;
   MainTabs: NavigatorScreenParams<TabParamList>;
   Analysis: {
     content: string;

@@ -1,5 +1,5 @@
-import React from 'react';
-import { View, Text, ScrollView, Pressable, StyleSheet } from 'react-native';
+import React, { useCallback } from 'react';
+import { View, Text, ScrollView, Pressable, StyleSheet, Share } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { colors, spacing, radius, typography } from '../lib/theme';
@@ -31,6 +31,12 @@ export default function ResultScreen({ route, navigation }: Props) {
     disclaimer,
   } = response;
 
+  const riskLabel: Record<RiskLevel, string> = {
+    RED: t('result.red'),
+    YELLOW: t('result.yellow'),
+    GREEN: t('result.green'),
+  };
+
   const riskDesc: Record<RiskLevel, string> = {
     RED: t('result.redDesc'),
     YELLOW: t('result.yellowDesc'),
@@ -43,14 +49,31 @@ export default function ResultScreen({ route, navigation }: Props) {
     UNKNOWN: t('result.layer1Unknown'),
   };
 
+  const handleShare = useCallback(async () => {
+    const flagLines = red_flags.map((f) => `• ${f.headline}`).join('\n');
+    const lines = [
+      `🛡️ ${t('app.name')} — ${t('result.shareText')}`,
+      `${riskLabel[risk_level]} (${ai_score}/100)`,
+      flagLines ? `\n${t('result.flagsTitle')}:\n${flagLines}` : '',
+      `\n${what_to_do}`,
+    ].filter(Boolean);
+    await Share.share({ message: lines.join('\n') }).catch(() => {});
+  }, [risk_level, ai_score, red_flags, what_to_do, riskLabel, t]);
+
   const rc = RISK_COLOR[risk_level];
 
   return (
     <SafeAreaView style={styles.safe}>
       <ScrollView contentContainerStyle={styles.scroll}>
-        <Pressable onPress={() => navigation.goBack()} style={styles.back}>
-          <Text style={styles.backLabel}>‹ {t('common.back')}</Text>
-        </Pressable>
+        <View style={styles.topRow}>
+          <Pressable onPress={() => navigation.goBack()} style={styles.back}>
+            <Text style={styles.backLabel}>‹ {t('common.back')}</Text>
+          </Pressable>
+          <Pressable onPress={handleShare} style={styles.shareBtn}>
+            <Text style={styles.shareIcon}>⬆️</Text>
+            <Text style={styles.shareText}>{t('result.share')}</Text>
+          </Pressable>
+        </View>
 
         {/* Risk card */}
         <View style={[styles.riskCard, { borderColor: rc.border, backgroundColor: rc.bg }]}>
@@ -110,8 +133,24 @@ export default function ResultScreen({ route, navigation }: Props) {
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.background },
   scroll: { padding: spacing.lg, paddingBottom: spacing.xxl },
-  back: { marginBottom: spacing.md },
+  topRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: spacing.md,
+  },
+  back: {},
   backLabel: { ...typography.body, color: colors.primary },
+  shareBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.primaryLight,
+    borderRadius: radius.sm,
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+  },
+  shareIcon: { fontSize: 14, marginRight: 4 },
+  shareText: { fontSize: 13, fontWeight: '700', color: colors.primary },
   riskCard: {
     borderRadius: radius.lg,
     borderWidth: 2,

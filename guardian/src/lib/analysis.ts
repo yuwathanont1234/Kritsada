@@ -46,3 +46,16 @@ export async function getRecentChecks(): Promise<RecentCheck[]> {
     return [];
   }
 }
+
+export async function deleteCheck(id: string): Promise<void> {
+  try {
+    const existing = await getRecentChecks();
+    await AsyncStorage.setItem(RECENT_KEY, JSON.stringify(existing.filter((c) => c.id !== id)));
+  } catch {}
+}
+
+export async function clearHistory(): Promise<void> {
+  try {
+    await AsyncStorage.removeItem(RECENT_KEY);
+  } catch {}
+}

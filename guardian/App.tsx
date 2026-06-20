@@ -12,7 +12,9 @@ import { colors } from './src/lib/theme';
 import type { RootStackParamList, TabParamList } from './src/lib/types';
 import SplashScreen from './src/screens/SplashScreen';
 import LoginScreen from './src/screens/LoginScreen';
+import OnboardingScreen from './src/screens/OnboardingScreen';
 import HomeScreen from './src/screens/HomeScreen';
+import HistoryScreen from './src/screens/HistoryScreen';
 import AnalysisScreen from './src/screens/AnalysisScreen';
 import ResultScreen from './src/screens/ResultScreen';
 import RescueScreen from './src/screens/RescueScreen';
@@ -65,6 +67,15 @@ function MainTabs() {
         }}
       />
       <Tab.Screen
+        name="History"
+        component={HistoryScreen}
+        options={{
+          tabBarIcon: ({ focused }) => (
+            <TabIcon label={t('tab.history')} emoji="📋" focused={focused} />
+          ),
+        }}
+      />
+      <Tab.Screen
         name="Family"
         component={FamilyScreen}
         options={{
@@ -98,6 +109,7 @@ export default function App() {
           >
             <Stack.Screen name="Splash" component={SplashScreen} />
             <Stack.Screen name="Login" component={LoginScreen} />
+            <Stack.Screen name="Onboarding" component={OnboardingScreen} options={{ animation: 'fade' }} />
             <Stack.Screen
               name="MainTabs"
               component={MainTabs}

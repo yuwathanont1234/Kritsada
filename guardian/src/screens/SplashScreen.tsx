@@ -1,5 +1,6 @@
 import React, { useEffect } from 'react';
 import { View, Text, StyleSheet, ActivityIndicator } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { colors, spacing } from '../lib/theme';
 import { isAuthenticated } from '../lib/auth';
@@ -9,20 +10,28 @@ import type { RootStackParamList } from '../lib/types';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Splash'>;
 
+const ONBOARDED_KEY = '@guardian/onboarded';
+
 export default function SplashScreen({ navigation }: Props) {
   const { t } = useLang();
 
   useEffect(() => {
     let cancelled = false;
     (async () => {
-      // Checking scams never requires login; we only refresh the push token if
-      // a session already exists, then land on Home.
-      // 5 s timeout guards against a hung Supabase connection on first launch.
       const authTimeout = new Promise<boolean>((resolve) => setTimeout(() => resolve(false), 5000));
-      const authed = await Promise.race([isAuthenticated(), authTimeout]);
+      const [authed, onboarded] = await Promise.all([
+        Promise.race([isAuthenticated(), authTimeout]),
+        AsyncStorage.getItem(ONBOARDED_KEY),
+      ]);
       if (authed) registerForPush().catch(() => {});
       setTimeout(() => {
-        if (!cancelled) navigation.replace('MainTabs', { screen: 'Home' });
+        if (!cancelled) {
+          if (!onboarded) {
+            navigation.replace('Onboarding');
+          } else {
+            navigation.replace('MainTabs', { screen: 'Home' });
+          }
+        }
       }, 600);
     })();
     return () => {

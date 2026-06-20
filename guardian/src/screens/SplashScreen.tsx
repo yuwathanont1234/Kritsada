@@ -22,7 +22,7 @@ export default function SplashScreen({ navigation }: Props) {
       const authed = await Promise.race([isAuthenticated(), authTimeout]);
       if (authed) registerForPush().catch(() => {});
       setTimeout(() => {
-        if (!cancelled) navigation.replace('Home');
+        if (!cancelled) navigation.replace('MainTabs', { screen: 'Home' });
       }, 600);
     })();
     return () => {

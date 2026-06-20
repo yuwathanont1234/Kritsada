@@ -12,7 +12,8 @@ import {
   Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useFocusEffect } from '@react-navigation/native';
+import { useFocusEffect, CompositeScreenProps } from '@react-navigation/native';
+import { BottomTabScreenProps } from '@react-navigation/bottom-tabs';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import * as ImagePicker from 'expo-image-picker';
 import * as ImageManipulator from 'expo-image-manipulator';
@@ -21,9 +22,12 @@ import { getRecentChecks } from '../lib/analysis';
 import { InputSelector } from '../components/InputSelector';
 import { RiskBadge } from '../components/RiskBadge';
 import { useLang } from '../i18n/LangContext';
-import type { ContentType, RecentCheck, RootStackParamList } from '../lib/types';
+import type { ContentType, RecentCheck, RootStackParamList, TabParamList } from '../lib/types';
 
-type Props = NativeStackScreenProps<RootStackParamList, 'Home'>;
+type Props = CompositeScreenProps<
+  BottomTabScreenProps<TabParamList, 'Home'>,
+  NativeStackScreenProps<RootStackParamList>
+>;
 
 export default function HomeScreen({ navigation }: Props) {
   const { t, lang } = useLang();
@@ -100,13 +104,8 @@ export default function HomeScreen({ navigation }: Props) {
         <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
           {/* Header */}
           <View style={styles.headerRow}>
-            <View style={{ flex: 1 }}>
-              <Text style={styles.appName}>{t('app.name')}</Text>
-              <Text style={styles.subtitle}>{t('home.subtitle')}</Text>
-            </View>
-            <Pressable onPress={() => navigation.navigate('Settings')} hitSlop={10}>
-              <Text style={styles.gearIcon}>⚙️</Text>
-            </Pressable>
+            <Text style={styles.appName}>{t('app.name')}</Text>
+            <Text style={styles.subtitle}>{t('home.subtitle')}</Text>
           </View>
 
           {/* Mode selector */}
@@ -153,13 +152,6 @@ export default function HomeScreen({ navigation }: Props) {
             <Text style={styles.analyzeBtnText}>{t('home.analyzeButton')}</Text>
           </Pressable>
 
-          {/* Family entry */}
-          <Pressable style={styles.familyRow} onPress={() => navigation.navigate('Family')}>
-            <Text style={styles.familyIcon}>👨‍👩‍👧‍👦</Text>
-            <Text style={styles.familyLabel}>{t('home.family')}</Text>
-            <Text style={styles.familyArrow}>›</Text>
-          </Pressable>
-
           {/* Recent */}
           <Text style={styles.sectionTitle}>{t('home.recentTitle')}</Text>
           {loadingRecent ? (
@@ -191,10 +183,9 @@ export default function HomeScreen({ navigation }: Props) {
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.background },
   scroll: { padding: spacing.lg, paddingBottom: spacing.xxl },
-  headerRow: { flexDirection: 'row', alignItems: 'flex-start', marginBottom: spacing.lg },
+  headerRow: { marginBottom: spacing.lg },
   appName: { ...typography.h1, color: colors.primary },
   subtitle: { ...typography.caption, marginTop: 4, lineHeight: 20 },
-  gearIcon: { fontSize: 22, marginTop: 4 },
   inputArea: { marginVertical: spacing.md },
   textInput: {
     backgroundColor: colors.inputBg,
@@ -227,19 +218,6 @@ const styles = StyleSheet.create({
   },
   analyzeBtnText: { fontSize: 16, fontWeight: '700', color: colors.textOnPrimary, letterSpacing: 0.3 },
   btnDisabled: { opacity: 0.5 },
-  familyRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: colors.surface,
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: radius.md,
-    padding: spacing.md,
-    marginTop: spacing.md,
-  },
-  familyIcon: { fontSize: 22, marginRight: spacing.sm },
-  familyLabel: { flex: 1, ...typography.bodyBold, color: colors.text },
-  familyArrow: { fontSize: 24, color: colors.textMuted },
   sectionTitle: { ...typography.h3, marginTop: spacing.xl, marginBottom: spacing.md },
   emptyText: { ...typography.body, color: colors.textMuted, textAlign: 'center', marginTop: spacing.md },
   recentRow: {

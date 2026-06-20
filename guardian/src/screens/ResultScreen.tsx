@@ -99,7 +99,7 @@ export default function ResultScreen({ route, navigation }: Props) {
         {!!disclaimer && <Text style={styles.disclaimer}>{disclaimer}</Text>}
 
         {/* Check again */}
-        <Pressable style={styles.againBtn} onPress={() => navigation.navigate('Home')}>
+        <Pressable style={styles.againBtn} onPress={() => navigation.navigate('MainTabs', { screen: 'Home' })}>
           <Text style={styles.againLabel}>{t('result.checkAgain')}</Text>
         </Pressable>
       </ScrollView>

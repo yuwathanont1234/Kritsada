@@ -1,15 +1,19 @@
 import React, { useState, useCallback } from 'react';
 import { View, Text, ScrollView, Pressable, StyleSheet } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useFocusEffect } from '@react-navigation/native';
+import { useFocusEffect, CompositeScreenProps } from '@react-navigation/native';
+import { BottomTabScreenProps } from '@react-navigation/bottom-tabs';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { colors, spacing, radius, typography } from '../lib/theme';
 import { getCurrentEmail, isAuthenticated, logout } from '../lib/auth';
 import { useLang } from '../i18n/LangContext';
 import type { Language } from '../i18n/strings';
-import type { RootStackParamList } from '../lib/types';
+import type { RootStackParamList, TabParamList } from '../lib/types';
 
-type Props = NativeStackScreenProps<RootStackParamList, 'Settings'>;
+type Props = CompositeScreenProps<
+  BottomTabScreenProps<TabParamList, 'Settings'>,
+  NativeStackScreenProps<RootStackParamList>
+>;
 
 export default function SettingsScreen({ navigation }: Props) {
   const { t, lang, setLang } = useLang();
@@ -50,10 +54,6 @@ export default function SettingsScreen({ navigation }: Props) {
   return (
     <SafeAreaView style={styles.safe}>
       <ScrollView contentContainerStyle={styles.scroll}>
-        <Pressable onPress={() => navigation.goBack()} style={styles.back}>
-          <Text style={styles.backLabel}>‹ {t('common.back')}</Text>
-        </Pressable>
-
         <Text style={styles.title}>{t('settings.title')}</Text>
 
         {/* Language */}
@@ -93,8 +93,6 @@ export default function SettingsScreen({ navigation }: Props) {
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.background },
   scroll: { padding: spacing.lg, paddingBottom: spacing.xxl },
-  back: { marginBottom: spacing.md },
-  backLabel: { ...typography.body, color: colors.primary },
   title: { ...typography.h1, marginBottom: spacing.lg },
   sectionTitle: { ...typography.small, color: colors.textMuted, marginBottom: spacing.sm, marginTop: spacing.md },
   card: {

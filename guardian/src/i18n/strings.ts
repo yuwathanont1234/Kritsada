@@ -9,6 +9,11 @@ export const strings = {
       name: 'ผู้พิทักษ์',
       tagline: 'ตรวจสอบก่อนโอน ป้องกันก่อนสาย',
     },
+    tab: {
+      home: 'ตรวจสอบ',
+      family: 'ครอบครัว',
+      settings: 'ตั้งค่า',
+    },
     auth: {
       loginTitle: 'ยินดีต้อนรับสู่ผู้พิทักษ์',
       loginSubtitle: 'เข้าสู่ระบบเพื่อใช้โหมดครอบครัวและรับการแจ้งเตือน',
@@ -162,6 +167,11 @@ export const strings = {
     app: {
       name: 'Guardian',
       tagline: 'Check before you transfer. Protect before it’s too late.',
+    },
+    tab: {
+      home: 'Check',
+      family: 'Family',
+      settings: 'Settings',
     },
     auth: {
       loginTitle: 'Welcome to Guardian',

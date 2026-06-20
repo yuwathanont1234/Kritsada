@@ -1,6 +1,8 @@
 // Shared types for the Guardian client. The analysis shapes mirror the
 // guardian-analyze Edge Function's request/response exactly.
 
+import type { NavigatorScreenParams } from '@react-navigation/native';
+
 export type ContentType = 'text' | 'image';
 
 export type IdType = 'phone' | 'bank_account' | 'promptpay' | 'url' | 'entity_name';
@@ -75,10 +77,16 @@ export type FamilyLink = {
 };
 
 // Navigation
+export type TabParamList = {
+  Home: undefined;
+  Family: undefined;
+  Settings: undefined;
+};
+
 export type RootStackParamList = {
   Splash: undefined;
   Login: undefined;
-  Home: undefined;
+  MainTabs: NavigatorScreenParams<TabParamList>;
   Analysis: {
     content: string;
     content_type: ContentType;
@@ -89,6 +97,4 @@ export type RootStackParamList = {
     content_preview: string;
   };
   Rescue: undefined;
-  Family: undefined;
-  Settings: undefined;
 };

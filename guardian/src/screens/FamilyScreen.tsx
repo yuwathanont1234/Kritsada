@@ -10,7 +10,8 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useFocusEffect } from '@react-navigation/native';
+import { useFocusEffect, CompositeScreenProps } from '@react-navigation/native';
+import { BottomTabScreenProps } from '@react-navigation/bottom-tabs';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import * as Clipboard from 'expo-clipboard';
 import { colors, spacing, radius, typography } from '../lib/theme';
@@ -24,9 +25,12 @@ import {
 } from '../lib/family';
 import { registerForPush } from '../lib/notifications';
 import { useLang } from '../i18n/LangContext';
-import type { FamilyLink, RootStackParamList } from '../lib/types';
+import type { FamilyLink, RootStackParamList, TabParamList } from '../lib/types';
 
-type Props = NativeStackScreenProps<RootStackParamList, 'Family'>;
+type Props = CompositeScreenProps<
+  BottomTabScreenProps<TabParamList, 'Family'>,
+  NativeStackScreenProps<RootStackParamList>
+>;
 
 export default function FamilyScreen({ navigation }: Props) {
   const { t } = useLang();
@@ -131,9 +135,6 @@ export default function FamilyScreen({ navigation }: Props) {
   if (authed === false) {
     return (
       <SafeAreaView style={styles.safe}>
-        <Pressable onPress={() => navigation.goBack()} style={styles.back}>
-          <Text style={styles.backLabel}>‹ {t('common.back')}</Text>
-        </Pressable>
         <View style={styles.center}>
           <Text style={styles.icon}>👨‍👩‍👧‍👦</Text>
           <Text style={styles.title}>{t('family.title')}</Text>
@@ -150,9 +151,6 @@ export default function FamilyScreen({ navigation }: Props) {
   if (authed === null) {
     return (
       <SafeAreaView style={styles.safe}>
-        <Pressable onPress={() => navigation.goBack()} style={styles.back}>
-          <Text style={styles.backLabel}>‹ {t('common.back')}</Text>
-        </Pressable>
         <View style={styles.center}>
           <ActivityIndicator color={colors.primary} />
         </View>
@@ -164,10 +162,6 @@ export default function FamilyScreen({ navigation }: Props) {
   return (
     <SafeAreaView style={styles.safe}>
       <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
-        <Pressable onPress={() => navigation.goBack()} style={styles.back}>
-          <Text style={styles.backLabel}>‹ {t('common.back')}</Text>
-        </Pressable>
-
         <Text style={styles.title}>{t('family.title')}</Text>
         <Text style={styles.intro}>{t('family.intro')}</Text>
 
@@ -254,8 +248,6 @@ export default function FamilyScreen({ navigation }: Props) {
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.background },
   scroll: { padding: spacing.lg, paddingBottom: spacing.xxl },
-  back: { padding: spacing.lg, paddingBottom: 0 },
-  backLabel: { ...typography.body, color: colors.primary },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: spacing.xl },
   icon: { fontSize: 64, marginBottom: spacing.lg },
   title: { ...typography.h1, marginBottom: spacing.sm },

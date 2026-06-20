@@ -341,13 +341,20 @@ async function logAnalysis(admin: any, row: Record<string, unknown>): Promise<vo
   catch (e: any) { console.warn('[guardian-analyze] log failed:', e?.message) }
 }
 
-function background(p: Promise<unknown>) {
+function background(p: Promise<unknown> | PromiseLike<unknown>) {
+  // supabase-js query builders are LAZY thenables: the HTTP request only fires
+  // once `.then()` is invoked. Handing a raw builder to EdgeRuntime.waitUntil()
+  // does not reliably trigger that, so the write silently never runs (this is
+  // why the awaited log insert persisted but the cache upsert/rpc did not).
+  // Promise.resolve() adopts the thenable here and now, forcing execution, and
+  // also swallows errors so a failed background task never crashes the worker.
+  const run = Promise.resolve(p).catch((e: any) =>
+    console.warn('[guardian-analyze] background task failed:', e?.message)
+  )
   // @ts-ignore EdgeRuntime is injected by Supabase Edge runtime
   if (typeof EdgeRuntime !== 'undefined' && EdgeRuntime?.waitUntil) {
-    // @ts-ignore
-    EdgeRuntime.waitUntil(p)
-  } else {
-    Promise.resolve(p).catch(() => {})
+    // @ts-ignore — keep the worker alive until the (already in-flight) task settles
+    EdgeRuntime.waitUntil(run)
   }
 }
 

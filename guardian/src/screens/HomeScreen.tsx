@@ -8,6 +8,8 @@ import {
   StyleSheet,
   ActivityIndicator,
   Alert,
+  KeyboardAvoidingView,
+  Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
@@ -35,12 +37,16 @@ export default function HomeScreen({ navigation }: Props) {
   useFocusEffect(
     useCallback(() => {
       let active = true;
-      getRecentChecks().then((checks) => {
-        if (active) {
-          setRecent(checks);
-          setLoadingRecent(false);
-        }
-      });
+      getRecentChecks()
+        .then((checks) => {
+          if (active) {
+            setRecent(checks);
+            setLoadingRecent(false);
+          }
+        })
+        .catch(() => {
+          if (active) setLoadingRecent(false);
+        });
       return () => {
         active = false;
       };
@@ -86,94 +92,99 @@ export default function HomeScreen({ navigation }: Props) {
   const canAnalyze = mode === 'text' ? text.trim().length > 0 : imageBase64 !== null;
 
   return (
-    <SafeAreaView style={styles.safe}>
-      <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
-        {/* Header */}
-        <View style={styles.headerRow}>
-          <View style={{ flex: 1 }}>
-            <Text style={styles.appName}>{t('app.name')}</Text>
-            <Text style={styles.subtitle}>{t('home.subtitle')}</Text>
-          </View>
-          <Pressable onPress={() => navigation.navigate('Settings')} hitSlop={10}>
-            <Text style={styles.gearIcon}>⚙️</Text>
-          </Pressable>
-        </View>
-
-        {/* Mode selector */}
-        <InputSelector
-          selected={mode}
-          onSelect={(m) => {
-            setMode(m);
-            setImageBase64(null);
-            setText('');
-          }}
-          labelText={t('home.inputModeText')}
-          labelImage={t('home.inputModeImage')}
-        />
-
-        {/* Input area */}
-        <View style={styles.inputArea}>
-          {mode === 'text' ? (
-            <TextInput
-              style={styles.textInput}
-              multiline
-              placeholder={t('home.textPlaceholder')}
-              placeholderTextColor={colors.textMuted}
-              value={text}
-              onChangeText={setText}
-              textAlignVertical="top"
-              autoCorrect={false}
-            />
-          ) : (
-            <Pressable style={styles.imagePicker} onPress={pickImage}>
-              <Text style={styles.imagePickerIcon}>{imageBase64 ? '✅' : '🖼️'}</Text>
-              <Text style={styles.imagePickerLabel}>
-                {imageBase64 ? t('home.imageSelected') : t('home.pickImage')}
-              </Text>
-            </Pressable>
-          )}
-        </View>
-
-        {/* Analyze */}
-        <Pressable
-          style={[styles.analyzeBtn, !canAnalyze && styles.btnDisabled]}
-          onPress={handleAnalyze}
-          disabled={!canAnalyze}
-        >
-          <Text style={styles.analyzeBtnText}>{t('home.analyzeButton')}</Text>
-        </Pressable>
-
-        {/* Family entry */}
-        <Pressable style={styles.familyRow} onPress={() => navigation.navigate('Family')}>
-          <Text style={styles.familyIcon}>👨‍👩‍👧‍👦</Text>
-          <Text style={styles.familyLabel}>{t('home.family')}</Text>
-          <Text style={styles.familyArrow}>›</Text>
-        </Pressable>
-
-        {/* Recent */}
-        <Text style={styles.sectionTitle}>{t('home.recentTitle')}</Text>
-        {loadingRecent ? (
-          <ActivityIndicator color={colors.primary} style={{ marginTop: spacing.md }} />
-        ) : recent.length === 0 ? (
-          <Text style={styles.emptyText}>{t('home.recentEmpty')}</Text>
-        ) : (
-          recent.map((check) => (
-            <View key={check.id} style={styles.recentRow}>
-              <RiskBadge level={check.risk_level} size="sm" />
-              <Text style={styles.recentPreview} numberOfLines={1}>
-                {check.content_preview}
-              </Text>
-              <Text style={styles.recentDate}>
-                {new Date(check.created_at).toLocaleDateString(lang === 'th' ? 'th-TH' : 'en-US', {
-                  month: 'short',
-                  day: 'numeric',
-                })}
-              </Text>
+    <KeyboardAvoidingView
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      style={{ flex: 1 }}
+    >
+      <SafeAreaView style={styles.safe}>
+        <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
+          {/* Header */}
+          <View style={styles.headerRow}>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.appName}>{t('app.name')}</Text>
+              <Text style={styles.subtitle}>{t('home.subtitle')}</Text>
             </View>
-          ))
-        )}
-      </ScrollView>
-    </SafeAreaView>
+            <Pressable onPress={() => navigation.navigate('Settings')} hitSlop={10}>
+              <Text style={styles.gearIcon}>⚙️</Text>
+            </Pressable>
+          </View>
+
+          {/* Mode selector */}
+          <InputSelector
+            selected={mode}
+            onSelect={(m) => {
+              setMode(m);
+              setImageBase64(null);
+              setText('');
+            }}
+            labelText={t('home.inputModeText')}
+            labelImage={t('home.inputModeImage')}
+          />
+
+          {/* Input area */}
+          <View style={styles.inputArea}>
+            {mode === 'text' ? (
+              <TextInput
+                style={styles.textInput}
+                multiline
+                placeholder={t('home.textPlaceholder')}
+                placeholderTextColor={colors.textMuted}
+                value={text}
+                onChangeText={setText}
+                textAlignVertical="top"
+                autoCorrect={false}
+              />
+            ) : (
+              <Pressable style={styles.imagePicker} onPress={pickImage}>
+                <Text style={styles.imagePickerIcon}>{imageBase64 ? '✅' : '🖼️'}</Text>
+                <Text style={styles.imagePickerLabel}>
+                  {imageBase64 ? t('home.imageSelected') : t('home.pickImage')}
+                </Text>
+              </Pressable>
+            )}
+          </View>
+
+          {/* Analyze */}
+          <Pressable
+            style={[styles.analyzeBtn, !canAnalyze && styles.btnDisabled]}
+            onPress={handleAnalyze}
+            disabled={!canAnalyze}
+          >
+            <Text style={styles.analyzeBtnText}>{t('home.analyzeButton')}</Text>
+          </Pressable>
+
+          {/* Family entry */}
+          <Pressable style={styles.familyRow} onPress={() => navigation.navigate('Family')}>
+            <Text style={styles.familyIcon}>👨‍👩‍👧‍👦</Text>
+            <Text style={styles.familyLabel}>{t('home.family')}</Text>
+            <Text style={styles.familyArrow}>›</Text>
+          </Pressable>
+
+          {/* Recent */}
+          <Text style={styles.sectionTitle}>{t('home.recentTitle')}</Text>
+          {loadingRecent ? (
+            <ActivityIndicator color={colors.primary} style={{ marginTop: spacing.md }} />
+          ) : recent.length === 0 ? (
+            <Text style={styles.emptyText}>{t('home.recentEmpty')}</Text>
+          ) : (
+            recent.map((check) => (
+              <View key={check.id} style={styles.recentRow}>
+                <RiskBadge level={check.risk_level} size="sm" />
+                <Text style={styles.recentPreview} numberOfLines={1}>
+                  {check.content_preview}
+                </Text>
+                <Text style={styles.recentDate}>
+                  {new Date(check.created_at).toLocaleDateString(lang === 'th' ? 'th-TH' : 'en-US', {
+                    month: 'short',
+                    day: 'numeric',
+                  })}
+                </Text>
+              </View>
+            ))
+          )}
+        </ScrollView>
+      </SafeAreaView>
+    </KeyboardAvoidingView>
   );
 }
 
@@ -215,7 +226,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   analyzeBtnText: { fontSize: 16, fontWeight: '700', color: colors.textOnPrimary, letterSpacing: 0.3 },
-  btnDisabled: { opacity: 0.45 },
+  btnDisabled: { opacity: 0.5 },
   familyRow: {
     flexDirection: 'row',
     alignItems: 'center',

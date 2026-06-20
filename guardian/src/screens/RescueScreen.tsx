@@ -86,7 +86,7 @@ const styles = StyleSheet.create({
     marginBottom: spacing.md,
   },
   hotlineIcon: { fontSize: 32, marginRight: spacing.md },
-  hotlineLabel: { fontSize: 18, fontWeight: '800', color: '#FFFFFF', marginBottom: 4 },
+  hotlineLabel: { fontSize: 18, fontWeight: '800', color: colors.textOnPrimary, marginBottom: 4 },
   hotlineDesc: { fontSize: 13, color: 'rgba(255,255,255,0.9)', lineHeight: 19 },
   card: {
     backgroundColor: colors.surface,

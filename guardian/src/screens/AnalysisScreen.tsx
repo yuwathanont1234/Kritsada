@@ -17,9 +17,10 @@ export default function AnalysisScreen({ route, navigation }: Props) {
   const { content, content_type, identifiers = [] } = route.params;
   const [step, setStep] = useState(0);
   const [error, setError] = useState<string | null>(null);
+  const [retryCount, setRetryCount] = useState(0);
   const spin = useRef(new Animated.Value(0)).current;
 
-  // Spinner.
+  // Spinner — runs once and loops forever.
   useEffect(() => {
     const anim = Animated.loop(
       Animated.timing(spin, { toValue: 1, duration: 1400, easing: Easing.linear, useNativeDriver: true })
@@ -28,17 +29,18 @@ export default function AnalysisScreen({ route, navigation }: Props) {
     return () => anim.stop();
   }, [spin]);
 
-  // Visual step progression (independent of the real call's timing).
+  // Visual step progression resets on each retry.
   useEffect(() => {
+    setStep(0);
     const a = setTimeout(() => setStep(1), 1100);
     const b = setTimeout(() => setStep(2), 2600);
     return () => {
       clearTimeout(a);
       clearTimeout(b);
     };
-  }, []);
+  }, [retryCount]);
 
-  // Fire the analysis once on mount.
+  // Fire the analysis on mount and on each retry.
   useEffect(() => {
     let cancelled = false;
     analyzeContent({ content, content_type, identifiers })
@@ -64,7 +66,7 @@ export default function AnalysisScreen({ route, navigation }: Props) {
       cancelled = true;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [retryCount]);
 
   const rotate = spin.interpolate({ inputRange: [0, 1], outputRange: ['0deg', '360deg'] });
 
@@ -75,8 +77,14 @@ export default function AnalysisScreen({ route, navigation }: Props) {
           <Text style={styles.errorIcon}>⚠️</Text>
           <Text style={styles.errorTitle}>{t('error.title')}</Text>
           <Text style={styles.errorMsg}>{t('error.analysisFailed')}</Text>
-          <Pressable style={styles.retryBtn} onPress={() => navigation.goBack()}>
+          <Pressable
+            style={styles.retryBtn}
+            onPress={() => { setError(null); setRetryCount((c) => c + 1); }}
+          >
             <Text style={styles.retryLabel}>{t('error.retry')}</Text>
+          </Pressable>
+          <Pressable style={styles.backLink} onPress={() => navigation.goBack()}>
+            <Text style={styles.backLinkLabel}>‹ {t('common.back')}</Text>
           </Pressable>
         </View>
       </SafeAreaView>
@@ -121,4 +129,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.xl,
   },
   retryLabel: { fontSize: 15, fontWeight: '700', color: colors.textOnPrimary },
+  backLink: { marginTop: spacing.md },
+  backLinkLabel: { ...typography.body, color: colors.textMuted },
 });

@@ -48,7 +48,7 @@ export default function ResultScreen({ route, navigation }: Props) {
   return (
     <SafeAreaView style={styles.safe}>
       <ScrollView contentContainerStyle={styles.scroll}>
-        <Pressable onPress={() => navigation.navigate('Home')} style={styles.back}>
+        <Pressable onPress={() => navigation.goBack()} style={styles.back}>
           <Text style={styles.backLabel}>‹ {t('common.back')}</Text>
         </Pressable>
 
@@ -96,7 +96,7 @@ export default function ResultScreen({ route, navigation }: Props) {
         </View>
 
         {/* Disclaimer */}
-        <Text style={styles.disclaimer}>{disclaimer}</Text>
+        {!!disclaimer && <Text style={styles.disclaimer}>{disclaimer}</Text>}
 
         {/* Check again */}
         <Pressable style={styles.againBtn} onPress={() => navigation.navigate('Home')}>
@@ -144,8 +144,8 @@ const styles = StyleSheet.create({
     marginBottom: spacing.md,
   },
   rescueIcon: { fontSize: 22, marginRight: spacing.sm },
-  rescueLabel: { flex: 1, fontSize: 15, fontWeight: '700', color: '#FFFFFF' },
-  rescueArrow: { fontSize: 24, color: '#FFFFFF' },
+  rescueLabel: { flex: 1, fontSize: 15, fontWeight: '700', color: colors.textOnPrimary },
+  rescueArrow: { fontSize: 24, color: colors.textOnPrimary },
   sectionTitle: { ...typography.h3, marginTop: spacing.md, marginBottom: spacing.sm },
   noFlags: { ...typography.body, color: colors.textMuted, marginBottom: spacing.sm },
   disclaimer: {

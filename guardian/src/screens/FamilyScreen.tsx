@@ -80,8 +80,8 @@ export default function FamilyScreen({ navigation }: Props) {
   };
 
   const handleRedeem = async () => {
-    if (codeInput.trim().length < 6) {
-      Alert.alert('', t('error.otpRequired'));
+    if (codeInput.trim().length < 8) {
+      Alert.alert('', t('family.codeRequired'));
       return;
     }
     setBusy(true);
@@ -105,12 +105,12 @@ export default function FamilyScreen({ navigation }: Props) {
       await setNotifyOn(link.id, has ? [] : ['RED']);
       await refreshLinks();
     } catch {
-      /* ignore */
+      Alert.alert(t('error.title'), t('error.networkFailed'));
     }
   };
 
   const handleRemove = (link: FamilyLink) => {
-    Alert.alert(t('family.remove'), '', [
+    Alert.alert(t('family.removeTitle'), t('family.removeConfirm'), [
       { text: t('common.cancel'), style: 'cancel' },
       {
         text: t('family.remove'),
@@ -120,7 +120,7 @@ export default function FamilyScreen({ navigation }: Props) {
             await removeLink(link.id);
             await refreshLinks();
           } catch {
-            /* ignore */
+            Alert.alert(t('error.title'), t('error.networkFailed'));
           }
         },
       },
@@ -150,6 +150,9 @@ export default function FamilyScreen({ navigation }: Props) {
   if (authed === null) {
     return (
       <SafeAreaView style={styles.safe}>
+        <Pressable onPress={() => navigation.goBack()} style={styles.back}>
+          <Text style={styles.backLabel}>‹ {t('common.back')}</Text>
+        </Pressable>
         <View style={styles.center}>
           <ActivityIndicator color={colors.primary} />
         </View>
